@@ -22,6 +22,7 @@ yarn test -- app.controller     # un seul fichier de test (match sur le nom)
 yarn test:e2e                   # jest --config ./test/jest-e2e.json
 yarn prisma generate            # OBLIGATOIRE après toute modif du schema
 yarn prisma migrate dev --name <nom>
+yarn seed                       # prisma db seed -> prisma/seed.ts
 ```
 
 Frontend (`cd frontend`) : `yarn dev`, `yarn build`, `yarn lint`.
@@ -42,9 +43,9 @@ src/<domaine>/
   dto/<action>-<x>.dto.ts   # validation class-validator
 ```
 
-Modules existants : `cart`, `orders`, `reviews`, `resellers`, `posts`. `PrismaService` est fourni par `src/prisma/`, déclaré `@Global()` : il s'injecte directement dans n'importe quel service sans réimporter `PrismaModule`.
+Modules existants : `categories`, `products`, `cart`, `orders`, `reviews`, `resellers`, `posts`. `PrismaService` est fourni par `src/prisma/`, déclaré `@Global()` : il s'injecte directement dans n'importe quel service sans réimporter `PrismaModule`.
 
-**Le catalogue n'est pas encore implémenté.** `Category`, `Product`, `Vendor`, `Promotion` existent dans le schéma mais n'ont ni module ni route : il n'y a aujourd'hui aucun moyen de créer un produit via l'API.
+`Vendor` et `Promotion` n'ont pas de module dédié : ils se peuplent uniquement par le seed, et se lisent via les produits (`vendorId` filtre `GET /products`).
 
 ### Règles non négociables
 
@@ -65,6 +66,10 @@ Le `ValidationPipe` global est configuré dans `src/main.ts` avec `whitelist`, `
 
 En l'état la chaîne de certificats n'est pas vérifiée — conforme à la sémantique libpq de `require`, mais à durcir en production : renseigner `DATABASE_CA_CERT` avec le CA Aiven et passer l'URL en `verify-full`. Le code emprunte déjà cette branche dès que la variable est présente.
 
+**3. Le `maxWait` par défaut de `$transaction` (2 s) est trop court pour Aiven.** pg-pool ferme les connexions inactives au bout de 10 s ; rouvrir vers une base distante (TCP + handshake TLS) dépasse 2 s, et la première requête après une pause échouait en `Transaction API error: Unable to start a transaction in the given time`. `PrismaService` passe donc `transactionOptions: { maxWait: 15_000, timeout: 30_000 }` au client — ne pas le retirer sans rapprocher la base.
+
+Ordre de grandeur à garder en tête : ~2 s pour un `GET /products` (deux requêtes dans un `$transaction`), ~5 s quand la connexion doit être rouverte. C'est la latence réseau vers Aiven, pas le code.
+
 Les colonnes monétaires sont des `Decimal` : faire les calculs avec `Prisma.Decimal` (`.mul()`, `.add()`), jamais avec les opérateurs arithmétiques JS.
 
 ### Conventions métier encodées dans le schéma
@@ -73,6 +78,19 @@ Les colonnes monétaires sont des `Decimal` : faire les calculs avec `Prisma.Dec
 - `order_items` fige `productName` et `unitPrice` au moment de la commande : une commande ne doit pas bouger si le produit change ensuite.
 - Les avis sont créés en `pending` et ne sont visibles publiquement qu'une fois `approved`. La modération ne mène qu'à un état terminal (`approved` / `rejected`), jamais retour à `pending`.
 - Les likes d'articles sont idempotents via la contrainte unique `[postId, sessionId]` ; `likesCount` n'est incrémenté que lorsque la ligne est réellement créée.
+
+## Seed
+
+`prisma/seed.ts`, branché via `migrations.seed` dans `prisma.config.ts` (Prisma 7 : plus de clé `prisma.seed` dans `package.json`). Il tourne sous `ts-node` forcé en CommonJS, et réutilise `PrismaService` directement — pas de second `PrismaClient` à maintenir avec la config TLS.
+
+Contenu : 8 catégories (arborescentes), 5 vendeurs, 15 produits avec images, specs, relations `similar` / `frequently_bought_together`, 3 promotions dont une expirée, 8 avis couvrant les trois statuts de modération, 5 revendeurs, 4 articles dont un brouillon, et une commande de démonstration.
+
+Deux comportements à connaître avant de le modifier :
+
+- Il est **rejouable** : il purge le périmètre catalogue + contenu puis le recrée. L'ordre des `deleteMany` suit les contraintes — les produits partent avant les catégories (`onDelete: Restrict`).
+- Il ne purge **jamais** les commandes ni les clients, et ne crée la commande de démonstration que si `order.count()` vaut 0. Un re-seed laisse donc les commandes existantes avec un `productId` à `NULL` sur leurs lignes : c'est exactement la convention `order_items` ci-dessus, le nom et le prix restent figés.
+
+Les relations `similar` sont écrites dans les deux sens (`findRelated` filtre sur `productId`, la relation est dirigée) ; `frequently_bought_together` reste dirigée.
 
 ## Frontend
 

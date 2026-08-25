@@ -57,7 +57,15 @@ export class PrismaService
     }
 
     // Prisma 7 exige un driver adapter pour se connecter a PostgreSQL.
-    super({ adapter: new PrismaPg(buildConnectionConfig(rawUrl)) });
+    super({
+      adapter: new PrismaPg(buildConnectionConfig(rawUrl)),
+      // La base Aiven est distante : ouvrir une connexion (TCP + handshake TLS)
+      // depasse le `maxWait` par defaut de 2 s. Comme pg-pool ferme les
+      // connexions inactives au bout de 10 s, la premiere requete apres une
+      // pause devait rouvrir et echouait en "Unable to start a transaction in
+      // the given time". On laisse donc le temps d'etablir la connexion.
+      transactionOptions: { maxWait: 15_000, timeout: 30_000 },
+    });
   }
 
   async onModuleInit() {
