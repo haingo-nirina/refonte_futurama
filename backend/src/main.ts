@@ -1,3 +1,7 @@
+// Charge .env dans process.env avant l'evaluation d'AppModule : PrismaService
+// lit DATABASE_URL des son constructeur. Nest ne charge aucun .env tout seul.
+import 'dotenv/config';
+
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
