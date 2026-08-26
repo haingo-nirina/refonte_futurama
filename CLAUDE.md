@@ -27,7 +27,7 @@ yarn seed                       # prisma db seed -> prisma/seed.ts
 
 Frontend (`cd frontend`) : `yarn dev`, `yarn build`, `yarn lint`.
 
-**Collision de port :** le backend (`PORT ?? 3000`) et `next dev` écoutent tous deux sur 3000. Lancer le backend avec un `PORT` explicite quand les deux tournent ensemble.
+**Répartition des ports :** `next dev` garde 3000, le backend est fixé à 3001 par `PORT` dans `backend/.env`. Sans cette variable les deux retombent sur 3000 (`PORT ?? 3000`) et se marchent dessus.
 
 Le binaire buildé est `dist/src/main.js`, pas `dist/main.js` — le script `start:prod` hérité du scaffold pointe sur le mauvais chemin.
 
@@ -94,6 +94,24 @@ Les relations `similar` sont écrites dans les deux sens (`findRelated` filtre s
 
 ## Frontend
 
-Encore au stade scaffold `create-next-app` : seul `app/page.tsx` existe, aucune intégration avec l'API backend.
+MVP e-commerce : accueil (rayons), catalogue paginé par rayon, fiche produit, panier et confirmation de commande. Le reste de la maquette (chatbot, live shopping, blog, avis, revendeurs) n'est pas implémenté.
+
+`maquette/refonte-site-Futurama-v1.3.html` est la référence visuelle. C'est un bundle Claude Design : le HTML lisible est dans son `<script type="__bundler/template">`, en JSON. La palette et les fontes (Archivo pour les titres, DM Sans pour le texte) en sont extraites et vivent dans les tokens `@theme` de `app/globals.css`.
+
+### Accès à l'API
+
+Le backend n'a **ni préfixe global ni CORS**. Il est monté derrière `/api` par un rewrite dans `next.config.ts`, ce qui garde les appels navigateur same-origin — donc pas de CORS à activer côté Nest. `lib/api.ts` en tient compte : côté serveur il tape directement `BACKEND_URL`, côté navigateur il passe par `/api`. Tout `fetch` passe par ce module, jamais par un composant.
+
+Deux limites de l'API que le catalogue contourne côté front, à remplacer par un vrai filtre backend le jour où le catalogue grossit :
+
+- `GET /products?categoryId=` ne filtre que sur une catégorie exacte : ouvrir un rayon parent oblige à charger le catalogue et filtrer sur l'ensemble parent + enfants ;
+- il n'y a pas de recherche par nom : la recherche du header renvoie sur `/catalogue/tous?q=`, filtré de la même façon. `limit` est plafonné à 100 côté DTO.
+
+### Conventions
+
+- Server Components par défaut. Les Client Components se limitent à l'interactivité réelle : recherche, badge panier, galerie, quantité/ajout, page panier, formulaire de commande.
+- Le visiteur est identifié par un `session_id` généré et stocké en localStorage (`lib/session.ts`). Après toute mutation du panier, appeler `notifyCartUpdated()` : le badge du header écoute cet événement.
+- Les montants arrivent en **chaîne** (`Decimal` Prisma sérialisé). Les parser via `lib/format.ts`, jamais avec un `Number()` inline.
+- Les visuels du seed (`/images/products/*.jpg`) n'existent pas dans `public/`. `components/product-image.tsx` retombe sur un aplat ; il traite aussi le cas d'une image déjà en 404 au rendu serveur, où `onError` ne se déclenche jamais.
 
 `frontend/AGENTS.md` (et `frontend/CLAUDE.md`, qui n'en est qu'un pointeur `@AGENTS.md`) est **généré automatiquement par `next dev`** — voir `node_modules/next/dist/server/lib/generate-agent-files.js`. Le supprimer ne fait que recréer une modif non commitée. Son avertissement vaut : Next 16 introduit des ruptures d'API, consulter `node_modules/next/dist/docs/` avant d'écrire du code Next plutôt que de se fier à ses souvenirs.
