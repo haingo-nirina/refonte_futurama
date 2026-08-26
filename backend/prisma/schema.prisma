@@ -7,6 +7,32 @@ datasource db {
 }
 
 // =========================================================
+// Comptes
+// =========================================================
+
+// role: customer | admin -- 'admin' sert pour les endpoints proteges
+// (moderation des avis, changement de statut de commande) qui n'ont
+// pour l'instant aucune protection -- a traiter en meme temps que ce module
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String        @map("password_hash")
+  fullName     String        @map("full_name")
+  phone        String?
+  address      String?
+  role         String        @default("customer")
+  carts        Cart[]
+  orders       Order[]
+  reviews      Review[]
+  postComments PostComment[]
+  postLikes    PostLike[]
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+// =========================================================
 // Catalogue
 // =========================================================
 
@@ -120,23 +146,12 @@ model Promotion {
 // Vente
 // =========================================================
 
-model Customer {
-  id        String   @id @default(uuid())
-  fullName  String   @map("full_name")
-  phone     String
-  email     String?
-  address   String?
-  carts     Cart[]
-  orders    Order[]
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@map("customers")
-}
-
+// userId optionnel : le panier peut demarrer en invite (sessionId),
+// se rattacher a un compte une fois connecte
 model Cart {
   id         String     @id @default(uuid())
-  customerId String?    @map("customer_id")
-  customer   Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  userId     String?    @map("user_id")
+  user       User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   sessionId  String?    @map("session_id")
   items      CartItem[]
   createdAt  DateTime   @default(now()) @map("created_at")
@@ -159,15 +174,20 @@ model CartItem {
   @@map("cart_items")
 }
 
+// userId obligatoire : passer commande exige d'etre connecte.
+// shippingName/Phone/Address restent dupliques (pas juste une reference
+// a users) : l'adresse de livraison d'UNE commande peut differer du
+// profil (livrer chez un proche, au bureau...) et ne doit jamais bouger
+// retroactivement si le profil change ensuite.
 // status: pending | confirmed | shipped | delivered | cancelled
 // paymentMethod: cash_on_delivery | mvola | orange_money
 model Order {
   id              String      @id @default(uuid())
-  customerId      String?     @map("customer_id")
-  customer        Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  customerName    String      @map("customer_name")
-  customerPhone   String      @map("customer_phone")
-  customerAddress String      @map("customer_address")
+  userId          String      @map("user_id")
+  user            User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  shippingName    String      @map("shipping_name")
+  shippingPhone   String      @map("shipping_phone")
+  shippingAddress String      @map("shipping_address")
   status          String      @default("pending")
   paymentMethod   String      @map("payment_method")
   subtotal        Decimal     @db.Decimal(12, 2)
@@ -197,17 +217,21 @@ model OrderItem {
 // Avis & Contenu
 // =========================================================
 
+// userId obligatoire, remplace l'ancien authorName en texte libre :
+// le nom affiche vient du compte, plus de faux avis anonymes.
 // moderationStatus: pending | approved | rejected
 model Review {
   id               String   @id @default(uuid())
   productId        String   @map("product_id")
   product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  authorName       String   @map("author_name")
+  userId           String   @map("user_id")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   rating           Int
   comment          String?
   moderationStatus String   @default("pending") @map("moderation_status")
   createdAt        DateTime @default(now()) @map("created_at")
 
+  @@unique([productId, userId])
   @@map("reviews")
 }
 
@@ -239,24 +263,28 @@ model Post {
   @@map("posts")
 }
 
+// userId remplace l'ancien sessionId : un like = un compte
 model PostLike {
   id        String   @id @default(uuid())
   postId    String   @map("post_id")
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  sessionId String   @map("session_id")
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@unique([postId, sessionId])
+  @@unique([postId, userId])
   @@map("post_likes")
 }
 
+// userId remplace l'ancien authorName en texte libre
 model PostComment {
-  id         String   @id @default(uuid())
-  postId     String   @map("post_id")
-  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  authorName String   @map("author_name")
-  comment    String
-  createdAt  DateTime @default(now()) @map("created_at")
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment   String
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("post_comments")
 }

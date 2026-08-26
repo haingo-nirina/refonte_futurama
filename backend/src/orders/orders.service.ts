@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -19,8 +20,11 @@ export class OrdersService {
   /**
    * Flux "Passer la commande" : lit le panier de la session, fige le prix et le
    * nom de chaque produit dans les order_items, puis vide le panier.
+   *
+   * `userId` vient du JWT, jamais du body : le client ne choisit pas a quel
+   * compte rattacher sa commande.
    */
-  async createFromCart(dto: CreateOrderDto) {
+  async createFromCart(userId: string, dto: CreateOrderDto) {
     const cart = await this.prisma.cart.findFirst({
       where: { sessionId: dto.session_id },
       include: { items: { include: { product: true } } },
@@ -30,6 +34,12 @@ export class OrdersService {
       throw new BadRequestException(
         'Le panier est vide, impossible de creer une commande',
       );
+    }
+
+    // Un panier deja rattache a un autre compte n'est pas commandable :
+    // connaitre un session_id ne doit pas suffire a vider le panier d'autrui.
+    if (cart.userId && cart.userId !== userId) {
+      throw new ForbiddenException('Ce panier appartient a un autre compte');
     }
 
     const subtotal = cart.items.reduce(
@@ -42,10 +52,10 @@ export class OrdersService {
     return this.prisma.$transaction(async (tx) => {
       const order = await tx.order.create({
         data: {
-          customerId: dto.customerId ?? null,
-          customerName: dto.customerName,
-          customerPhone: dto.customerPhone,
-          customerAddress: dto.customerAddress,
+          userId,
+          shippingName: dto.shippingName,
+          shippingPhone: dto.shippingPhone,
+          shippingAddress: dto.shippingAddress,
           paymentMethod: dto.paymentMethod,
           subtotal,
           shippingFee,
@@ -64,6 +74,11 @@ export class OrdersService {
       });
 
       await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+
+      // Le panier invite devient celui du compte qui vient de commander.
+      if (!cart.userId) {
+        await tx.cart.update({ where: { id: cart.id }, data: { userId } });
+      }
 
       return order;
     });

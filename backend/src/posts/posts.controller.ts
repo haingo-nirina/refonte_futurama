@@ -8,11 +8,14 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import type { AuthenticatedUser } from '../auth/jwt-payload';
 import { PostsService } from './posts.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
-import { LikePostDto } from './dto/like-post.dto';
 import { PaginatePostsDto } from './dto/paginate-posts.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 
@@ -46,20 +49,30 @@ export class PostsController {
   }
 
   @Post(':id/like')
-  like(@Param('id', ParseUUIDPipe) id: string, @Body() dto: LikePostDto) {
-    return this.postsService.like(id, dto.session_id);
+  @UseGuards(JwtAuthGuard)
+  like(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.postsService.like(id, user.userId);
   }
 
   @Delete(':id/like')
-  unlike(@Param('id', ParseUUIDPipe) id: string, @Query() query: LikePostDto) {
-    return this.postsService.unlike(id, query.session_id);
+  @UseGuards(JwtAuthGuard)
+  unlike(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.postsService.unlike(id, user.userId);
   }
 
   @Post(':id/comments')
+  @UseGuards(JwtAuthGuard)
   addComment(
     @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateCommentDto,
   ) {
-    return this.postsService.addComment(id, dto);
+    return this.postsService.addComment(id, user.userId, dto);
   }
 }

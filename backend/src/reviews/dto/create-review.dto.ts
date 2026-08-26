@@ -1,21 +1,10 @@
-import {
-  IsInt,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
+/** L'auteur n'est pas dans ce DTO : il vient du JWT. */
 export class CreateReviewDto {
   @IsUUID()
   productId: string;
-
-  @IsString()
-  @IsNotEmpty()
-  authorName: string;
 
   @Type(() => Number)
   @IsInt()

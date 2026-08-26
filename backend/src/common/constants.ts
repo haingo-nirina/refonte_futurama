@@ -53,3 +53,12 @@ export const RELATION_TYPE = {
 
 export const RELATION_TYPES = Object.values(RELATION_TYPE);
 export type RelationType = (typeof RELATION_TYPE)[keyof typeof RELATION_TYPE];
+
+// User.role
+export const USER_ROLE = {
+  CUSTOMER: 'customer',
+  ADMIN: 'admin',
+} as const;
+
+export const USER_ROLES = Object.values(USER_ROLE);
+export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE];

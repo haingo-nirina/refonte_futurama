@@ -43,9 +43,24 @@ src/<domaine>/
   dto/<action>-<x>.dto.ts   # validation class-validator
 ```
 
-Modules existants : `categories`, `products`, `cart`, `orders`, `reviews`, `resellers`, `posts`. `PrismaService` est fourni par `src/prisma/`, déclaré `@Global()` : il s'injecte directement dans n'importe quel service sans réimporter `PrismaModule`.
+Modules existants : `auth`, `categories`, `products`, `cart`, `orders`, `reviews`, `resellers`, `posts`. `PrismaService` est fourni par `src/prisma/`, déclaré `@Global()` : il s'injecte directement dans n'importe quel service sans réimporter `PrismaModule`.
 
 `Vendor` et `Promotion` n'ont pas de module dédié : ils se peuplent uniquement par le seed, et se lisent via les produits (`vendorId` filtre `GET /products`).
+
+### Authentification
+
+`src/auth/` suit la forme des autres modules, avec en plus la stratégie Passport et les gardes réutilisables :
+
+- `POST /auth/register` et `POST /auth/login` renvoient `{ accessToken, user }`. Le hash ne sort jamais du service.
+- `JwtStrategy` valide `Authorization: Bearer <token>` et dépose `{ userId, role }` sur `request.user`. Le token porte `sub` (userId) et `role` — **aucun aller-retour en base** : un compte supprimé ou dégradé reste valide jusqu'à expiration (7 j par défaut, `JWT_EXPIRES_IN`).
+- `JwtAuthGuard` exige un token (401 sinon). `RolesGuard` + `@Roles(USER_ROLE.ADMIN)` filtrent sur le rôle (403) — `RolesGuard` n'authentifie pas, il doit **toujours** suivre `JwtAuthGuard` dans le même `@UseGuards()`.
+- `OptionalJwtAuthGuard` laisse passer l'anonyme tout en renseignant `request.user` si un token valide est présent. C'est ce qui permet au panier de rester ouvert aux visiteurs.
+- `@CurrentUser()` injecte l'utilisateur ; il renvoie `undefined` derrière `OptionalJwtAuthGuard`.
+- `JWT_SECRET` est obligatoire (l'app refuse de démarrer sans). Voir `.env.example`.
+
+Routes protégées : `POST /orders`, `POST /reviews`, `POST /posts/:id/comments`, `POST|DELETE /posts/:id/like` (JWT) ; `PATCH /orders/:id/status`, `GET /reviews/pending`, `PATCH /reviews/:id/moderate` (admin). Le catalogue reste public en lecture, le panier reste ouvert sans compte.
+
+**L'identité ne vient jamais du body.** `userId` est lu sur le token : les DTO de commande, d'avis et de commentaire ne contiennent que le contenu, jamais l'auteur.
 
 ### Règles non négociables
 
@@ -74,21 +89,27 @@ Les colonnes monétaires sont des `Decimal` : faire les calculs avec `Prisma.Dec
 
 ### Conventions métier encodées dans le schéma
 
-- Un visiteur non connecté est identifié par un `session_id` (panier, likes d'articles), passé en query string ou dans le body.
+- Un visiteur non connecté est identifié par un `session_id` (panier uniquement), passé en query string. Les likes et commentaires d'articles sont désormais rattachés à un compte.
+- Le panier peut démarrer anonyme (`Cart.userId` nullable) : la première requête authentifiée sur ce `session_id` le rattache au compte. Un panier déjà rattaché à un autre compte n'est jamais revendiqué, et `POST /orders` le refuse en 403.
+- `Order.userId` est obligatoire, mais `shippingName` / `shippingPhone` / `shippingAddress` restent dupliqués sur la commande : l'adresse de livraison d'une commande peut différer du profil et ne doit pas bouger si le profil change ensuite. Même logique que `order_items`.
+- `Review` porte `@@unique([productId, userId])` : un avis par produit et par compte, quel que soit le statut de modération du précédent. Le service traduit le `P2002` en 409.
 - `order_items` fige `productName` et `unitPrice` au moment de la commande : une commande ne doit pas bouger si le produit change ensuite.
+- Le nom affiché d'un avis ou d'un commentaire vient du compte (`authorName` n'existe plus) : tout affichage doit joindre `user`. Les services le font déjà via leurs constantes `AUTHOR_INCLUDE` / `COMMENT_AUTHOR_INCLUDE`.
 - Les avis sont créés en `pending` et ne sont visibles publiquement qu'une fois `approved`. La modération ne mène qu'à un état terminal (`approved` / `rejected`), jamais retour à `pending`.
-- Les likes d'articles sont idempotents via la contrainte unique `[postId, sessionId]` ; `likesCount` n'est incrémenté que lorsque la ligne est réellement créée.
+- Les likes d'articles sont idempotents via la contrainte unique `[postId, userId]` ; `likesCount` n'est incrémenté que lorsque la ligne est réellement créée.
 
 ## Seed
 
 `prisma/seed.ts`, branché via `migrations.seed` dans `prisma.config.ts` (Prisma 7 : plus de clé `prisma.seed` dans `package.json`). Il tourne sous `ts-node` forcé en CommonJS, et réutilise `PrismaService` directement — pas de second `PrismaClient` à maintenir avec la config TLS.
 
-Contenu : 8 catégories (arborescentes), 5 vendeurs, 15 produits avec images, specs, relations `similar` / `frequently_bought_together`, 3 promotions dont une expirée, 8 avis couvrant les trois statuts de modération, 5 revendeurs, 4 articles dont un brouillon, et une commande de démonstration.
+Contenu : 10 comptes (dont `admin@futurama.test`, seul rôle `admin`), 8 catégories (arborescentes), 5 vendeurs, 15 produits avec images, specs, relations `similar` / `frequently_bought_together`, 3 promotions dont une expirée, 8 avis couvrant les trois statuts de modération, 5 revendeurs, 4 articles dont un brouillon, et une commande de démonstration.
+
+Tous les comptes du seed partagent le mot de passe `futurama2026` (`DEMO_PASSWORD` dans `seed.ts`) — valeur de développement, sans plus. Les avis, commentaires et likes référencent un compte par son email.
 
 Deux comportements à connaître avant de le modifier :
 
 - Il est **rejouable** : il purge le périmètre catalogue + contenu puis le recrée. L'ordre des `deleteMany` suit les contraintes — les produits partent avant les catégories (`onDelete: Restrict`).
-- Il ne purge **jamais** les commandes ni les clients, et ne crée la commande de démonstration que si `order.count()` vaut 0. Un re-seed laisse donc les commandes existantes avec un `productId` à `NULL` sur leurs lignes : c'est exactement la convention `order_items` ci-dessus, le nom et le prix restent figés.
+- Il ne purge **jamais** les commandes ni les comptes (les comptes sont créés en `upsert` sur l'email : `orders.user_id` est en `onDelete: Restrict`), et ne crée la commande de démonstration que si `order.count()` vaut 0. Un re-seed laisse donc les commandes existantes avec un `productId` à `NULL` sur leurs lignes : c'est exactement la convention `order_items` ci-dessus, le nom et le prix restent figés.
 
 Les relations `similar` sont écrites dans les deux sens (`findRelated` filtre sur `productId`, la relation est dirigée) ; `frequently_bought_together` reste dirigée.
 

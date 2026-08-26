@@ -1,11 +1,13 @@
 import 'dotenv/config';
 
 import { Prisma } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 import {
   MODERATION_STATUS,
   ORDER_STATUS,
   PAYMENT_METHOD,
   RELATION_TYPE,
+  USER_ROLE,
 } from '../src/common/constants';
 import { PrismaService } from '../src/prisma/prisma.service';
 
@@ -13,9 +15,12 @@ import { PrismaService } from '../src/prisma/prisma.service';
  * Jeu de donnees de developpement.
  *
  * Le seed est rejouable : il vide le perimetre catalogue + contenu puis le
- * recree a l'identique. Les commandes et les clients ne sont jamais purges
+ * recree a l'identique. Les comptes et les commandes ne sont jamais purges
  * (une commande passee ne doit pas disparaitre d'un `yarn seed`), et la
  * commande de demonstration n'est creee que si la table est vide.
+ *
+ * Les comptes sont crees en upsert sur l'email : tous partagent le mot de
+ * passe DEMO_PASSWORD, qui n'a evidemment aucune valeur hors developpement.
  *
  * Montants en ariary, sans decimales significatives.
  */
@@ -415,9 +420,52 @@ const PROMOTIONS: PromotionSeed[] = [
   },
 ];
 
+/**
+ * Comptes de demonstration. `email` sert de cle de rapprochement dans tout le
+ * seed : avis, commentaires, likes et commande demo y font reference.
+ */
+const DEMO_PASSWORD = 'futurama2026';
+
+type UserSeed = {
+  email: string;
+  fullName: string;
+  phone?: string;
+  address?: string;
+  role?: string;
+};
+
+const USERS: UserSeed[] = [
+  {
+    email: 'admin@futurama.test',
+    fullName: 'Hubert J. Farnsworth',
+    phone: '034 00 000 01',
+    role: USER_ROLE.ADMIN,
+  },
+  {
+    email: 'fry@planetexpress.test',
+    fullName: 'Philip J. Fry',
+    phone: '034 11 222 33',
+    address: 'Lot IVB 12 Ambatoroka, Antananarivo 101',
+  },
+  {
+    email: 'leela@planetexpress.test',
+    fullName: 'Turanga Leela',
+    phone: '033 44 555 66',
+    address: 'Lot IIA 8 Ivandry, Antananarivo 101',
+  },
+  { email: 'bender@planetexpress.test', fullName: 'Bender B. Rodriguez' },
+  { email: 'hermes@planetexpress.test', fullName: 'Hermes Conrad' },
+  { email: 'zoidberg@planetexpress.test', fullName: 'John A. Zoidberg' },
+  { email: 'amy@planetexpress.test', fullName: 'Amy Wong' },
+  { email: 'kif@dgp.test', fullName: 'Kif Kroker' },
+  { email: 'michelle@futurama.test', fullName: 'Michelle Jenkins' },
+  // Auteur de l'avis rejete : sert a illustrer la moderation.
+  { email: 'nudar@scammer.test', fullName: 'Nudar' },
+];
+
 type ReviewSeed = {
   productSlug: string;
-  authorName: string;
+  authorEmail: string;
   rating: number;
   comment: string;
   moderationStatus: string;
@@ -426,56 +474,56 @@ type ReviewSeed = {
 const REVIEWS: ReviewSeed[] = [
   {
     productSlug: 'slurm-original-pack-6',
-    authorName: 'Fry P.',
+    authorEmail: 'fry@planetexpress.test',
     rating: 5,
     comment: "Impossible de s'arreter apres la premiere canette.",
     moderationStatus: MODERATION_STATUS.APPROVED,
   },
   {
     productSlug: 'slurm-original-pack-6',
-    authorName: 'Hermes C.',
+    authorEmail: 'hermes@planetexpress.test',
     rating: 4,
     comment: 'Livraison conforme, pack bien protege. Prix correct.',
     moderationStatus: MODERATION_STATUS.APPROVED,
   },
   {
     productSlug: 'slurm-original-pack-6',
-    authorName: 'Zoidberg J.',
+    authorEmail: 'zoidberg@planetexpress.test',
     rating: 3,
     comment: 'Bon produit mais je prefere les restes.',
     moderationStatus: MODERATION_STATUS.PENDING,
   },
   {
     productSlug: 'bending-unit-22',
-    authorName: 'Leela T.',
+    authorEmail: 'leela@planetexpress.test',
     rating: 4,
     comment: 'Tres efficace au travail. Le caractere demande de la patience.',
     moderationStatus: MODERATION_STATUS.APPROVED,
   },
   {
     productSlug: 'bending-unit-22',
-    authorName: 'Anonyme',
+    authorEmail: 'nudar@scammer.test',
     rating: 1,
     comment: 'Message hors sujet supprime par la moderation.',
     moderationStatus: MODERATION_STATUS.REJECTED,
   },
   {
     productSlug: 'casque-navigation-pe',
-    authorName: 'Kif K.',
+    authorEmail: 'kif@dgp.test',
     rating: 5,
     comment: 'Affichage lisible meme en approche atmospherique.',
     moderationStatus: MODERATION_STATUS.APPROVED,
   },
   {
     productSlug: 'chambre-cryogenique-portative',
-    authorName: 'Michelle',
+    authorEmail: 'michelle@futurama.test',
     rating: 2,
     comment: 'Reveil a l’heure prevue, mais siecle decevant.',
     moderationStatus: MODERATION_STATUS.APPROVED,
   },
   {
     productSlug: 'maquette-planet-express',
-    authorName: 'Amy W.',
+    authorEmail: 'amy@planetexpress.test',
     rating: 5,
     comment: 'Finition impeccable, avis en attente de validation.',
     moderationStatus: MODERATION_STATUS.PENDING,
@@ -525,8 +573,8 @@ type PostSeed = {
   title: string;
   content: string;
   publishedAt: string | null;
-  likeSessions: string[];
-  comments: { authorName: string; comment: string }[];
+  likeUserEmails: string[];
+  comments: { authorEmail: string; comment: string }[];
 };
 
 const POSTS: PostSeed[] = [
@@ -536,10 +584,14 @@ const POSTS: PostSeed[] = [
     content:
       "Depuis des siecles, la composition du Slurm alimente les rumeurs les plus improbables. Nous avons visite l'usine de Wormulon pour separer les faits des legendes urbaines — et repondre a la question que tout le monde pose sur l'origine du liquide.",
     publishedAt: '2026-07-12',
-    likeSessions: ['sess-demo-1', 'sess-demo-2', 'sess-demo-3'],
+    likeUserEmails: [
+      'fry@planetexpress.test',
+      'leela@planetexpress.test',
+      'bender@planetexpress.test',
+    ],
     comments: [
-      { authorName: 'Fry P.', comment: 'Je ne veux surtout pas savoir.' },
-      { authorName: 'Bender', comment: 'Article correct. Il manque la biere.' },
+      { authorEmail: 'fry@planetexpress.test', comment: 'Je ne veux surtout pas savoir.' },
+      { authorEmail: 'bender@planetexpress.test', comment: 'Article correct. Il manque la biere.' },
     ],
   },
   {
@@ -548,10 +600,10 @@ const POSTS: PostSeed[] = [
     content:
       "Une unite de pliage bien entretenue depasse facilement les quarante ans de service. Lubrification des articulations, verification du compartiment thoracique, mise a jour de la matrice memoire : voici le calendrier d'entretien que nous recommandons a nos clients.",
     publishedAt: '2026-07-28',
-    likeSessions: ['sess-demo-2', 'sess-demo-4'],
+    likeUserEmails: ['leela@planetexpress.test', 'amy@planetexpress.test'],
     comments: [
       {
-        authorName: 'Leela T.',
+        authorEmail: 'leela@planetexpress.test',
         comment: 'Le calendrier trimestriel a vraiment change la duree de vie.',
       },
     ],
@@ -562,7 +614,7 @@ const POSTS: PostSeed[] = [
     content:
       "Livraison offerte a Antananarivo des 100 000 Ar d'achat, forfait unique pour le reste de Madagascar, et grille specifique au-dela de l'orbite lunaire. Le detail complet des zones et des delais est desormais consultable avant la validation du panier.",
     publishedAt: '2026-08-10',
-    likeSessions: ['sess-demo-1'],
+    likeUserEmails: ['fry@planetexpress.test'],
     comments: [],
   },
   {
@@ -571,7 +623,7 @@ const POSTS: PostSeed[] = [
     content:
       "Brouillon : annoncer l'ouverture, preciser l'adresse definitive et la date d'inauguration avant publication.",
     publishedAt: null,
-    likeSessions: [],
+    likeUserEmails: [],
     comments: [],
   },
 ];
@@ -602,6 +654,40 @@ async function reset() {
   await prisma.postLike.deleteMany();
   await prisma.post.deleteMany();
   await prisma.reseller.deleteMany();
+}
+
+/**
+ * Comptes de demonstration, en upsert : ils ne sont pas purges par `reset()`
+ * (des commandes les referencent en `onDelete: Restrict`) et un re-seed ne
+ * doit pas echouer sur l'email unique.
+ */
+async function seedUsers(): Promise<Map<string, string>> {
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+  const ids = new Map<string, string>();
+
+  for (const user of USERS) {
+    const created = await prisma.user.upsert({
+      where: { email: user.email },
+      update: {
+        fullName: user.fullName,
+        phone: user.phone ?? null,
+        address: user.address ?? null,
+        role: user.role ?? USER_ROLE.CUSTOMER,
+      },
+      create: {
+        email: user.email,
+        passwordHash,
+        fullName: user.fullName,
+        phone: user.phone ?? null,
+        address: user.address ?? null,
+        role: user.role ?? USER_ROLE.CUSTOMER,
+      },
+    });
+
+    ids.set(user.email, created.id);
+  }
+
+  return ids;
 }
 
 async function seedCategories(): Promise<Map<string, string>> {
@@ -762,11 +848,14 @@ async function seedPromotions(productIds: Map<string, string>) {
   }
 }
 
-async function seedReviews(productIds: Map<string, string>) {
+async function seedReviews(
+  productIds: Map<string, string>,
+  userIds: Map<string, string>,
+) {
   await prisma.review.createMany({
     data: REVIEWS.map((review) => ({
       productId: productIds.get(review.productSlug)!,
-      authorName: review.authorName,
+      userId: userIds.get(review.authorEmail)!,
       rating: review.rating,
       comment: review.comment,
       moderationStatus: review.moderationStatus,
@@ -783,7 +872,7 @@ async function seedResellers() {
   });
 }
 
-async function seedPosts() {
+async function seedPosts(userIds: Map<string, string>) {
   for (const post of POSTS) {
     await prisma.post.create({
       data: {
@@ -791,14 +880,21 @@ async function seedPosts() {
         slug: post.slug,
         content: post.content,
         photoUrl: `/images/posts/${post.slug}.jpg`,
-        viewsCount: post.likeSessions.length * 17,
+        viewsCount: post.likeUserEmails.length * 17,
         // Le compteur suit exactement le nombre de lignes PostLike creees.
-        likesCount: post.likeSessions.length,
+        likesCount: post.likeUserEmails.length,
         publishedAt: post.publishedAt ? new Date(post.publishedAt) : null,
         likes: {
-          create: post.likeSessions.map((sessionId) => ({ sessionId })),
+          create: post.likeUserEmails.map((email) => ({
+            userId: userIds.get(email)!,
+          })),
         },
-        comments: { create: post.comments },
+        comments: {
+          create: post.comments.map((comment) => ({
+            userId: userIds.get(comment.authorEmail)!,
+            comment: comment.comment,
+          })),
+        },
       },
     });
   }
@@ -808,7 +904,10 @@ async function seedPosts() {
  * Commande de demonstration, creee seulement si aucune commande n'existe :
  * un `yarn seed` ne doit pas polluer des commandes de test en cours.
  */
-async function seedDemoOrder(productIds: Map<string, string>) {
+async function seedDemoOrder(
+  productIds: Map<string, string>,
+  userIds: Map<string, string>,
+) {
   if ((await prisma.order.count()) > 0) {
     return false;
   }
@@ -841,21 +940,18 @@ async function seedDemoOrder(productIds: Map<string, string>) {
   );
   const shippingFee = new Prisma.Decimal('8000');
 
-  const customer = await prisma.customer.create({
-    data: {
-      fullName: 'Philip J. Fry',
-      phone: '034 11 222 33',
-      email: 'fry@planetexpress.test',
-      address: 'Lot IVB 12 Ambatoroka, Antananarivo 101',
-    },
+  const buyer = await prisma.user.findUniqueOrThrow({
+    where: { email: 'fry@planetexpress.test' },
   });
 
   await prisma.order.create({
     data: {
-      customerId: customer.id,
-      customerName: customer.fullName,
-      customerPhone: customer.phone,
-      customerAddress: customer.address!,
+      userId: buyer.id,
+      // Copie figee : l'adresse de livraison de cette commande ne suit pas les
+      // modifications ulterieures du profil.
+      shippingName: buyer.fullName,
+      shippingPhone: buyer.phone!,
+      shippingAddress: buyer.address!,
       status: ORDER_STATUS.CONFIRMED,
       paymentMethod: PAYMENT_METHOD.MVOLA,
       subtotal,
@@ -872,18 +968,20 @@ async function main() {
   console.log('Purge du perimetre catalogue et contenu...');
   await reset();
 
+  const userIds = await seedUsers();
   const categoryIds = await seedCategories();
   const vendorIds = await seedVendors();
   const productIds = await seedProducts(categoryIds, vendorIds);
   const relationCount = await seedRelations(productIds);
 
   await seedPromotions(productIds);
-  await seedReviews(productIds);
+  await seedReviews(productIds, userIds);
   await seedResellers();
-  await seedPosts();
+  await seedPosts(userIds);
 
-  const orderCreated = await seedDemoOrder(productIds);
+  const orderCreated = await seedDemoOrder(productIds, userIds);
 
+  console.log(`  comptes      ${userIds.size} (mot de passe ${DEMO_PASSWORD})`);
   console.log(`  categories   ${categoryIds.size}`);
   console.log(`  vendeurs     ${vendorIds.size}`);
   console.log(`  produits     ${productIds.size}`);

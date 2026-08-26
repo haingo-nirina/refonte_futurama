@@ -8,6 +8,14 @@ import { UpdatePostDto } from './dto/update-post.dto';
 
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
 
+/**
+ * Le nom affiche vient du compte : `authorName` n'existe plus, tout affichage
+ * de commentaire doit joindre l'utilisateur.
+ */
+const COMMENT_AUTHOR_INCLUDE = {
+  user: { select: { id: true, fullName: true } },
+} as const;
+
 @Injectable()
 export class PostsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -50,7 +58,12 @@ export class PostsService {
   async findOne(id: string) {
     const post = await this.prisma.post.findUnique({
       where: { id },
-      include: { comments: { orderBy: { createdAt: 'desc' } } },
+      include: {
+        comments: {
+          include: COMMENT_AUTHOR_INCLUDE,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
 
     if (!post) {
@@ -78,13 +91,13 @@ export class PostsService {
     return this.prisma.post.delete({ where: { id } });
   }
 
-  /** Idempotent : liker deux fois depuis la meme session ne compte qu'une fois. */
-  async like(postId: string, sessionId: string) {
+  /** Idempotent : liker deux fois depuis le meme compte ne compte qu'une fois. */
+  async like(postId: string, userId: string) {
     await this.findPostOrFail(postId);
 
     try {
       await this.prisma.$transaction([
-        this.prisma.postLike.create({ data: { postId, sessionId } }),
+        this.prisma.postLike.create({ data: { postId, userId } }),
         this.prisma.post.update({
           where: { id: postId },
           data: { likesCount: { increment: 1 } },
@@ -94,19 +107,19 @@ export class PostsService {
       if (!this.isAlreadyLiked(error)) {
         throw error;
       }
-      // deja like par cette session : on ne re-incremente pas
+      // deja like par ce compte : on ne re-incremente pas
     }
 
     return this.findPostOrFail(postId);
   }
 
   /** Idempotent : unliker sans like prealable ne decremente rien. */
-  async unlike(postId: string, sessionId: string) {
+  async unlike(postId: string, userId: string) {
     await this.findPostOrFail(postId);
 
     await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.postLike.deleteMany({
-        where: { postId, sessionId },
+        where: { postId, userId },
       });
 
       if (count > 0) {
@@ -120,15 +133,16 @@ export class PostsService {
     return this.findPostOrFail(postId);
   }
 
-  async addComment(postId: string, dto: CreateCommentDto) {
+  async addComment(postId: string, userId: string, dto: CreateCommentDto) {
     await this.findPostOrFail(postId);
 
     return this.prisma.postComment.create({
       data: {
         postId,
-        authorName: dto.authorName,
+        userId,
         comment: dto.comment,
       },
+      include: COMMENT_AUTHOR_INCLUDE,
     });
   }
 
