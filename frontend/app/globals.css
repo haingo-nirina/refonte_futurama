@@ -20,6 +20,17 @@
   --color-success: oklch(0.52 0.09 150);
   --color-success-soft: oklch(0.95 0.03 150);
 
+  /*
+   * Aplats des deux cartes qui accompagnent le hero (colonne de droite de la
+   * maquette) : un froid, un chaud, chacun avec son encre et son accent.
+   */
+  --color-tint-cool: oklch(0.95 0.02 260);
+  --color-tint-cool-ink: oklch(0.3 0.09 260);
+  --color-tint-cool-accent: oklch(0.47 0.14 260);
+  --color-tint-warm: oklch(0.96 0.03 25);
+  --color-tint-warm-ink: oklch(0.32 0.05 25);
+  --color-tint-warm-accent: oklch(0.53 0.16 25);
+
   --font-display: var(--font-archivo), system-ui, sans-serif;
   --font-sans: var(--font-dm-sans), system-ui, sans-serif;
 }
