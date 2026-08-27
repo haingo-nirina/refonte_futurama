@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { ApiError } from "@/lib/api";
 import { createProduct, deleteProduct, updateProduct } from "@/lib/admin-api";
 import type { AdminProduct, Category, ProductInput } from "@/lib/types";
@@ -65,6 +66,7 @@ export function ProductForm({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -116,19 +118,13 @@ export function ProductForm({
 
   async function onDelete() {
     if (!product) return;
-    if (
-      !window.confirm(
-        `Supprimer definitivement « ${product.name} » ? Les commandes passees gardent son nom et son prix.`,
-      )
-    ) {
-      return;
-    }
 
     setPending(true);
     setError(null);
 
     try {
       await deleteProduct(product.id);
+      // Pas de `setPending(false)` : on quitte la page, l'etat part avec elle.
       router.push("/admin/produits");
       router.refresh();
     } catch (cause) {
@@ -136,6 +132,7 @@ export function ProductForm({
         cause instanceof ApiError ? cause.message : "Suppression impossible",
       );
       setPending(false);
+      setConfirmingDelete(false);
     }
   }
 
@@ -303,7 +300,7 @@ export function ProductForm({
         {product ? (
           <button
             type="button"
-            onClick={onDelete}
+            onClick={() => setConfirmingDelete(true)}
             disabled={pending}
             className="text-brand ml-auto text-[13px] font-bold hover:underline disabled:opacity-50"
           >
@@ -311,6 +308,24 @@ export function ProductForm({
           </button>
         ) : null}
       </div>
+
+      {product ? (
+        <ConfirmDialog
+          open={confirmingDelete}
+          title="Supprimer ce produit ?"
+          message={
+            <>
+              <strong>{product.name}</strong> sera retire du catalogue, avec sa
+              galerie, ses caracteristiques, ses avis et ses produits lies.
+            </>
+          }
+          detail="Les commandes deja passees ne bougent pas : elles gardent le nom et le prix figes au moment de l'achat. Pour retirer le produit de la vente sans rien perdre, decochez plutot « En ligne »."
+          pending={pending}
+          error={error}
+          onConfirm={() => void onDelete()}
+          onCancel={() => setConfirmingDelete(false)}
+        />
+      ) : null}
     </form>
   );
 }

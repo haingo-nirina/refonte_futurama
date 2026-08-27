@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ConfirmDialog } from "@/components/admin/confirm-dialog";
+import { Modal } from "@/components/admin/modal";
 import { ApiError } from "@/lib/api";
 import {
   createCategory,
@@ -60,181 +62,97 @@ function toPayload(draft: Draft): CategoryInput {
   };
 }
 
+/** `null` = aucune modale ouverte ; sinon creation ou edition d'une categorie. */
+type Editing =
+  | { mode: "create"; parentId: string }
+  | { mode: "edit"; category: Category }
+  | null;
+
 /**
- * Arborescence + edition sur la meme page : les categories sont peu nombreuses
- * et se manipulent les unes par rapport aux autres (ordre, parent, mise en
- * avant). Une page de liste et une page de formulaire separees feraient perdre
- * ce contexte a chaque aller-retour.
+ * Arborescence et edition sur la meme page : les categories sont peu
+ * nombreuses et se manipulent les unes par rapport aux autres (ordre, parent,
+ * mise en avant). Le formulaire s'ouvre en modale plutot que de s'inserer dans
+ * la liste, qui se decalait sous les yeux a chaque ouverture.
  */
 export function CategoryManager({ categories }: { categories: Category[] }) {
   const router = useRouter();
-  const [editing, setEditing] = useState<string | null>(null);
+
+  const [editing, setEditing] = useState<Editing>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [deleting, setDeleting] = useState<Category | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const roots = categories.filter((category) => !category.parentId);
 
   function startCreate(parentId = "") {
-    setEditing("new");
     setDraft({ ...EMPTY, parentId });
     setError(null);
+    setEditing({ mode: "create", parentId });
   }
 
   function startEdit(category: Category) {
-    setEditing(category.id);
     setDraft(toDraft(category));
     setError(null);
+    setEditing({ mode: "edit", category });
   }
 
-  async function run(action: () => Promise<unknown>) {
+  function startDelete(category: Category) {
+    setDeleteError(null);
+    setDeleting(category);
+  }
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!editing) return;
+
     setPending(true);
     setError(null);
 
     try {
-      await action();
+      await (editing.mode === "create"
+        ? createCategory(toPayload(draft))
+        : updateCategory(editing.category.id, toPayload(draft)));
+
       setEditing(null);
+      // La page est un Server Component : c'est au serveur de relire.
       router.refresh();
     } catch (cause) {
       setError(
-        cause instanceof ApiError ? cause.message : "Operation impossible",
+        cause instanceof ApiError ? cause.message : "Enregistrement impossible",
       );
     } finally {
       setPending(false);
     }
   }
 
-  function onRemove(category: Category) {
-    if (
-      !window.confirm(
-        `Supprimer « ${category.name} » ? Une categorie encore rattachee a des produits ne peut pas etre supprimee.`,
-      )
-    ) {
-      return;
-    }
+  async function onDelete() {
+    if (!deleting) return;
 
-    void run(() => deleteCategory(category.id));
+    setDeletePending(true);
+    setDeleteError(null);
+
+    try {
+      await deleteCategory(deleting.id);
+      setDeleting(null);
+      router.refresh();
+    } catch (cause) {
+      // Le backend refuse en 400 une categorie encore rattachee a des produits :
+      // son message est plus precis que tout ce qu'on pourrait deviner ici.
+      setDeleteError(
+        cause instanceof ApiError ? cause.message : "Suppression impossible",
+      );
+    } finally {
+      setDeletePending(false);
+    }
   }
 
-  const form = (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        void run(() =>
-          editing === "new"
-            ? createCategory(toPayload(draft))
-            : updateCategory(editing as string, toPayload(draft)),
-        );
-      }}
-      className="bg-cream-deep border-line mt-3 grid gap-3 rounded-[12px] border p-4 sm:grid-cols-2"
-    >
-      <label className="block">
-        <span className="admin-label">Nom *</span>
-        <input
-          required
-          value={draft.name}
-          onChange={(event) => {
-            const name = event.target.value;
-            setDraft((current) => ({
-              ...current,
-              name,
-              slug:
-                current.slug === slugify(current.name) || current.slug === ""
-                  ? slugify(name)
-                  : current.slug,
-            }));
-          }}
-          className="admin-input"
-        />
-      </label>
-
-      <label className="block">
-        <span className="admin-label">Slug *</span>
-        <input
-          required
-          pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-          title="minuscules, mots separes par des tirets"
-          value={draft.slug}
-          onChange={(event) =>
-            setDraft({ ...draft, slug: event.target.value })
-          }
-          className="admin-input"
-        />
-      </label>
-
-      <label className="block">
-        <span className="admin-label">Rayon parent</span>
-        <select
-          value={draft.parentId}
-          onChange={(event) =>
-            setDraft({ ...draft, parentId: event.target.value })
-          }
-          className="admin-input"
-        >
-          <option value="">Aucun (rayon principal)</option>
-          {roots
-            .filter((root) => root.id !== editing)
-            .map((root) => (
-              <option key={root.id} value={root.id}>
-                {root.name}
-              </option>
-            ))}
-        </select>
-      </label>
-
-      <label className="block">
-        <span className="admin-label">Ordre d&apos;affichage</span>
-        <input
-          type="number"
-          value={draft.displayOrder}
-          onChange={(event) =>
-            setDraft({ ...draft, displayOrder: event.target.value })
-          }
-          className="admin-input"
-        />
-      </label>
-
-      <label className="block sm:col-span-2">
-        <span className="admin-label">Image (URL)</span>
-        <input
-          value={draft.imageUrl}
-          onChange={(event) =>
-            setDraft({ ...draft, imageUrl: event.target.value })
-          }
-          className="admin-input"
-        />
-      </label>
-
-      <label className="flex items-center gap-2 text-[13.5px] sm:col-span-2">
-        <input
-          type="checkbox"
-          checked={draft.isFeatured}
-          onChange={(event) =>
-            setDraft({ ...draft, isFeatured: event.target.checked })
-          }
-          className="accent-brand size-4"
-        />
-        Mise en avant sur l&apos;accueil
-      </label>
-
-      {error ? (
-        <p className="text-brand text-[13px] sm:col-span-2">{error}</p>
-      ) : null}
-
-      <div className="flex gap-3 sm:col-span-2">
-        <button type="submit" disabled={pending} className="admin-button">
-          {pending ? "Enregistrement…" : "Enregistrer"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setEditing(null)}
-          className="admin-button-ghost"
-        >
-          Annuler
-        </button>
-      </div>
-    </form>
-  );
+  const childrenCount = deleting
+    ? categories.filter((item) => item.parentId === deleting.id).length
+    : 0;
 
   return (
     <div>
@@ -248,18 +166,15 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
         </button>
       </div>
 
-      {editing === "new" ? <div className="admin-card mb-6">{form}</div> : null}
-
       <div className="space-y-3">
         {roots.map((root) => (
           <section key={root.id} className="admin-card">
             <CategoryRow
               category={root}
               onEdit={() => startEdit(root)}
-              onRemove={() => onRemove(root)}
+              onRemove={() => startDelete(root)}
               onAddChild={() => startCreate(root.id)}
             />
-            {editing === root.id ? form : null}
 
             {root.children.length > 0 ? (
               <ul className="border-line mt-3 space-y-2 border-t pt-3 pl-4">
@@ -272,9 +187,8 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
                       <CategoryRow
                         category={full}
                         onEdit={() => startEdit(full)}
-                        onRemove={() => onRemove(full)}
+                        onRemove={() => startDelete(full)}
                       />
-                      {editing === child.id ? form : null}
                     </li>
                   );
                 })}
@@ -283,6 +197,156 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
           </section>
         ))}
       </div>
+
+      <Modal
+        open={editing !== null}
+        onClose={() => (pending ? undefined : setEditing(null))}
+        title={
+          editing?.mode === "edit"
+            ? `Modifier « ${editing.category.name} »`
+            : "Nouvelle categorie"
+        }
+        description="Les rayons de l'accueil sont ceux marques « mise en avant »."
+      >
+        <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="admin-label">Nom *</span>
+            <input
+              required
+              autoFocus
+              value={draft.name}
+              onChange={(event) => {
+                const name = event.target.value;
+                setDraft((current) => ({
+                  ...current,
+                  name,
+                  // Le slug suit le nom tant qu'il n'a pas ete touche a la main.
+                  slug:
+                    current.slug === slugify(current.name) ||
+                    current.slug === ""
+                      ? slugify(name)
+                      : current.slug,
+                }));
+              }}
+              className="admin-input"
+            />
+          </label>
+
+          <label className="block">
+            <span className="admin-label">Slug *</span>
+            <input
+              required
+              pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+              title="minuscules, mots separes par des tirets"
+              value={draft.slug}
+              onChange={(event) =>
+                setDraft({ ...draft, slug: event.target.value })
+              }
+              className="admin-input"
+            />
+          </label>
+
+          <label className="block">
+            <span className="admin-label">Rayon parent</span>
+            <select
+              value={draft.parentId}
+              onChange={(event) =>
+                setDraft({ ...draft, parentId: event.target.value })
+              }
+              className="admin-input"
+            >
+              <option value="">Aucun (rayon principal)</option>
+              {roots
+                .filter(
+                  (root) =>
+                    editing?.mode !== "edit" || root.id !== editing.category.id,
+                )
+                .map((root) => (
+                  <option key={root.id} value={root.id}>
+                    {root.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="admin-label">Ordre d&apos;affichage</span>
+            <input
+              type="number"
+              value={draft.displayOrder}
+              onChange={(event) =>
+                setDraft({ ...draft, displayOrder: event.target.value })
+              }
+              className="admin-input"
+            />
+          </label>
+
+          <label className="block sm:col-span-2">
+            <span className="admin-label">Image (URL)</span>
+            <input
+              value={draft.imageUrl}
+              onChange={(event) =>
+                setDraft({ ...draft, imageUrl: event.target.value })
+              }
+              className="admin-input"
+            />
+          </label>
+
+          <label className="flex items-center gap-2 text-[13.5px] sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={draft.isFeatured}
+              onChange={(event) =>
+                setDraft({ ...draft, isFeatured: event.target.checked })
+              }
+              className="accent-brand size-4"
+            />
+            Mise en avant sur l&apos;accueil
+          </label>
+
+          {error ? (
+            <p className="text-brand text-[13px] sm:col-span-2">{error}</p>
+          ) : null}
+
+          <div className="mt-1 flex flex-wrap justify-end gap-3 sm:col-span-2">
+            <button
+              type="button"
+              onClick={() => setEditing(null)}
+              disabled={pending}
+              className="admin-button-ghost"
+            >
+              Annuler
+            </button>
+            <button type="submit" disabled={pending} className="admin-button">
+              {pending
+                ? "Enregistrement…"
+                : editing?.mode === "edit"
+                  ? "Enregistrer"
+                  : "Creer la categorie"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        title="Supprimer cette categorie ?"
+        message={
+          <>
+            <strong>{deleting?.name}</strong> disparaitra de la navigation de la
+            boutique.
+          </>
+        }
+        detail={
+          childrenCount > 0
+            ? `Ses ${childrenCount} sous-rayon(s) seront detaches et deviendront des rayons principaux. Une categorie encore rattachee a des produits ne peut pas etre supprimee.`
+            : "Une categorie encore rattachee a des produits ne peut pas etre supprimee : deplacez-les d'abord."
+        }
+        pending={deletePending}
+        error={deleteError}
+        onConfirm={() => void onDelete()}
+        onCancel={() => setDeleting(null)}
+      />
     </div>
   );
 }
@@ -324,10 +388,18 @@ function CategoryRow({
             + Sous-rayon
           </button>
         ) : null}
-        <button type="button" onClick={onEdit} className="text-navy hover:text-brand">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="text-navy hover:text-brand"
+        >
           Modifier
         </button>
-        <button type="button" onClick={onRemove} className="text-brand hover:underline">
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-brand hover:underline"
+        >
           Supprimer
         </button>
       </div>
