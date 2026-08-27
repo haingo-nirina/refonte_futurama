@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ApiError, getOrder } from "@/lib/api";
+import { getServerToken } from "@/lib/auth-server";
 import { ALL_CATEGORIES_SLUG } from "@/lib/catalogue";
 import { formatDate, formatPrice, toAmount } from "@/lib/format";
 import { PAYMENT_METHODS, type Order } from "@/lib/types";
@@ -13,11 +14,24 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Annulee",
 };
 
+/**
+ * `GET /orders/:id` est protege : le token voyage dans un cookie justement
+ * pour rester lisible ici, pendant le rendu serveur.
+ */
 async function loadOrder(id: string): Promise<Order> {
   try {
-    return await getOrder(id);
+    return await getOrder(id, await getServerToken());
   } catch (error) {
-    if (error instanceof ApiError && error.status === 404) notFound();
+    if (error instanceof ApiError) {
+      // Session expiree : on renvoie se connecter, puis revenir ici.
+      if (error.status === 401) {
+        redirect(`/connexion?next=${encodeURIComponent(`/commande/${id}`)}`);
+      }
+      // 403 : la commande existe mais appartient a quelqu'un d'autre. Rien a
+      // gagner a le dire — on la traite comme introuvable.
+      if (error.status === 403 || error.status === 404) notFound();
+    }
+
     throw error;
   }
 }
@@ -40,10 +54,10 @@ export default async function OrderConfirmationPage({
         </span>
 
         <h1 className="font-display text-navy mt-4 text-[30px] font-extrabold tracking-tight">
-          Merci {order.customerName}&nbsp;!
+          Merci {order.shippingName}&nbsp;!
         </h1>
         <p className="text-muted mt-2 text-sm">
-          Nous vous rappelons au {order.customerPhone} pour confirmer la
+          Nous vous rappelons au {order.shippingPhone} pour confirmer la
           livraison. Commande passee le {formatDate(order.createdAt)}.
         </p>
 
@@ -54,7 +68,7 @@ export default async function OrderConfirmationPage({
             value={STATUS_LABELS[order.status] ?? order.status}
           />
           <Detail label="Paiement" value={paymentLabel} />
-          <Detail label="Livraison" value={order.customerAddress} />
+          <Detail label="Livraison" value={order.shippingAddress} />
         </dl>
 
         <section className="border-line mt-8 border-t pt-6">

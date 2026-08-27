@@ -85,9 +85,11 @@ export type OrderItem = {
 
 export type Order = {
   id: string;
-  customerName: string;
-  customerPhone: string;
-  customerAddress: string;
+  userId: string;
+  /** Adresse de CETTE commande, figee : elle ne suit pas le profil du compte. */
+  shippingName: string;
+  shippingPhone: string;
+  shippingAddress: string;
   paymentMethod: PaymentMethod;
   status: string;
   subtotal: string;
@@ -106,10 +108,41 @@ export const PAYMENT_METHODS = [
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]["value"];
 
+/** `userId` n'y figure pas : le backend le lit sur le JWT, jamais sur le body. */
 export type CreateOrderInput = {
   session_id: string;
-  customerName: string;
-  customerPhone: string;
-  customerAddress: string;
+  shippingName: string;
+  shippingPhone: string;
+  shippingAddress: string;
   paymentMethod: PaymentMethod;
+};
+
+// --------------------------------------------------------------------- Auth
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  fullName: string;
+  phone: string | null;
+  address: string | null;
+  role: "customer" | "admin";
+};
+
+/** Reponse de `POST /auth/register` et `POST /auth/login`. */
+export type AuthSession = {
+  accessToken: string;
+  user: AuthUser;
+};
+
+export type LoginInput = {
+  email: string;
+  password: string;
+};
+
+export type RegisterInput = LoginInput & {
+  fullName: string;
+  /** Optionnels cote backend, mais refuses s'ils sont vides : omettre plutot
+   * qu'envoyer une chaine vide. */
+  phone?: string;
+  address?: string;
 };

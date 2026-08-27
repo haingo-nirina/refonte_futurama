@@ -89,6 +89,22 @@ Ordre de grandeur à garder en tête : ~2 s pour un `GET /products` (deux requê
 
 Les colonnes monétaires sont des `Decimal` : faire les calculs avec `Prisma.Decimal` (`.mul()`, `.add()`), jamais avec les opérateurs arithmétiques JS.
 
+### Session utilisateur
+
+**Le token est dans un cookie, pas en localStorage.** `lib/auth-token.ts` le pose sous `futurama.token` (`path=/`, `samesite=lax`, `max-age` aligné sur `JWT_EXPIRES_IN`). La raison est le rendu serveur : `/commande/[id]` est un Server Component et doit envoyer le token à `GET /orders/:id` pendant le rendu, ce que localStorage ne permet pas. Le cookie n'est pas `httpOnly` — même exposition qu'un localStorage face au XSS, mais lisible côté serveur, ce qui est tout l'intérêt.
+
+Trois modules, à ne pas confondre :
+
+- `lib/auth-token.ts` — lecture/écriture du cookie. **Pas** de directive `use client` : il est importé par `lib/api.ts`, qui tourne des deux côtés.
+- `lib/auth.ts` — `"use client"` : `startSession()` / `endSession()`, le profil affiché en localStorage (`futurama.user`), l'événement `AUTH_CHANGED_EVENT` et le hook `useAuth()`. Comme `CartBadge`, `useAuth()` renvoie `undefined` tant que l'hydratation n'a pas eu lieu — ne jamais rendre un état de connexion deviné, le HTML serveur ne le connaît pas.
+- `lib/auth-server.ts` — `getServerToken()`, à n'importer **que** depuis un Server Component (`next/headers` n'existe pas dans le bundle navigateur).
+
+`request()` dans `lib/api.ts` pose `Authorization: Bearer` tout seul dans le navigateur. Côté serveur le cookie n'est pas lisible depuis ce module : passer explicitement `await getServerToken()` en second argument (`getOrder(id, token)`, `getMyOrders(token)`).
+
+Le rattachement du panier anonyme est gratuit : après `startSession()`, un `notifyCartUpdated()` refait lire `GET /cart` avec le token, et le backend rattache le panier au compte. C'est ce que fait `components/auth-form.tsx`.
+
+`?next=` passe toujours par `safeNextPath()` (routes internes uniquement) — sinon c'est une redirection ouverte.
+
 ### Conventions métier encodées dans le schéma
 
 - Un visiteur non connecté est identifié par un `session_id` (panier uniquement), passé en query string. Les likes et commentaires d'articles sont désormais rattachés à un compte.
@@ -117,7 +133,7 @@ Les relations `similar` sont écrites dans les deux sens (`findRelated` filtre s
 
 ## Frontend
 
-MVP e-commerce : accueil (rayons), catalogue paginé par rayon, fiche produit, panier et confirmation de commande. Le reste de la maquette (chatbot, live shopping, blog, avis, revendeurs) n'est pas implémenté.
+MVP e-commerce : accueil (rayons), catalogue paginé par rayon, fiche produit, panier, connexion / inscription et confirmation de commande. Le reste de la maquette (chatbot, live shopping, blog, avis, revendeurs) n'est pas implémenté.
 
 `maquette/refonte-site-Futurama-v1.3.html` est la référence visuelle. C'est un bundle Claude Design : le HTML lisible est dans son `<script type="__bundler/template">`, en JSON. La palette et les fontes (Archivo pour les titres, DM Sans pour le texte) en sont extraites et vivent dans les tokens `@theme` de `app/globals.css`.
 
@@ -134,6 +150,8 @@ Deux limites de l'API que le catalogue contourne côté front, à remplacer par 
 
 - Server Components par défaut. Les Client Components se limitent à l'interactivité réelle : recherche, badge panier, galerie, quantité/ajout, page panier, formulaire de commande.
 - Le visiteur est identifié par un `session_id` généré et stocké en localStorage (`lib/session.ts`). Après toute mutation du panier, appeler `notifyCartUpdated()` : le badge du header écoute cet événement.
+- Le panier reste ouvert aux visiteurs, mais **commander exige un compte** : `CheckoutForm` affiche un appel à la connexion tant que `useAuth()` ne renvoie pas d'utilisateur. Les champs du formulaire sont `shippingName` / `shippingPhone` / `shippingAddress`, préremplis depuis le profil et modifiables — le backend les fige sur la commande. `userId` n'est jamais envoyé, il vient du JWT.
+- Un `401` sur une route protégée renvoie vers `/connexion?next=…` plutôt que d'afficher l'erreur brute ; un `403` sur une commande est traité comme un `404` (ne pas révéler qu'elle existe).
 - Les montants arrivent en **chaîne** (`Decimal` Prisma sérialisé). Les parser via `lib/format.ts`, jamais avec un `Number()` inline.
 - Les visuels du seed (`/images/products/*.jpg`) n'existent pas dans `public/`. `components/product-image.tsx` retombe sur un aplat ; il traite aussi le cas d'une image déjà en 404 au rendu serveur, où `onError` ne se déclenche jamais.
 

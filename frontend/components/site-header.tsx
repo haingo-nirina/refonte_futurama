@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCategories } from "@/lib/api";
 import type { Category } from "@/lib/types";
+import { AccountMenu } from "./account-menu";
 import { CartBadge } from "./cart-badge";
 import { SearchForm } from "./search-form";
 
@@ -48,6 +49,7 @@ export async function SiteHeader() {
               +261 32 69 521 24
             </span>
           </div>
+          <AccountMenu />
           <CartBadge />
         </div>
       </div>

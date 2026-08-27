@@ -1,11 +1,15 @@
+import { readTokenCookie } from "./auth-token";
 import type {
+  AuthSession,
   Cart,
   Category,
   CreateOrderInput,
+  LoginInput,
   Order,
   Paginated,
   Product,
   ProductDetail,
+  RegisterInput,
 } from "./types";
 
 /**
@@ -33,13 +37,30 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * `token` n'est a fournir que cote serveur, ou le cookie n'est pas lisible
+ * depuis ce module : un Server Component passe `await getServerToken()`.
+ * Dans le navigateur, le token est trouve tout seul.
+ */
+type RequestInitWithAuth = RequestInit & { token?: string };
+
+async function request<T>(
+  path: string,
+  init?: RequestInitWithAuth,
+): Promise<T> {
+  const { token, ...fetchInit } = init ?? {};
+  const bearer = token ?? readTokenCookie();
+
   const response = await fetch(`${BASE_URL}${path}`, {
     // Catalogue, panier et commandes doivent refleter la base a chaque rendu :
     // sans ca, Next prerendrait ces pages au build avec des donnees figees.
     cache: "no-store",
-    ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    ...fetchInit,
+    headers: {
+      "Content-Type": "application/json",
+      ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+      ...fetchInit.headers,
+    },
   });
 
   if (!response.ok) {
@@ -73,6 +94,22 @@ function toQuery(params: Record<string, string | number | undefined>): string {
 
   const query = search.toString();
   return query ? `?${query}` : "";
+}
+
+// --------------------------------------------------------------------- Auth
+
+export function register(input: RegisterInput): Promise<AuthSession> {
+  return request<AuthSession>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function login(input: LoginInput): Promise<AuthSession> {
+  return request<AuthSession>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 // ---------------------------------------------------------------- Categories
@@ -128,6 +165,11 @@ export function createOrder(input: CreateOrderInput): Promise<Order> {
   });
 }
 
-export function getOrder(id: string): Promise<Order> {
-  return request<Order>(`/orders/${id}`);
+export function getOrder(id: string, token?: string): Promise<Order> {
+  return request<Order>(`/orders/${id}`, { token });
+}
+
+/** Historique du compte appelant ; la totalite du site pour un admin. */
+export function getMyOrders(token?: string): Promise<Order[]> {
+  return request<Order[]>("/orders", { token });
 }
