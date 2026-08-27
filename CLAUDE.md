@@ -58,7 +58,9 @@ Modules existants : `auth`, `categories`, `products`, `cart`, `orders`, `reviews
 - `@CurrentUser()` injecte l'utilisateur ; il renvoie `undefined` derrière `OptionalJwtAuthGuard`.
 - `JWT_SECRET` est obligatoire (l'app refuse de démarrer sans). Voir `.env.example`.
 
-Routes protégées : `POST /orders`, `POST /reviews`, `POST /posts/:id/comments`, `POST|DELETE /posts/:id/like` (JWT) ; `PATCH /orders/:id/status`, `GET /reviews/pending`, `PATCH /reviews/:id/moderate` (admin). Le catalogue reste public en lecture, le panier reste ouvert sans compte.
+Routes protégées : `POST /orders`, `GET /orders`, `GET /orders/:id`, `POST /reviews`, `POST /posts/:id/comments`, `POST|DELETE /posts/:id/like` (JWT) ; `PATCH /orders/:id/status`, `GET /reviews/pending`, `PATCH /reviews/:id/moderate` (admin). Le catalogue reste public en lecture, le panier reste ouvert sans compte.
+
+**Aucune route de `orders` n'est publique** : une commande porte le nom, le téléphone et l'adresse de livraison de son auteur. `GET /orders` renvoie l'historique du compte appelant, et la totalité pour un admin ; `GET /orders/:id` refuse en 403 une commande qui n'appartient pas à l'appelant. Le filtre vit dans le service (règle métier), pas dans le controller. `updateStatus` passe par `getOrThrow()`, la lecture interne sans contrôle de propriétaire.
 
 **L'identité ne vient jamais du body.** `userId` est lu sur le token : les DTO de commande, d'avis et de commentaire ne contiennent que le contenu, jamais l'auteur.
 

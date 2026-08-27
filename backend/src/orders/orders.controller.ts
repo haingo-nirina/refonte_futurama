@@ -18,6 +18,10 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
+/**
+ * Aucune route de ce module n'est publique : une commande porte le nom, le
+ * telephone et l'adresse de livraison de son auteur.
+ */
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
@@ -28,14 +32,20 @@ export class OrdersController {
     return this.ordersService.createFromCart(user.userId, dto);
   }
 
+  /** Historique du compte appelant ; la totalite pour un admin. */
   @Get()
-  findAll() {
-    return this.ordersService.findAll();
+  @UseGuards(JwtAuthGuard)
+  findAll(@CurrentUser() user: AuthenticatedUser) {
+    return this.ordersService.findAll(user);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.ordersService.findOne(id);
+  @UseGuards(JwtAuthGuard)
+  findOne(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.ordersService.findOne(id, user);
   }
 
   @Patch(':id/status')

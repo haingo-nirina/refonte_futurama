@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { USER_ROLE } from '../common/constants';
+import type { AuthenticatedUser } from '../auth/jwt-payload';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -84,14 +86,34 @@ export class OrdersService {
     });
   }
 
-  findAll() {
+  /**
+   * Un client ne voit que ses propres commandes. Le filtre est pose ici et non
+   * dans le controller : c'est une regle metier, pas du routage.
+   */
+  findAll(user: AuthenticatedUser) {
     return this.prisma.order.findMany({
+      where: user.role === USER_ROLE.ADMIN ? {} : { userId: user.userId },
       include: ORDER_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user: AuthenticatedUser) {
+    const order = await this.getOrThrow(id);
+
+    // Connaitre l'id d'une commande ne doit pas suffire a lire le nom, le
+    // telephone et l'adresse de livraison de quelqu'un d'autre.
+    if (order.userId !== user.userId && user.role !== USER_ROLE.ADMIN) {
+      throw new ForbiddenException(
+        'Cette commande appartient a un autre compte',
+      );
+    }
+
+    return order;
+  }
+
+  /** Lecture sans controle de proprietaire : reservee aux appels internes. */
+  private async getOrThrow(id: string) {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: ORDER_INCLUDE,
@@ -105,7 +127,7 @@ export class OrdersService {
   }
 
   async updateStatus(id: string, dto: UpdateOrderStatusDto) {
-    await this.findOne(id);
+    await this.getOrThrow(id);
 
     return this.prisma.order.update({
       where: { id },
