@@ -65,6 +65,24 @@ export class AuthService {
     return this.sign(user);
   }
 
+  /**
+   * Profil du porteur du token, relu en base.
+   *
+   * Le JWT porte `role` sans aller-retour en base : c'est ce qui permet de
+   * ne pas requeter a chaque appel, mais ca rend le role du token perimable.
+   * Le backoffice ne peut pas s'en contenter pour ouvrir son shell — il
+   * verifie ici que le compte existe *encore* et qu'il est *toujours* admin.
+   */
+  async me(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new UnauthorizedException('Compte introuvable');
+    }
+
+    return this.toPublicUser(user);
+  }
+
   /** Le hash ne doit jamais sortir du service. */
   private sign(user: User) {
     const payload: JwtPayload = {
@@ -74,14 +92,18 @@ export class AuthService {
 
     return {
       accessToken: this.jwt.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        phone: user.phone,
-        address: user.address,
-        role: user.role,
-      },
+      user: this.toPublicUser(user),
+    };
+  }
+
+  private toPublicUser(user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      phone: user.phone,
+      address: user.address,
+      role: user.role,
     };
   }
 }

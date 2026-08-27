@@ -44,6 +44,12 @@ export function AccountMenu() {
   return (
     <div className="flex h-[42px] flex-col justify-center leading-tight">
       <span className="text-navy text-[13.5px] font-bold">{firstName}</span>
+      {/* Raccourci vers le backoffice ; la page revalide le role cote serveur. */}
+      {user.role === "admin" ? (
+        <Link href="/admin" className="text-brand text-[11.5px] font-bold">
+          Backoffice
+        </Link>
+      ) : null}
       <button
         type="button"
         onClick={onLogout}

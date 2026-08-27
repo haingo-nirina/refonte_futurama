@@ -39,3 +39,39 @@ body {
   background: var(--color-cream);
   color: var(--color-ink);
 }
+
+/*
+ * Champs de formulaire du backoffice. Ils reviennent dans toutes ses pages
+ * (filtres, edition produit, categories) : une classe vaut mieux que la meme
+ * dizaine d'utilitaires recopiee partout. La boutique, elle, garde ses styles
+ * inline — ses formulaires sont trop peu nombreux pour justifier une classe.
+ */
+@layer components {
+  .admin-input {
+    @apply border-line-strong h-[42px] w-full rounded-[10px] border bg-white px-3 text-[13.5px];
+  }
+
+  .admin-input:focus {
+    @apply border-brand outline-none;
+  }
+
+  textarea.admin-input {
+    @apply h-auto py-2.5;
+  }
+
+  .admin-label {
+    @apply text-muted mb-1 block text-[12px] font-semibold;
+  }
+
+  .admin-button {
+    @apply bg-brand hover:bg-brand-dark h-[42px] rounded-[10px] px-4 text-[13.5px] font-bold text-white transition disabled:opacity-50;
+  }
+
+  .admin-button-ghost {
+    @apply border-line-strong text-ink hover:border-brand hover:text-brand flex h-[42px] items-center rounded-[10px] border bg-white px-4 text-[13.5px] font-bold transition disabled:opacity-50;
+  }
+
+  .admin-card {
+    @apply border-line rounded-[14px] border bg-white p-5;
+  }
+}

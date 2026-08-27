@@ -146,3 +146,144 @@ export type RegisterInput = LoginInput & {
   phone?: string;
   address?: string;
 };
+
+// --------------------------------------------------------------- Backoffice
+
+/**
+ * Formes propres au backoffice. Elles enrichissent les types publics plutot
+ * que de les remplacer : c'est la meme API, avec des champs que seul un admin
+ * recoit (produit desactive, compte auteur d'une commande...).
+ */
+
+export type Vendor = { id: string; name: string };
+
+/** `GET /products` renvoie categorie et vendeur joints. */
+export type AdminProduct = Product & {
+  category: { id: string; name: string; slug: string };
+  vendor: Vendor | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProductRelation = {
+  id: string;
+  relatedProductId: string;
+  relationType: RelationType;
+  relatedProduct: { id: string; name: string };
+};
+
+/** Doit rester aligne sur `backend/src/common/constants.ts`. */
+export const RELATION_TYPES = [
+  { value: "similar", label: "Produit similaire" },
+  { value: "frequently_bought_together", label: "Souvent achete ensemble" },
+] as const;
+
+export type RelationType = (typeof RELATION_TYPES)[number]["value"];
+
+/** Avis tel que renvoye sur la fiche produit (sans le produit joint). */
+export type ProductReview = {
+  id: string;
+  rating: number;
+  comment: string | null;
+  moderationStatus: ModerationStatus;
+  createdAt: string;
+};
+
+/** `GET /products/:id` vu par un admin : specs, relations et avis non moderes. */
+export type AdminProductDetail = AdminProduct & {
+  specs: ProductSpec[];
+  relationsFrom: ProductRelation[];
+  reviews: ProductReview[];
+};
+
+export type ProductInput = {
+  categoryId: string;
+  vendorId?: string | null;
+  name: string;
+  slug: string;
+  reference?: string;
+  description?: string;
+  price: number;
+  promoPrice?: number;
+  stock?: number;
+  isPremium?: boolean;
+  videoUrl?: string;
+  isActive?: boolean;
+};
+
+export type CategoryInput = {
+  name: string;
+  slug: string;
+  parentId?: string | null;
+  imageUrl?: string;
+  displayOrder?: number;
+  isFeatured?: boolean;
+};
+
+/** Doit rester aligne sur `backend/src/common/constants.ts`. */
+export const ORDER_STATUSES = [
+  { value: "pending", label: "En attente" },
+  { value: "confirmed", label: "Confirmee" },
+  { value: "shipped", label: "Expediee" },
+  { value: "delivered", label: "Livree" },
+  { value: "cancelled", label: "Annulee" },
+] as const;
+
+export type OrderStatus = (typeof ORDER_STATUSES)[number]["value"];
+
+/** Le compte auteur, joint sur toutes les lectures de commande. */
+export type OrderCustomer = { id: string; email: string; fullName: string };
+
+export type AdminOrder = Order & { user: OrderCustomer };
+
+/** Doit rester aligne sur `backend/src/common/constants.ts`. */
+export const MODERATION_STATUSES = [
+  { value: "pending", label: "En attente" },
+  { value: "approved", label: "Approuve" },
+  { value: "rejected", label: "Rejete" },
+] as const;
+
+export type ModerationStatus = (typeof MODERATION_STATUSES)[number]["value"];
+
+export type AdminReview = {
+  id: string;
+  productId: string;
+  rating: number;
+  comment: string | null;
+  moderationStatus: ModerationStatus;
+  createdAt: string;
+  user: { id: string; fullName: string };
+  product: { id: string; name: string; slug: string };
+};
+
+export type DashboardStats = {
+  revenue: {
+    today: string;
+    month: string;
+    allTime: string;
+    averageOrder: string;
+  };
+  orders: {
+    today: number;
+    month: number;
+    allTime: number;
+    byStatus: Partial<Record<OrderStatus, number>>;
+  };
+  catalog: {
+    products: number;
+    inactiveProducts: number;
+    categories: number;
+    lowStockThreshold: number;
+    lowStock: { id: string; name: string; stock: number }[];
+  };
+  moderation: { pendingReviews: number };
+  customers: number;
+  topProducts: { productName: string; quantity: number }[];
+  recentOrders: {
+    id: string;
+    shippingName: string;
+    status: OrderStatus;
+    total: string;
+    createdAt: string;
+  }[];
+};

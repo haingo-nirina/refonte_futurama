@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { ResellersService } from './resellers.service';
 import { CreateResellerDto } from './dto/create-reseller.dto';
 import { UpdateResellerDto } from './dto/update-reseller.dto';
@@ -17,6 +18,7 @@ export class ResellersController {
   constructor(private readonly resellersService: ResellersService) {}
 
   @Post()
+  @AdminOnly()
   create(@Body() dto: CreateResellerDto) {
     return this.resellersService.create(dto);
   }
@@ -27,6 +29,7 @@ export class ResellersController {
   }
 
   @Patch(':id')
+  @AdminOnly()
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateResellerDto,
@@ -35,6 +38,7 @@ export class ResellersController {
   }
 
   @Delete(':id')
+  @AdminOnly()
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.resellersService.remove(id);
   }

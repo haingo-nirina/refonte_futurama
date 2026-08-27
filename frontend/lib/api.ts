@@ -1,6 +1,7 @@
 import { readTokenCookie } from "./auth-token";
 import type {
   AuthSession,
+  AuthUser,
   Cart,
   Category,
   CreateOrderInput,
@@ -42,9 +43,9 @@ export class ApiError extends Error {
  * depuis ce module : un Server Component passe `await getServerToken()`.
  * Dans le navigateur, le token est trouve tout seul.
  */
-type RequestInitWithAuth = RequestInit & { token?: string };
+export type RequestInitWithAuth = RequestInit & { token?: string };
 
-async function request<T>(
+export async function request<T>(
   path: string,
   init?: RequestInitWithAuth,
 ): Promise<T> {
@@ -85,7 +86,7 @@ async function readErrorMessage(response: Response): Promise<string> {
   return `Erreur ${response.status}`;
 }
 
-function toQuery(params: Record<string, string | number | undefined>): string {
+export function toQuery(params: Record<string, string | number | undefined>): string {
   const search = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
@@ -110,6 +111,11 @@ export function login(input: LoginInput): Promise<AuthSession> {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+/** Profil relu en base ; c'est ce qui autorise l'entree du backoffice. */
+export function getMe(token?: string): Promise<AuthUser> {
+  return request<AuthUser>("/auth/me", { token });
 }
 
 // ---------------------------------------------------------------- Categories

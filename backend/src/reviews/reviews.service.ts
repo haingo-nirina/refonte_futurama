@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MODERATION_STATUS } from '../common/constants';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { FindAdminReviewsQueryDto } from './dto/find-admin-reviews-query.dto';
 import { ModerateReviewDto } from './dto/moderate-review.dto';
 
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
@@ -81,6 +82,37 @@ export class ReviewsService {
       },
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  /** Liste backoffice : tous statuts confondus, paginee et filtrable. */
+  async findAllForAdmin(query: FindAdminReviewsQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const where: Prisma.ReviewWhereInput = {
+      ...(query.status ? { moderationStatus: query.status } : {}),
+      ...(query.productId ? { productId: query.productId } : {}),
+    };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.review.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          ...AUTHOR_INCLUDE,
+          product: { select: { id: true, name: true, slug: true } },
+        },
+        // les plus anciens d'abord : une file de moderation se vide par le bas
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.review.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async moderate(id: string, dto: ModerateReviewDto) {

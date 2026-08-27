@@ -43,3 +43,19 @@ export function formatDate(iso: string): string {
     year: "numeric",
   });
 }
+
+/** `12 mars 2026, 14:05` — le backoffice a besoin de l'heure, pas la boutique. */
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/** `2026-03-12` : format attendu par un `<input type="date">`. */
+export function toDateInputValue(iso: string): string {
+  return new Date(iso).toISOString().slice(0, 10);
+}

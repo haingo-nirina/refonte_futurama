@@ -6,16 +6,16 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import { USER_ROLE } from '../common/constants';
+import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/jwt-payload';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { FindOrdersQueryDto } from './dto/find-orders-query.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 /**
@@ -32,11 +32,21 @@ export class OrdersController {
     return this.ordersService.createFromCart(user.userId, dto);
   }
 
-  /** Historique du compte appelant ; la totalite pour un admin. */
+  /** Historique du compte appelant, admin compris. */
   @Get()
   @UseGuards(JwtAuthGuard)
   findAll(@CurrentUser() user: AuthenticatedUser) {
     return this.ordersService.findAll(user);
+  }
+
+  /**
+   * Liste complete du site, paginee et filtrable. Declaree avant `:id` :
+   * Nest resout les routes dans l'ordre de declaration.
+   */
+  @Get('admin')
+  @AdminOnly()
+  findAllForAdmin(@Query() query: FindOrdersQueryDto) {
+    return this.ordersService.findAllForAdmin(query);
   }
 
   @Get(':id')
@@ -49,8 +59,7 @@ export class OrdersController {
   }
 
   @Patch(':id/status')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(USER_ROLE.ADMIN)
+  @AdminOnly()
   updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateOrderStatusDto,

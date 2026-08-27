@@ -9,14 +9,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { USER_ROLE } from '../common/constants';
+import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthenticatedUser } from '../auth/jwt-payload';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { FindAdminReviewsQueryDto } from './dto/find-admin-reviews-query.dto';
 import { FindReviewsQueryDto } from './dto/find-reviews-query.dto';
 import { ModerateReviewDto } from './dto/moderate-review.dto';
 
@@ -36,15 +35,20 @@ export class ReviewsController {
   }
 
   @Get('pending')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(USER_ROLE.ADMIN)
+  @AdminOnly()
   findPending() {
     return this.reviewsService.findPending();
   }
 
+  /** Declaree avant `:id` comme `pending` : Nest resout dans l'ordre. */
+  @Get('admin')
+  @AdminOnly()
+  findAllForAdmin(@Query() query: FindAdminReviewsQueryDto) {
+    return this.reviewsService.findAllForAdmin(query);
+  }
+
   @Patch(':id/moderate')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(USER_ROLE.ADMIN)
+  @AdminOnly()
   moderate(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ModerateReviewDto,

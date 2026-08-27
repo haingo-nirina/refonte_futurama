@@ -43,9 +43,17 @@ src/<domaine>/
   dto/<action>-<x>.dto.ts   # validation class-validator
 ```
 
-Modules existants : `auth`, `categories`, `products`, `cart`, `orders`, `reviews`, `resellers`, `posts`. `PrismaService` est fourni par `src/prisma/`, déclaré `@Global()` : il s'injecte directement dans n'importe quel service sans réimporter `PrismaModule`.
+Modules existants : `auth`, `categories`, `products`, `cart`, `orders`, `reviews`, `resellers`, `posts`, `stats`. `PrismaService` est fourni par `src/prisma/`, déclaré `@Global()` : il s'injecte directement dans n'importe quel service sans réimporter `PrismaModule`.
 
-`Vendor` et `Promotion` n'ont pas de module dédié : ils se peuplent uniquement par le seed, et se lisent via les produits (`vendorId` filtre `GET /products`).
+`Vendor` et `Promotion` n'ont pas de module dédié : ils se peuplent uniquement par le seed, et se lisent via les produits (`vendorId` filtre `GET /products`). Conséquence pour le backoffice : le formulaire produit **n'expose pas le vendeur** — il n'y a rien pour en lister. Ne pas envoyer `vendorId` laisse la valeur en place, donc rien n'est perdu.
+
+`stats` n'a qu'une route, `GET /stats/dashboard` : tous les agrégats du tableau de bord en un seul appel. Les découper coûterait autant d'allers-retours vers Aiven — voir les ordres de grandeur plus bas.
+
+### Sous-ressources produit
+
+`ProductImage`, `ProductSpec` et `ProductRelation` se remplacent **en bloc**, pas ligne par ligne : `PUT /products/:id/images|specs|relations` supprime la collection et la recrée. C'est ce que soumet un formulaire d'édition, et ça évite neuf routes là où trois suffisent. Rien ne référence ces lignes, les recréer est sans conséquence.
+
+`replaceRelations` maintient le **miroir de `similar`** : la relation est dirigée en base et `findRelated` filtre sur `productId`, donc sans ligne inverse « A ressemble à B » n'apparaîtrait pas sur la fiche de B. C'est la convention du seed. `frequently_bought_together` reste dirigée.
 
 ### Authentification
 
@@ -54,13 +62,19 @@ Modules existants : `auth`, `categories`, `products`, `cart`, `orders`, `reviews
 - `POST /auth/register` et `POST /auth/login` renvoient `{ accessToken, user }`. Le hash ne sort jamais du service.
 - `JwtStrategy` valide `Authorization: Bearer <token>` et dépose `{ userId, role }` sur `request.user`. Le token porte `sub` (userId) et `role` — **aucun aller-retour en base** : un compte supprimé ou dégradé reste valide jusqu'à expiration (7 j par défaut, `JWT_EXPIRES_IN`).
 - `JwtAuthGuard` exige un token (401 sinon). `RolesGuard` + `@Roles(USER_ROLE.ADMIN)` filtrent sur le rôle (403) — `RolesGuard` n'authentifie pas, il doit **toujours** suivre `JwtAuthGuard` dans le même `@UseGuards()`.
-- `OptionalJwtAuthGuard` laisse passer l'anonyme tout en renseignant `request.user` si un token valide est présent. C'est ce qui permet au panier de rester ouvert aux visiteurs.
+- **`@AdminOnly()`** (`src/auth/decorators/admin-only.decorator.ts`) encapsule ce couple dans le bon ordre. C'est la forme à utiliser sur toute route admin : la combinaison manuelle laisse la possibilité d'oublier `JwtAuthGuard` et de rendre la route publique.
+- `OptionalJwtAuthGuard` laisse passer l'anonyme tout en renseignant `request.user` si un token valide est présent. C'est ce qui permet au panier de rester ouvert aux visiteurs, et au catalogue de masquer les produits dépubliés à tout le monde sauf à l'admin.
 - `@CurrentUser()` injecte l'utilisateur ; il renvoie `undefined` derrière `OptionalJwtAuthGuard`.
+- `GET /auth/me` **relit le compte en base** : le JWT porte un `role` figé à l'émission, donc c'est le seul moyen de savoir si un compte est *encore* admin. C'est ce que fait le layout du backoffice.
 - `JWT_SECRET` est obligatoire (l'app refuse de démarrer sans). Voir `.env.example`.
 
-Routes protégées : `POST /orders`, `GET /orders`, `GET /orders/:id`, `POST /reviews`, `POST /posts/:id/comments`, `POST|DELETE /posts/:id/like` (JWT) ; `PATCH /orders/:id/status`, `GET /reviews/pending`, `PATCH /reviews/:id/moderate` (admin). Le catalogue reste public en lecture, le panier reste ouvert sans compte.
+Routes protégées par un simple JWT : `POST /orders`, `GET /orders`, `GET /orders/:id`, `GET /auth/me`, `POST /reviews`, `POST /posts/:id/comments`, `POST|DELETE /posts/:id/like`.
 
-**Aucune route de `orders` n'est publique** : une commande porte le nom, le téléphone et l'adresse de livraison de son auteur. `GET /orders` renvoie l'historique du compte appelant, et la totalité pour un admin ; `GET /orders/:id` refuse en 403 une commande qui n'appartient pas à l'appelant. Le filtre vit dans le service (règle métier), pas dans le controller. `updateStatus` passe par `getOrThrow()`, la lecture interne sans contrôle de propriétaire.
+Routes admin (`@AdminOnly()`) : **toute écriture du catalogue et du contenu** — `POST|PATCH|DELETE /products`, `PUT /products/:id/images|specs|relations`, `POST|PATCH|DELETE /categories`, `POST|PATCH|DELETE /posts`, `DELETE /posts/:id/comments/:commentId`, `POST|PATCH|DELETE /resellers` — plus `GET /orders/admin`, `PATCH /orders/:id/status`, `GET /reviews/admin`, `GET /reviews/pending`, `PATCH /reviews/:id/moderate`, `GET /stats/dashboard`.
+
+Le catalogue et le blog restent publics **en lecture**, le panier reste ouvert sans compte.
+
+**Aucune route de `orders` n'est publique** : une commande porte le nom, le téléphone et l'adresse de livraison de son auteur. `GET /orders` renvoie l'historique du **compte appelant, admin compris** — « Mes commandes » reste personnel ; la liste complète du site passe par `GET /orders/admin`, paginée et filtrable (statut, recherche nom/téléphone/email, plage de dates). `GET /orders/:id` refuse en 403 une commande qui n'appartient pas à l'appelant, sauf pour un admin. Le filtre vit dans le service (règle métier), pas dans le controller. `updateStatus` passe par `getOrThrow()`, la lecture interne sans contrôle de propriétaire.
 
 **L'identité ne vient jamais du body.** `userId` est lu sur le token : les DTO de commande, d'avis et de commentaire ne contiennent que le contenu, jamais l'auteur.
 
@@ -70,6 +84,7 @@ Routes protégées : `POST /orders`, `GET /orders`, `GET /orders/:id`, `POST /re
 - Toute entrée utilisateur passe par un DTO validé (`class-validator`), y compris les query params.
 - Pas de chaîne de statut en dur : utiliser `src/common/constants.ts`, qui reprend les valeurs commentées dans `schema.prisma` (statuts de commande, moyens de paiement, statuts de modération, types de relation produit). Y ajouter toute nouvelle valeur plutôt que de l'inliner.
 - Tout nouveau module doit être ajouté aux `imports` de `src/app.module.ts`.
+- Une route d'écriture sans `@AdminOnly()` est publique. Le vérifier explicitement à chaque ajout.
 
 Le `ValidationPipe` global est configuré dans `src/main.ts` avec `whitelist`, `forbidNonWhitelisted` et `transform`. Sans lui les décorateurs des DTO sont inertes — ne pas le retirer. C'est `transform: true` qui fait fonctionner les `@Type(() => Number)` sur les query params numériques.
 
@@ -114,6 +129,8 @@ Le rattachement du panier anonyme est gratuit : après `startSession()`, un `not
 - `order_items` fige `productName` et `unitPrice` au moment de la commande : une commande ne doit pas bouger si le produit change ensuite.
 - Le nom affiché d'un avis ou d'un commentaire vient du compte (`authorName` n'existe plus) : tout affichage doit joindre `user`. Les services le font déjà via leurs constantes `AUTHOR_INCLUDE` / `COMMENT_AUTHOR_INCLUDE`.
 - Les avis sont créés en `pending` et ne sont visibles publiquement qu'une fois `approved`. La modération ne mène qu'à un état terminal (`approved` / `rejected`), jamais retour à `pending`.
+- **`isActive` et `publishedAt` sont des filtres de publication, pas des colonnes d'affichage.** `GET /products` et `GET /products/:id` masquent les produits désactivés (404 sur la fiche), `GET /posts` masque les brouillons et les publications programmées. Un admin identifié par `OptionalJwtAuthGuard` voit tout, et peut filtrer explicitement avec `isActive=true|false`. Un produit désactivé disparaît aussi des `similar` / `frequently_bought_together`.
+- `Order.status` n'a **pas de machine à états** : le backend accepte n'importe quelle transition. Ne pas simuler de garde-fou côté front, ce serait une règle métier posée au mauvais endroit.
 - Les likes d'articles sont idempotents via la contrainte unique `[postId, userId]` ; `likesCount` n'est incrémenté que lorsque la ligne est réellement créée.
 
 ## Seed
@@ -133,7 +150,22 @@ Les relations `similar` sont écrites dans les deux sens (`findRelated` filtre s
 
 ## Frontend
 
-MVP e-commerce : accueil (rayons), catalogue paginé par rayon, fiche produit, panier, connexion / inscription et confirmation de commande. Le reste de la maquette (chatbot, live shopping, blog, avis, revendeurs) n'est pas implémenté.
+Deux applications dans le même paquet Next, séparées par des groupes de routes :
+
+- `app/(boutique)/` — MVP e-commerce : accueil (rayons), catalogue paginé par rayon, fiche produit, panier, connexion / inscription et confirmation de commande. Le reste de la maquette (chatbot, live shopping, blog, avis, revendeurs) n'est pas implémenté.
+- `app/admin/` — le backoffice : tableau de bord, commandes, produits, catégories, modération des avis.
+
+**Le layout racine (`app/layout.tsx`) est volontairement nu** — polices et feuille de styles, rien d'autre. L'en-tête et le pied de page appartiennent à la boutique et vivent dans `app/(boutique)/layout.tsx`. Un layout enfant ne pouvant pas retirer le chrome de son parent, c'est le seul moyen de donner au backoffice une enveloppe distincte. Le groupe `(boutique)` ne change aucune URL.
+
+### Backoffice
+
+`app/admin/layout.tsx` est un Server Component qui **relit le compte via `GET /auth/me`** avant d'ouvrir le shell : le rôle du JWT est figé à l'émission, et le `localStorage` du navigateur ne prouve rien. Sans token → `/connexion?next=/admin` ; compte non-admin → `notFound()` (404 plutôt que 403 : inutile d'annoncer l'existence d'un backoffice). Ce garde n'est **qu'un confort d'affichage** — chaque route admin du backend revalide de son côté, un contournement de cette page ne donne accès à rien.
+
+- `lib/admin-api.ts` regroupe les appels réservés au backoffice. Il partage le `request()` de `lib/api.ts` (une seule implémentation de `fetch`) mais vit à part : ces routes répondent toutes 403 à un compte client, et rien ici ne doit finir appelé depuis une page de la boutique.
+- Les **filtres de liste sont des formulaires GET natifs** : ils vivent dans l'URL, donc partageables et rechargeables, et n'exigent aucun JS. `components/admin/admin-pagination.tsx` reporte tous les filtres courants dans ses liens — contrairement à `components/pagination.tsx` qui ne connaît que `q`.
+- Les mutations sont des Client Components qui appellent `router.refresh()` après succès : les pages sont des Server Components, c'est au serveur de relire.
+- Galerie, caractéristiques et produits liés s'éditent en liste locale complète et ne partent qu'à la validation — le backend remplace la collection entière (voir *Sous-ressources produit*).
+- Les classes `admin-input` / `admin-label` / `admin-button` / `admin-card` sont définies dans `app/globals.css`. La boutique garde ses styles inline : ses formulaires sont trop peu nombreux pour justifier une classe.
 
 `maquette/refonte-site-Futurama-v1.3.html` est la référence visuelle. C'est un bundle Claude Design : le HTML lisible est dans son `<script type="__bundler/template">`, en JSON. La palette et les fontes (Archivo pour les titres, DM Sans pour le texte) en sont extraites et vivent dans les tokens `@theme` de `app/globals.css`.
 
@@ -144,7 +176,9 @@ Le backend n'a **ni préfixe global ni CORS**. Il est monté derrière `/api` pa
 Deux limites de l'API que le catalogue contourne côté front, à remplacer par un vrai filtre backend le jour où le catalogue grossit :
 
 - `GET /products?categoryId=` ne filtre que sur une catégorie exacte : ouvrir un rayon parent oblige à charger le catalogue et filtrer sur l'ensemble parent + enfants ;
-- il n'y a pas de recherche par nom : la recherche du header renvoie sur `/catalogue/tous?q=`, filtré de la même façon. `limit` est plafonné à 100 côté DTO.
+- il n'y a pas de recherche par nom **côté boutique** : la recherche du header renvoie sur `/catalogue/tous?q=`, filtré de la même façon. `limit` est plafonné à 100 côté DTO.
+
+`GET /products?q=` existe pourtant désormais (nom + référence, insensible à la casse) : il a été ajouté pour la liste du backoffice. Le catalogue de la boutique ne s'en sert pas encore — c'est le remplacement naturel du filtrage côté client décrit ci-dessus.
 
 ### Conventions
 

@@ -9,10 +9,14 @@ import { USER_ROLE } from '../common/constants';
 import type { AuthenticatedUser } from '../auth/jwt-payload';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { FindOrdersQueryDto } from './dto/find-orders-query.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 const ORDER_INCLUDE = {
   items: true,
+  // le compte auteur : le backoffice en a besoin, et un client n'y lit que
+  // ses propres coordonnees
+  user: { select: { id: true, email: true, fullName: true } },
 } as const;
 
 @Injectable()
@@ -87,15 +91,64 @@ export class OrdersService {
   }
 
   /**
-   * Un client ne voit que ses propres commandes. Le filtre est pose ici et non
-   * dans le controller : c'est une regle metier, pas du routage.
+   * Historique du compte appelant, admin compris : "Mes commandes" doit rester
+   * personnel. La liste complete du site passe par `findAllForAdmin`.
    */
   findAll(user: AuthenticatedUser) {
     return this.prisma.order.findMany({
-      where: user.role === USER_ROLE.ADMIN ? {} : { userId: user.userId },
+      where: { userId: user.userId },
       include: ORDER_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /** Liste backoffice : paginee et filtrable, avec le compte auteur. */
+  async findAllForAdmin(query: FindOrdersQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const where = this.buildAdminWhere(query);
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.order.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: ORDER_INCLUDE,
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  private buildAdminWhere(query: FindOrdersQueryDto): Prisma.OrderWhereInput {
+    const where: Prisma.OrderWhereInput = {};
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.q) {
+      where.OR = [
+        { shippingName: { contains: query.q, mode: 'insensitive' } },
+        { shippingPhone: { contains: query.q, mode: 'insensitive' } },
+        { user: { email: { contains: query.q, mode: 'insensitive' } } },
+      ];
+    }
+
+    if (query.dateFrom || query.dateTo) {
+      where.createdAt = {
+        ...(query.dateFrom ? { gte: new Date(query.dateFrom) } : {}),
+        // borne haute inclusive : "jusqu'au 12" doit contenir le 12 entier
+        ...(query.dateTo ? { lte: endOfDay(query.dateTo) } : {}),
+      };
+    }
+
+    return where;
   }
 
   async findOne(id: string, user: AuthenticatedUser) {
@@ -135,4 +188,12 @@ export class OrdersService {
       include: ORDER_INCLUDE,
     });
   }
+}
+
+/** Dernier instant du jour : borne haute inclusive d'un filtre "jusqu'au <jour>". */
+function endOfDay(date: string): Date {
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+
+  return end;
 }

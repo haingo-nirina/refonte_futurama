@@ -16,6 +16,18 @@ const COMMENT_AUTHOR_INCLUDE = {
   user: { select: { id: true, fullName: true } },
 } as const;
 
+/**
+ * Un article est publie quand `publishedAt` est renseigne et deja passe :
+ * une date future sert de publication programmee.
+ */
+const PUBLISHED_WHERE = (): Prisma.PostWhereInput => ({
+  publishedAt: { not: null, lte: new Date() },
+});
+
+function isPublished(publishedAt: Date | null): boolean {
+  return publishedAt !== null && publishedAt <= new Date();
+}
+
 @Injectable()
 export class PostsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -32,18 +44,25 @@ export class PostsService {
     });
   }
 
-  async findAll(query: PaginatePostsDto) {
+  /**
+   * `isAdmin` leve le filtre de publication : un brouillon n'apparait jamais
+   * au blog public, mais doit rester listable depuis le backoffice.
+   */
+  async findAll(query: PaginatePostsDto, isAdmin = false) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
 
+    const where = isAdmin ? {} : PUBLISHED_WHERE();
+
     const [data, total] = await this.prisma.$transaction([
       this.prisma.post.findMany({
+        where,
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: { _count: { select: { comments: true } } },
       }),
-      this.prisma.post.count(),
+      this.prisma.post.count({ where }),
     ]);
 
     return {
@@ -55,7 +74,7 @@ export class PostsService {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, isAdmin = false) {
     const post = await this.prisma.post.findUnique({
       where: { id },
       include: {
@@ -66,7 +85,7 @@ export class PostsService {
       },
     });
 
-    if (!post) {
+    if (!post || (!isAdmin && !isPublished(post.publishedAt))) {
       throw new NotFoundException(`Article ${id} introuvable`);
     }
 
@@ -144,6 +163,21 @@ export class PostsService {
       },
       include: COMMENT_AUTHOR_INCLUDE,
     });
+  }
+
+  /** Retire un commentaire ; verifie qu'il appartient bien a l'article vise. */
+  async removeComment(postId: string, commentId: string) {
+    await this.findPostOrFail(postId);
+
+    const comment = await this.prisma.postComment.findUnique({
+      where: { id: commentId },
+    });
+
+    if (!comment || comment.postId !== postId) {
+      throw new NotFoundException(`Commentaire ${commentId} introuvable`);
+    }
+
+    return this.prisma.postComment.delete({ where: { id: commentId } });
   }
 
   private async findPostOrFail(id: string) {

@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Archivo, DM_Sans } from "next/font/google";
-import { SiteHeader } from "@/components/site-header";
-import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 const archivo = Archivo({
@@ -24,17 +22,22 @@ export const metadata: Metadata = {
     "Jouets, electromenager, energie et robotique. Prix importateur, stock a Antananarivo.",
 };
 
+/**
+ * Layout racine volontairement nu : il ne porte que les polices et la feuille
+ * de styles.
+ *
+ * L'en-tete et le pied de page appartiennent a la boutique et vivent dans
+ * `app/(boutique)/layout.tsx` ; le backoffice a son propre habillage dans
+ * `app/admin/layout.tsx`. Un layout enfant ne pouvant pas retirer le chrome de
+ * son parent, c'est le seul moyen d'avoir deux enveloppes distinctes.
+ */
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
       className={`${archivo.variable} ${dmSans.variable} h-full antialiased`}
     >
-      <body className="font-sans flex min-h-full flex-col">
-        <SiteHeader />
-        <main className="flex-1">{children}</main>
-        <SiteFooter />
-      </body>
+      <body className="font-sans flex min-h-full flex-col">{children}</body>
     </html>
   );
 }

@@ -10,8 +10,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { USER_ROLE } from '../common/constants';
+import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/jwt-payload';
 import { PostsService } from './posts.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
@@ -24,26 +27,42 @@ export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Post()
+  @AdminOnly()
   create(@Body() dto: CreatePostDto) {
     return this.postsService.create(dto);
   }
 
+  /**
+   * Un brouillon (`publishedAt` vide ou a venir) n'est visible que du
+   * backoffice : `OptionalJwtAuthGuard` laisse la route publique tout en
+   * identifiant l'admin.
+   */
   @Get()
-  findAll(@Query() query: PaginatePostsDto) {
-    return this.postsService.findAll(query);
+  @UseGuards(OptionalJwtAuthGuard)
+  findAll(
+    @Query() query: PaginatePostsDto,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.postsService.findAll(query, isAdmin(user));
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.postsService.findOne(id);
+  @UseGuards(OptionalJwtAuthGuard)
+  findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.postsService.findOne(id, isAdmin(user));
   }
 
   @Patch(':id')
+  @AdminOnly()
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdatePostDto) {
     return this.postsService.update(id, dto);
   }
 
   @Delete(':id')
+  @AdminOnly()
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.postsService.remove(id);
   }
@@ -75,4 +94,18 @@ export class PostsController {
   ) {
     return this.postsService.addComment(id, user.userId, dto);
   }
+
+  /** Moderation : retrait d'un commentaire depuis le backoffice. */
+  @Delete(':id/comments/:commentId')
+  @AdminOnly()
+  removeComment(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('commentId', ParseUUIDPipe) commentId: string,
+  ) {
+    return this.postsService.removeComment(id, commentId);
+  }
+}
+
+function isAdmin(user: AuthenticatedUser | undefined): boolean {
+  return user?.role === USER_ROLE.ADMIN;
 }
