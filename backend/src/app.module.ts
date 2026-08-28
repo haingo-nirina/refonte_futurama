@@ -11,6 +11,7 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { ResellersModule } from './resellers/resellers.module';
 import { PostsModule } from './posts/posts.module';
 import { StatsModule } from './stats/stats.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { StatsModule } from './stats/stats.module';
     ResellersModule,
     PostsModule,
     StatsModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -4,8 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
+import { ImageUpload } from "@/components/admin/image-upload";
 import { ApiError } from "@/lib/api";
-import { createProduct, deleteProduct, updateProduct } from "@/lib/admin-api";
+import {
+  createProduct,
+  deleteProduct,
+  replaceProductImages,
+  updateProduct,
+} from "@/lib/admin-api";
 import type { AdminProduct, Category, ProductInput } from "@/lib/types";
 
 /** `name` -> `slug` : meme regle que la contrainte du DTO backend. */
@@ -67,6 +73,9 @@ export function ProductForm({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // Seulement a la creation : en edition, la galerie complete vit dans son
+  // propre bloc, qui a besoin de l'identifiant du produit.
+  const [photoUrl, setPhotoUrl] = useState("");
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -103,6 +112,15 @@ export function ProductForm({
         router.refresh();
       } else {
         const created = await createProduct(toPayload());
+
+        // La photo est deja televersee : il ne reste qu'a l'attacher, une fois
+        // le produit cree et son identifiant connu.
+        if (photoUrl) {
+          await replaceProductImages(created.id, [
+            { imageUrl: photoUrl, isPrimary: true },
+          ]);
+        }
+
         // Galerie, specs et relations ont besoin d'un id : on enchaine sur
         // la fiche d'edition plutot que de renvoyer a la liste.
         router.push(`/admin/produits/${created.id}`);
@@ -246,6 +264,21 @@ export function ProductForm({
             className="admin-input"
           />
         </label>
+
+        {product ? null : (
+          <div className="sm:col-span-2">
+            <span className="admin-label">Photo du produit</span>
+            <ImageUpload
+              value={photoUrl}
+              onChange={setPhotoUrl}
+              alt={form.name}
+            />
+            <p className="text-muted-light mt-1 text-[12px]">
+              C&apos;est la vignette vue par le client. Les autres visuels
+              s&apos;ajoutent dans la galerie, apres la creation.
+            </p>
+          </div>
+        )}
 
         <label className="block sm:col-span-2">
           <span className="admin-label">Description</span>

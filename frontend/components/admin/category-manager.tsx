@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
+import { ImageUpload } from "@/components/admin/image-upload";
 import { Modal } from "@/components/admin/modal";
 import { ApiError } from "@/lib/api";
 import {
@@ -281,16 +282,15 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
             />
           </label>
 
-          <label className="block sm:col-span-2">
-            <span className="admin-label">Image (URL)</span>
-            <input
+          <div className="sm:col-span-2">
+            <span className="admin-label">Image du rayon</span>
+            <ImageUpload
               value={draft.imageUrl}
-              onChange={(event) =>
-                setDraft({ ...draft, imageUrl: event.target.value })
-              }
-              className="admin-input"
+              onChange={(url) => setDraft({ ...draft, imageUrl: url })}
+              alt={draft.name}
+              kind="categories"
             />
-          </label>
+          </div>
 
           <label className="flex items-center gap-2 text-[13.5px] sm:col-span-2">
             <input

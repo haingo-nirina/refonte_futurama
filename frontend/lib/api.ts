@@ -58,7 +58,12 @@ export async function request<T>(
     cache: "no-store",
     ...fetchInit,
     headers: {
-      "Content-Type": "application/json",
+      // Un FormData porte une frontiere multipart generee a l'envoi : imposer
+      // un Content-Type la ferait disparaitre et le serveur ne saurait plus
+      // decouper le corps.
+      ...(fetchInit.body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
       ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
       ...fetchInit.headers,
     },

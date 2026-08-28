@@ -1,11 +1,5 @@
-import {
-  IsInt,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsUrl,
-  Min,
-} from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import { IsImageRef } from '../../common/is-image-ref.decorator';
 import { Type } from 'class-transformer';
 
 export class CreateResellerDto {
@@ -26,7 +20,7 @@ export class CreateResellerDto {
   hours?: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsImageRef()
   logoUrl?: string;
 
   @IsOptional()

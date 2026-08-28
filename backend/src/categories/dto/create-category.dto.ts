@@ -5,10 +5,10 @@ import {
   IsOptional,
   IsString,
   IsUUID,
-  IsUrl,
   Matches,
   Min,
 } from 'class-validator';
+import { IsImageRef } from '../../common/is-image-ref.decorator';
 import { Type } from 'class-transformer';
 
 export class CreateCategoryDto {
@@ -28,7 +28,7 @@ export class CreateCategoryDto {
   parentId?: string | null;
 
   @IsOptional()
-  @IsUrl()
+  @IsImageRef()
   imageUrl?: string;
 
   @IsOptional()

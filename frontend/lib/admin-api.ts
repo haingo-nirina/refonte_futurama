@@ -206,3 +206,39 @@ export function moderateReview(
     body: JSON.stringify({ status }),
   });
 }
+
+// ------------------------------------------------------------------ Visuels
+
+/**
+ * Televerse une photo et renvoie son URL publique, a stocker telle quelle
+ * (`ProductImage.imageUrl`, `Category.imageUrl`...). `kind` choisit le
+ * sous-dossier de rangement, contraint par une liste blanche cote backend.
+ *
+ * Le fichier n'est rattache a aucun produit : c'est un depot independant. On
+ * peut donc televerser pendant la creation d'un produit, avant meme qu'il ait
+ * un identifiant, puis attacher l'URL une fois le produit cree.
+ */
+export type UploadKind = "products" | "categories";
+
+export function uploadImage(
+  file: File,
+  kind: UploadKind = "products",
+): Promise<{ url: string; size: number; mimetype: string }> {
+  const body = new FormData();
+  body.append("file", file);
+
+  return request(`/uploads/images${toQuery({ kind })}`, {
+    method: "POST",
+    body,
+  });
+}
+
+/** Aligne sur `IMAGE_EXTENSIONS` et `MAX_UPLOAD_BYTES` cote backend. */
+export const ACCEPTED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+];
+
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;

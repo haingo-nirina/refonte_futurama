@@ -47,6 +47,8 @@ Modules existants : `auth`, `categories`, `products`, `cart`, `orders`, `reviews
 
 `Vendor` et `Promotion` n'ont pas de module dédié : ils se peuplent uniquement par le seed, et se lisent via les produits (`vendorId` filtre `GET /products`). Conséquence pour le backoffice : le formulaire produit **n'expose pas le vendeur** — il n'y a rien pour en lister. Ne pas envoyer `vendorId` laisse la valeur en place, donc rien n'est perdu.
 
+`uploads` n'a qu'une route, `POST /uploads/images` (admin) : elle écrit le fichier et renvoie son URL, **sans le rattacher à quoi que ce soit**. C'est ce qui permet de téléverser une photo pendant la création d'un produit, avant qu'il ait un identifiant, puis d'attacher l'URL via `PUT /products/:id/images` une fois le produit créé. Détails plus bas.
+
 `stats` n'a qu'une route, `GET /stats/dashboard` : tous les agrégats du tableau de bord en un seul appel. Les découper coûterait autant d'allers-retours vers Aiven — voir les ordres de grandeur plus bas.
 
 ### Sous-ressources produit
@@ -54,6 +56,18 @@ Modules existants : `auth`, `categories`, `products`, `cart`, `orders`, `reviews
 `ProductImage`, `ProductSpec` et `ProductRelation` se remplacent **en bloc**, pas ligne par ligne : `PUT /products/:id/images|specs|relations` supprime la collection et la recrée. C'est ce que soumet un formulaire d'édition, et ça évite neuf routes là où trois suffisent. Rien ne référence ces lignes, les recréer est sans conséquence.
 
 `replaceRelations` maintient le **miroir de `similar`** : la relation est dirigée en base et `findRelated` filtre sur `productId`, donc sans ligne inverse « A ressemble à B » n'apparaîtrait pas sur la fiche de B. C'est la convention du seed. `frequently_bought_together` reste dirigée.
+
+### Visuels téléversés
+
+Les photos vivent dans `backend/uploads/` (gitignoré : ce sont des données, pas du code), **hors de `dist/`** pour qu'un rebuild ne les emporte pas. `main.ts` les sert en statique sous `/uploads` via `useStaticAssets`, et `next.config.ts` remonte le même chemin par un second rewrite — l'URL stockée dans `ProductImage.imageUrl` est donc utilisable telle quelle dans un `<img>`, sans préfixe à recoller côté client. Changer `UPLOADS_PREFIX` exigerait une migration des données.
+
+`POST /uploads/images?kind=products|categories` range le fichier dans le sous-dossier correspondant. **`kind` est contraint par une liste blanche** (`UPLOAD_KINDS`) : sans elle, une valeur fabriquée à la main écrirait hors de `UPLOADS_ROOT`.
+
+Un visuel peut donc être un chemin absolu servi par nous, ou une URL externe. `@IsUrl()` refuse le premier cas — c'est pourquoi `imageUrl` / `photoUrl` / `logoUrl` utilisent **`@IsImageRef()`** (`src/common/is-image-ref.decorator.ts`), qui accepte les deux. `videoUrl` garde `@IsUrl()` : une vidéo est toujours hébergée ailleurs.
+
+Le stockage est en mémoire, pas sur disque : le fichier n'est écrit qu'une fois son type MIME validé, ce qui évite d'avoir à nettoyer un rebut. **Le nom d'origine n'est jamais réutilisé** — il vient du client, et un `../` dedans écrirait n'importe où ; le nom est un UUID et l'extension est déduite du type MIME. Formats acceptés et taille maximale sont dans `uploads.constants.ts`, à garder alignés avec `ACCEPTED_IMAGE_TYPES` / `MAX_IMAGE_BYTES` côté front.
+
+Rien ne supprime le fichier quand l'image est retirée d'un produit : `uploads/` accumule les orphelins. Acceptable à ce volume, à reprendre le jour où ça compte.
 
 ### Authentification
 
@@ -188,6 +202,7 @@ Deux limites de l'API que le catalogue contourne côté front, à remplacer par 
 - Le panier reste ouvert aux visiteurs, mais **commander exige un compte** : `CheckoutForm` affiche un appel à la connexion tant que `useAuth()` ne renvoie pas d'utilisateur. Les champs du formulaire sont `shippingName` / `shippingPhone` / `shippingAddress`, préremplis depuis le profil et modifiables — le backend les fige sur la commande. `userId` n'est jamais envoyé, il vient du JWT.
 - Un `401` sur une route protégée renvoie vers `/connexion?next=…` plutôt que d'afficher l'erreur brute ; un `403` sur une commande est traité comme un `404` (ne pas révéler qu'elle existe).
 - Les montants arrivent en **chaîne** (`Decimal` Prisma sérialisé). Les parser via `lib/format.ts`, jamais avec un `Number()` inline.
-- Les visuels du seed (`/images/products/*.jpg`) n'existent pas dans `public/`. `components/product-image.tsx` retombe sur un aplat ; il traite aussi le cas d'une image déjà en 404 au rendu serveur, où `onError` ne se déclenche jamais.
+- Les visuels du seed (`/images/products/*.jpg`) n'existent pas dans `public/`. `components/product-image.tsx` retombe sur un aplat ; il traite aussi le cas d'une image déjà en 404 au rendu serveur, où `onError` ne se déclenche jamais. Les photos téléversées depuis le backoffice, elles, sont servies sous `/uploads/products/…` (voir *Visuels téléversés*).
+- `request()` ne pose pas de `Content-Type` quand le corps est un `FormData` : la frontière multipart est générée à l'envoi, et l'imposer la ferait disparaître. C'est ce qui fait marcher `uploadImage()`.
 
 `frontend/AGENTS.md` (et `frontend/CLAUDE.md`, qui n'en est qu'un pointeur `@AGENTS.md`) est **généré automatiquement par `next dev`** — voir `node_modules/next/dist/server/lib/generate-agent-files.js`. Le supprimer ne fait que recréer une modif non commitée. Son avertissement vaut : Next 16 introduit des ruptures d'API, consulter `node_modules/next/dist/docs/` avant d'écrire du code Next plutôt que de se fier à ses souvenirs.

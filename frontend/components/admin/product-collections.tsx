@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ImageUpload } from "@/components/admin/image-upload";
 import { ApiError } from "@/lib/api";
 import {
   replaceProductImages,
@@ -47,7 +48,7 @@ export function ImagesEditor({
   return (
     <Section
       title="Galerie"
-      hint="La premiere image, ou celle marquee principale, sert de vignette."
+      hint="Cliquez une vignette pour televerser une photo. La premiere image, ou celle marquee principale, est celle que voit le client sur le catalogue."
       onSave={save}
       pending={pending}
       error={error}
@@ -57,16 +58,29 @@ export function ImagesEditor({
     >
       {rows.map((row, index) => (
         <Row key={index} onRemove={() => setRows(rows.toSpliced(index, 1))}>
+          {/* Cliquer la vignette ouvre le selecteur de fichier. */}
+          <ImageUpload
+            compact
+            value={row.imageUrl}
+            alt={`Visuel ${index + 1}`}
+            onChange={(url) =>
+              setRows(rows.with(index, { ...row, imageUrl: url }))
+            }
+          />
+
+          {/* Le champ texte reste : il accepte un chemin deja en place (ceux
+              du seed) ou une URL externe, sans passer par un televersement. */}
           <input
             value={row.imageUrl}
-            placeholder="/images/products/mon-produit.jpg"
+            placeholder="Cliquez la vignette pour televerser, ou collez une URL"
             onChange={(event) =>
               setRows(
                 rows.with(index, { ...row, imageUrl: event.target.value }),
               )
             }
-            className="admin-input flex-1"
+            className="admin-input min-w-[180px] flex-1"
           />
+
           <label className="flex shrink-0 items-center gap-2 text-[12.5px]">
             <input
               type="radio"

@@ -3,9 +3,9 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUrl,
   Matches,
 } from 'class-validator';
+import { IsImageRef } from '../../common/is-image-ref.decorator';
 
 export class CreatePostDto {
   @IsString()
@@ -23,7 +23,7 @@ export class CreatePostDto {
   content: string;
 
   @IsOptional()
-  @IsUrl()
+  @IsImageRef()
   photoUrl?: string;
 
   @IsOptional()
