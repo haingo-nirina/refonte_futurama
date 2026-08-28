@@ -1,13 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { FiltersPanel } from "@/components/catalogue/filters-panel";
+import { SortSelect } from "@/components/catalogue/sort-select";
 import { Pagination } from "@/components/pagination";
 import { ProductCard } from "@/components/product-card";
 import { getCategories, getProducts } from "@/lib/api";
 import {
   ALL_CATEGORIES_SLUG,
   PAGE_SIZE,
+  PARAM,
+  applyFilters,
+  buildFacets,
   collectCategoryIds,
-  matchesSearch,
+  filtersToQuery,
+  parseFilters,
+  sortProducts,
 } from "@/lib/catalogue";
 import type { Category, Product } from "@/lib/types";
 
@@ -22,10 +29,7 @@ export default async function CataloguePage({
   searchParams,
 }: PageProps<"/catalogue/[categorySlug]">) {
   const { categorySlug } = await params;
-  const { q, page: rawPage } = await searchParams;
-
-  const search = typeof q === "string" ? q.trim() : "";
-  const page = Math.max(1, Number.parseInt(String(rawPage ?? "1"), 10) || 1);
+  const filters = parseFilters(await searchParams);
 
   const categories = await getCategories();
   const isAll = categorySlug === ALL_CATEGORIES_SLUG;
@@ -36,20 +40,23 @@ export default async function CataloguePage({
   const categoryIds = category
     ? collectCategoryIds(categories, category.id)
     : [];
-  const children = categories.filter(
-    (item) => category && item.parentId === category.id,
-  );
 
-  const { products, totalPages, total } = await loadProducts({
-    categoryIds,
-    search,
-    page,
-  });
+  const rayon = await loadRayon(categoryIds);
+  const facets = buildFacets(rayon, filters);
+  const matching = sortProducts(applyFilters(rayon, filters), filters.sort);
+
+  const total = matching.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = Math.min(filters.page, totalPages);
+  const products = matching.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const basePath = `/catalogue/${categorySlug}`;
+  const query = filtersToQuery(filters, { page: 1 });
+  const sortlessQuery = new URLSearchParams(query);
+  sortlessQuery.delete(PARAM.sort);
 
   return (
-    <div className="px-4 py-8 sm:px-8 lg:px-12">
+    <div className="px-4 py-7 sm:px-8 lg:px-12">
       <nav className="text-muted mb-5 text-[12.5px]">
         <Link href="/" className="hover:text-brand">
           Accueil
@@ -71,119 +78,126 @@ export default async function CataloguePage({
         </span>
       </nav>
 
-      <header className="border-line mb-7 border-b pb-6">
-        <h1 className="font-display text-navy text-[38px] font-extrabold tracking-tight">
-          {category?.name ?? "Tout le catalogue"}
-        </h1>
-        <p className="text-muted mt-2 text-sm">
-          {search ? (
-            <>
-              {total} resultat{total > 1 ? "s" : ""} pour «&nbsp;{search}&nbsp;»
-            </>
-          ) : (
-            <>
-              {total} produit{total > 1 ? "s" : ""} · stock disponible a
-              Tsaralalana
-            </>
-          )}
-        </p>
+      <header className="border-line mb-6 flex flex-wrap items-end justify-between gap-4 border-b pb-5">
+        <div>
+          <h1 className="font-display text-navy text-[38px] font-extrabold tracking-tight">
+            {category?.name ?? "Tout le catalogue"}
+          </h1>
+          <p className="text-muted mt-2 text-sm">
+            {filters.search ? (
+              <>
+                {total} resultat{total > 1 ? "s" : ""} pour «&nbsp;
+                {filters.search}&nbsp;»
+              </>
+            ) : (
+              <>
+                {total} produit{total > 1 ? "s" : ""} · stock disponible a
+                Tsaralalana
+              </>
+            )}
+          </p>
+        </div>
+
+        <SortSelect
+          basePath={basePath}
+          query={sortlessQuery.toString()}
+          value={filters.sort}
+        />
       </header>
 
-      {children.length > 0 ? (
-        <div className="mb-8 flex flex-wrap gap-2">
-          {children.map((child) => (
-            <Link
-              key={child.id}
-              href={`/catalogue/${child.slug}`}
-              className="border-line-strong hover:border-brand hover:text-brand text-ink rounded-full border px-4 py-2 text-[13px] font-medium"
-            >
-              {child.name}
-            </Link>
-          ))}
-        </div>
-      ) : null}
+      <div className="grid items-start gap-8 lg:grid-cols-[240px_1fr] lg:gap-10">
+        <FiltersPanel
+          basePath={basePath}
+          filters={filters}
+          facets={facets}
+          rayons={rayonLinks(categories, category)}
+        />
 
-      {products.length === 0 ? (
-        <p className="text-muted border-line rounded-[14px] border bg-white px-6 py-16 text-center text-sm">
-          Aucun produit dans ce rayon pour le moment.
-        </p>
-      ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      )}
+        <div>
+          {products.length === 0 ? (
+            <p className="text-muted border-line rounded-[14px] border bg-white px-6 py-16 text-center text-sm">
+              Aucun produit ne correspond a ces filtres.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
 
-      <Pagination
-        basePath={basePath}
-        page={page}
-        totalPages={totalPages}
-        query={search || undefined}
-      />
+          <Pagination
+            basePath={basePath}
+            page={page}
+            totalPages={totalPages}
+            params={query}
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
 /**
- * Deux strategies, selon ce que `GET /products` sait faire :
- *
- * - un seul `categoryId` et pas de recherche : l'API pagine elle-meme, on lui
- *   demande exactement la page affichee ;
- * - rayon parent (plusieurs categories) ou recherche par nom : l'API ne sait
- *   filtrer ni sur plusieurs categories ni sur le nom. On charge le catalogue
- *   en entier puis on filtre et pagine ici. A remplacer par un vrai filtre
- *   backend quand le catalogue depassera MAX_WIDE_PAGES * API_MAX_LIMIT.
+ * Sous-rayons du rayon ouvert, ou ses freres quand on est deja sur une
+ * feuille : la colonne de gauche doit toujours proposer une navigation.
  */
-async function loadProducts({
-  categoryIds,
-  search,
-  page,
-}: {
-  categoryIds: string[];
-  search: string;
-  page: number;
-}): Promise<{ products: Product[]; totalPages: number; total: number }> {
-  if (!search && categoryIds.length <= 1) {
-    const { data, meta } = await getProducts({
-      categoryId: categoryIds[0],
-      page,
-      limit: PAGE_SIZE,
-    });
+function rayonLinks(categories: Category[], category?: Category) {
+  if (!category) {
+    return categories
+      .filter((item) => !item.parentId)
+      .map((item) => ({ name: item.name, slug: item.slug, active: false }));
+  }
 
-    return { products: data, totalPages: meta.totalPages, total: meta.total };
+  const children = categories.filter((item) => item.parentId === category.id);
+  const siblings = categories.filter(
+    (item) => item.parentId === category.parentId,
+  );
+  const shown = children.length > 0 ? children : siblings;
+
+  return shown.map((item) => ({
+    name: item.name,
+    slug: item.slug,
+    active: item.id === category.id,
+  }));
+}
+
+/**
+ * Charge le rayon **en entier**, pas seulement la page affichee : les
+ * compteurs de la colonne de filtres portent sur tout le rayon, et l'API ne
+ * sait ni compter par facette, ni filtrer sur plusieurs categories, ni trier.
+ * A remplacer par un vrai filtre backend quand le catalogue depassera
+ * MAX_WIDE_PAGES * API_MAX_LIMIT produits.
+ */
+async function loadRayon(categoryIds: string[]): Promise<Product[]> {
+  // Rayon feuille : l'API sait filtrer, inutile d'aspirer tout le catalogue.
+  if (categoryIds.length === 1) {
+    return loadEveryProduct({ categoryId: categoryIds[0] });
   }
 
   const all = await loadEveryProduct();
 
-  const filtered = all.filter((product) => {
-    const inCategory =
-      categoryIds.length === 0 || categoryIds.includes(product.categoryId);
-    return inCategory && (!search || matchesSearch(product.name, search));
-  });
+  if (categoryIds.length === 0) return all;
 
-  const start = (page - 1) * PAGE_SIZE;
-
-  return {
-    products: filtered.slice(start, start + PAGE_SIZE),
-    totalPages: Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)),
-    total: filtered.length,
-  };
+  return all.filter((product) => categoryIds.includes(product.categoryId));
 }
 
 /**
- * Aspire le catalogue complet. La premiere reponse donne `totalPages`, les
- * suivantes partent en parallele : chaque aller-retour vers Aiven coute ~2 s.
+ * Aspire toutes les pages d'une requete. La premiere reponse donne
+ * `totalPages`, les suivantes partent en parallele : chaque aller-retour vers
+ * Aiven coute ~2 s.
  */
-async function loadEveryProduct(): Promise<Product[]> {
-  const first = await getProducts({ page: 1, limit: API_MAX_LIMIT });
+async function loadEveryProduct(
+  query: { categoryId?: string } = {},
+): Promise<Product[]> {
+  const first = await getProducts({ ...query, page: 1, limit: API_MAX_LIMIT });
   const lastPage = Math.min(first.meta.totalPages, MAX_WIDE_PAGES);
 
   if (lastPage <= 1) return first.data;
 
   const rest = await Promise.all(
     Array.from({ length: lastPage - 1 }, (_, index) =>
-      getProducts({ page: index + 2, limit: API_MAX_LIMIT }),
+      getProducts({ ...query, page: index + 2, limit: API_MAX_LIMIT }),
     ),
   );
 

@@ -1,21 +1,25 @@
 import Link from "next/link";
 
+/**
+ * `params` porte les filtres courants (recherche, facettes, tri) sans `page` :
+ * changer de page ne doit rien perdre de ce que le visiteur a coche.
+ */
 export function Pagination({
   basePath,
   page,
   totalPages,
-  query,
+  params,
 }: {
   basePath: string;
   page: number;
   totalPages: number;
-  query?: string;
+  params?: URLSearchParams;
 }) {
   if (totalPages <= 1) return null;
 
   const href = (target: number) => {
-    const search = new URLSearchParams();
-    if (query) search.set("q", query);
+    const search = new URLSearchParams(params);
+    search.delete("page");
     if (target > 1) search.set("page", String(target));
     const suffix = search.toString();
     return `${basePath}${suffix ? `?${suffix}` : ""}`;

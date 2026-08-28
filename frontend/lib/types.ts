@@ -48,6 +48,12 @@ export type Product = {
   viewsCount: number;
   isActive: boolean;
   images: ProductImage[];
+  /**
+   * Joint par `GET /products` (liste) uniquement : une lecture unitaire ou un
+   * produit lie revient sans. C'est ce qui alimente la facette « Vendeur » du
+   * catalogue.
+   */
+  vendor?: { id: string; name: string } | null;
 };
 
 /** `GET /products/:id` enrichit la fiche avec ses caracteristiques. */

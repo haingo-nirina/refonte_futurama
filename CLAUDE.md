@@ -166,7 +166,7 @@ Les relations `similar` sont écrites dans les deux sens (`findRelated` filtre s
 
 Deux applications dans le même paquet Next, séparées par des groupes de routes :
 
-- `app/(boutique)/` — MVP e-commerce : accueil (rayons), catalogue paginé par rayon, fiche produit, panier, connexion / inscription et confirmation de commande. Le reste de la maquette (chatbot, live shopping, blog, avis, revendeurs) n'est pas implémenté.
+- `app/(boutique)/` — MVP e-commerce : accueil (rayons), catalogue paginé par rayon (facettes, tri), fiche produit, panier, connexion / inscription et confirmation de commande. Le reste de la maquette (chatbot, live shopping, blog, avis, revendeurs) n'est pas implémenté.
 - `app/admin/` — le backoffice : tableau de bord, commandes, produits, catégories, modération des avis.
 
 **Le layout racine (`app/layout.tsx`) est volontairement nu** — polices et feuille de styles, rien d'autre. L'en-tête et le pied de page appartiennent à la boutique et vivent dans `app/(boutique)/layout.tsx`. Un layout enfant ne pouvant pas retirer le chrome de son parent, c'est le seul moyen de donner au backoffice une enveloppe distincte. Le groupe `(boutique)` ne change aucune URL.
@@ -176,7 +176,7 @@ Deux applications dans le même paquet Next, séparées par des groupes de route
 `app/admin/layout.tsx` est un Server Component qui **relit le compte via `GET /auth/me`** avant d'ouvrir le shell : le rôle du JWT est figé à l'émission, et le `localStorage` du navigateur ne prouve rien. Sans token → `/connexion?next=/admin` ; compte non-admin → `notFound()` (404 plutôt que 403 : inutile d'annoncer l'existence d'un backoffice). Ce garde n'est **qu'un confort d'affichage** — chaque route admin du backend revalide de son côté, un contournement de cette page ne donne accès à rien.
 
 - `lib/admin-api.ts` regroupe les appels réservés au backoffice. Il partage le `request()` de `lib/api.ts` (une seule implémentation de `fetch`) mais vit à part : ces routes répondent toutes 403 à un compte client, et rien ici ne doit finir appelé depuis une page de la boutique.
-- Les **filtres de liste sont des formulaires GET natifs** : ils vivent dans l'URL, donc partageables et rechargeables, et n'exigent aucun JS. `components/admin/admin-pagination.tsx` reporte tous les filtres courants dans ses liens — contrairement à `components/pagination.tsx` qui ne connaît que `q`.
+- Les **filtres de liste sont des formulaires GET natifs** : ils vivent dans l'URL, donc partageables et rechargeables, et n'exigent aucun JS. `components/admin/admin-pagination.tsx` reporte tous les filtres courants dans ses liens ; `components/pagination.tsx` fait de même côté boutique, en recevant les filtres déjà sérialisés (`params`).
 - Les mutations sont des Client Components qui appellent `router.refresh()` après succès : les pages sont des Server Components, c'est au serveur de relire.
 - `components/admin/modal.tsx` est bâti sur `<dialog>` natif — piégeage du focus, fermeture par Échap et inertie de la page sont fournis par le navigateur. `confirm-dialog.tsx` s'en sert pour toutes les suppressions ; **plus aucun `window.confirm()`** : la boîte native ne sait afficher ni état d'attente ni erreur serveur. Le formulaire de catégorie s'ouvre en modale, celui des produits garde sa page (12 champs plus galerie, specs et relations).
 - Galerie, caractéristiques et produits liés s'éditent en liste locale complète et ne partent qu'à la validation — le backend remplace la collection entière (voir *Sous-ressources produit*).
@@ -188,16 +188,21 @@ Deux applications dans le même paquet Next, séparées par des groupes de route
 
 Le backend n'a **ni préfixe global ni CORS**. Il est monté derrière `/api` par un rewrite dans `next.config.ts`, ce qui garde les appels navigateur same-origin — donc pas de CORS à activer côté Nest. `lib/api.ts` en tient compte : côté serveur il tape directement `BACKEND_URL`, côté navigateur il passe par `/api`. Tout `fetch` passe par ce module, jamais par un composant.
 
-Deux limites de l'API que le catalogue contourne côté front, à remplacer par un vrai filtre backend le jour où le catalogue grossit :
+Limites de l'API que le catalogue contourne côté front, à remplacer par un vrai filtre backend le jour où le catalogue grossit :
 
 - `GET /products?categoryId=` ne filtre que sur une catégorie exacte : ouvrir un rayon parent oblige à charger le catalogue et filtrer sur l'ensemble parent + enfants ;
-- il n'y a pas de recherche par nom **côté boutique** : la recherche du header renvoie sur `/catalogue/tous?q=`, filtré de la même façon. `limit` est plafonné à 100 côté DTO.
+- il n'y a pas de recherche par nom **côté boutique** : la recherche du header renvoie sur `/catalogue/tous?q=`, filtré de la même façon. `limit` est plafonné à 100 côté DTO ;
+- l'API ne sait **ni compter par facette ni trier** : les compteurs de la colonne de filtres portent sur le rayon entier, pas sur la page affichée.
+
+C'est ce qui fait que `/catalogue/[categorySlug]` charge le rayon **complet** (`loadRayon`, plafonné à `MAX_WIDE_PAGES * API_MAX_LIMIT`) puis filtre, trie et pagine en mémoire. Un rayon feuille passe quand même par `categoryId` : inutile d'aspirer tout le catalogue pour lui.
 
 `GET /products?q=` existe pourtant désormais (nom + référence, insensible à la casse) : il a été ajouté pour la liste du backoffice. Le catalogue de la boutique ne s'en sert pas encore — c'est le remplacement naturel du filtrage côté client décrit ci-dessus.
 
 ### Conventions
 
-- Server Components par défaut. Les Client Components se limitent à l'interactivité réelle : recherche, badge panier, galerie, quantité/ajout, page panier, formulaire de commande.
+- Server Components par défaut. Les Client Components se limitent à l'interactivité réelle : recherche, badge panier, galerie, quantité/ajout, page panier, formulaire de commande, colonne de filtres du catalogue.
+- **La colonne de filtres du catalogue est un formulaire GET** (`components/catalogue/`) : les critères vivent dans l'URL, le rendu reste serveur. `filter-form.tsx` ne fait que naviguer (`router.push` dans un `useTransition`, d'où le voile d'attente : un rendu coûte quelques secondes) et retombe sur la soumission native sans JS. `page` n'est jamais repris — changer un filtre ramène en page 1. Chaque groupe correspond à une donnée que l'API renvoie vraiment (vendeur, stock, `isPremium`, prix) : la maquette montre aussi des notes et des options de livraison, que rien n'alimente. Les compteurs d'une facette sont calculés **sans** cette facette (`applyFilters(..., except)`), sinon cocher une marque ramènerait les autres à zéro.
+- `Product.vendor` n'est joint que par `GET /products` (la liste) : une lecture unitaire ou un produit lié revient sans, d'où son type optionnel.
 - Le visiteur est identifié par un `session_id` généré et stocké en localStorage (`lib/session.ts`). Après toute mutation du panier, appeler `notifyCartUpdated()` : le badge du header écoute cet événement.
 - Le panier reste ouvert aux visiteurs, mais **commander exige un compte** : `CheckoutForm` affiche un appel à la connexion tant que `useAuth()` ne renvoie pas d'utilisateur. Les champs du formulaire sont `shippingName` / `shippingPhone` / `shippingAddress`, préremplis depuis le profil et modifiables — le backend les fige sur la commande. `userId` n'est jamais envoyé, il vient du JWT.
 - Un `401` sur une route protégée renvoie vers `/connexion?next=…` plutôt que d'afficher l'erreur brute ; un `403` sur une commande est traité comme un `404` (ne pas révéler qu'elle existe).
