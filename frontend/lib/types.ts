@@ -35,7 +35,7 @@ export type ProductSpec = {
 export type Product = {
   id: string;
   categoryId: string;
-  vendorId: string | null;
+  marqueId: string | null;
   name: string;
   slug: string;
   reference: string | null;
@@ -50,10 +50,10 @@ export type Product = {
   images: ProductImage[];
   /**
    * Joint par `GET /products` (liste) uniquement : une lecture unitaire ou un
-   * produit lie revient sans. C'est ce qui alimente la facette « Vendeur » du
+   * produit lie revient sans. C'est ce qui alimente la facette « Marques » du
    * catalogue.
    */
-  vendor?: { id: string; name: string } | null;
+  marque?: Marque | null;
 };
 
 /** `GET /products/:id` enrichit la fiche avec ses caracteristiques. */
@@ -161,12 +161,27 @@ export type RegisterInput = LoginInput & {
  * recoit (produit desactive, compte auteur d'une commande...).
  */
 
-export type Vendor = { id: string; name: string };
+/** Forme jointe sur un produit : `GET /products` ne selecte que ces deux champs. */
+export type Marque = { id: string; name: string };
 
-/** `GET /products` renvoie categorie et vendeur joints. */
+/** `GET /marques` : la marque complete, avec ses produits rattaches comptes. */
+export type MarqueDetail = Marque & {
+  slug: string;
+  logoUrl: string | null;
+  createdAt: string;
+  _count: { products: number };
+};
+
+export type MarqueInput = {
+  name: string;
+  slug: string;
+  logoUrl?: string;
+};
+
+/** `GET /products` renvoie categorie et marque jointes. */
 export type AdminProduct = Product & {
   category: { id: string; name: string; slug: string };
-  vendor: Vendor | null;
+  marque: Marque | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -204,7 +219,7 @@ export type AdminProductDetail = AdminProduct & {
 
 export type ProductInput = {
   categoryId: string;
-  vendorId?: string | null;
+  marqueId?: string | null;
   name: string;
   slug: string;
   reference?: string;

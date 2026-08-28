@@ -80,18 +80,18 @@ export function FiltersPanel({
               />
             ) : null}
 
-            {facets.vendors.length > 0 ? (
+            {facets.marques.length > 0 ? (
               <section>
                 <GroupTitle>Marques</GroupTitle>
                 <div className="flex flex-col gap-2.5">
-                  {facets.vendors.map((vendor) => (
+                  {facets.marques.map((marque) => (
                     <CheckRow
-                      key={vendor.value}
-                      name={PARAM.vendor}
-                      value={vendor.value}
-                      label={vendor.label}
-                      count={vendor.count}
-                      checked={filters.vendors.includes(vendor.value)}
+                      key={marque.value}
+                      name={PARAM.marque}
+                      value={marque.value}
+                      label={marque.label}
+                      count={marque.count}
+                      checked={filters.marques.includes(marque.value)}
                     />
                   ))}
                 </div>

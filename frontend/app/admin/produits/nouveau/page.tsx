@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { ProductForm } from "@/components/admin/product-form";
-import { getCategories } from "@/lib/api";
+import { getCategories, getMarques } from "@/lib/api";
 
 export const metadata = { title: "Nouveau produit" };
 
 export default async function NewProductPage() {
-  const categories = await getCategories();
+  const [categories, marques] = await Promise.all([
+    getCategories(),
+    getMarques(),
+  ]);
 
   return (
     <div className="max-w-3xl">
@@ -24,7 +27,7 @@ export default async function NewProductPage() {
         creation : ils ont besoin de l&apos;identifiant du produit.
       </p>
 
-      <ProductForm categories={categories} />
+      <ProductForm categories={categories} marques={marques} />
     </div>
   );
 }

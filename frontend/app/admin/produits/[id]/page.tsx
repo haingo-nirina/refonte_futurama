@@ -7,7 +7,7 @@ import {
   SpecsEditor,
 } from "@/components/admin/product-collections";
 import { ModerationStatusBadge } from "@/components/admin/status-badge";
-import { ApiError, getCategories } from "@/lib/api";
+import { ApiError, getCategories, getMarques } from "@/lib/api";
 import { getAdminProduct, getAdminProducts } from "@/lib/admin-api";
 import { getServerToken } from "@/lib/auth-server";
 import { formatDate } from "@/lib/format";
@@ -28,8 +28,9 @@ export default async function EditProductPage({
     throw error;
   });
 
-  const [categories, choices] = await Promise.all([
+  const [categories, marques, choices] = await Promise.all([
     getCategories(),
+    getMarques(),
     getAdminProducts({ limit: RELATION_CHOICES_LIMIT }, token),
   ]);
 
@@ -63,7 +64,11 @@ export default async function EditProductPage({
       </header>
 
       <div className="space-y-6">
-        <ProductForm categories={categories} product={product} />
+        <ProductForm
+          categories={categories}
+          marques={marques}
+          product={product}
+        />
 
         <ImagesEditor productId={product.id} images={product.images} />
         <SpecsEditor productId={product.id} specs={product.specs} />

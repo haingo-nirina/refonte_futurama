@@ -35,9 +35,9 @@ export function ProductCard({ product }: { product: Product }) {
         {product.name}
       </Link>
 
-      {product.vendor ? (
+      {product.marque ? (
         <span className="bg-line text-muted self-start rounded-md px-2.5 py-[3px] text-[10.5px]">
-          {product.vendor.name}
+          {product.marque.name}
         </span>
       ) : null}
 

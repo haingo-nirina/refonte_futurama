@@ -12,7 +12,12 @@ import {
   replaceProductImages,
   updateProduct,
 } from "@/lib/admin-api";
-import type { AdminProduct, Category, ProductInput } from "@/lib/types";
+import type {
+  AdminProduct,
+  Category,
+  MarqueDetail,
+  ProductInput,
+} from "@/lib/types";
 
 /** `name` -> `slug` : meme regle que la contrainte du DTO backend. */
 function slugify(value: string): string {
@@ -26,6 +31,7 @@ function slugify(value: string): string {
 
 type FormState = {
   categoryId: string;
+  marqueId: string;
   name: string;
   slug: string;
   reference: string;
@@ -41,6 +47,7 @@ type FormState = {
 function initialState(product?: AdminProduct): FormState {
   return {
     categoryId: product?.categoryId ?? "",
+    marqueId: product?.marqueId ?? "",
     name: product?.name ?? "",
     slug: product?.slug ?? "",
     reference: product?.reference ?? "",
@@ -56,15 +63,15 @@ function initialState(product?: AdminProduct): FormState {
 
 /**
  * Creation et edition partagent ce formulaire : les champs sont les memes, et
- * seul l'appel differe. Le vendeur n'y figure pas — l'API n'expose aucune
- * route pour lister les vendeurs, et ne pas envoyer `vendorId` laisse la
- * valeur existante intacte.
+ * seul l'appel differe.
  */
 export function ProductForm({
   categories,
+  marques,
   product,
 }: {
   categories: Category[];
+  marques: MarqueDetail[];
   product?: AdminProduct;
 }) {
   const router = useRouter();
@@ -85,6 +92,8 @@ export function ProductForm({
   function toPayload(): ProductInput {
     return {
       categoryId: form.categoryId,
+      // `null` detache la marque, `undefined` laisserait la valeur en place.
+      marqueId: form.marqueId || null,
       name: form.name.trim(),
       slug: form.slug.trim() || slugify(form.name),
       // Chaine vide refusee par les @IsNotEmpty du DTO : on omet plutot.
@@ -205,6 +214,22 @@ export function ProductForm({
                 {category.parent
                   ? `${category.parent.name} › ${category.name}`
                   : category.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="admin-label">Marque</span>
+          <select
+            value={form.marqueId}
+            onChange={(event) => set("marqueId", event.target.value)}
+            className="admin-input"
+          >
+            <option value="">Aucune</option>
+            {marques.map((marque) => (
+              <option key={marque.id} value={marque.id}>
+                {marque.name}
               </option>
             ))}
           </select>

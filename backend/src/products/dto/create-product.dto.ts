@@ -18,7 +18,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsUUID()
-  vendorId?: string | null;
+  marqueId?: string | null;
 
   @IsString()
   @IsNotEmpty()

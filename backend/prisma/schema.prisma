@@ -53,7 +53,9 @@ model Category {
   @@map("categories")
 }
 
-model Vendor {
+/// Marque d'un produit (Moulinex, Tefal...). Le *vendeur*, lui, n'est pas une
+/// donnee : la boutique vend en direct, il est ecrit en dur cote front.
+model Marque {
   id        String    @id @default(uuid())
   name      String
   slug      String    @unique
@@ -61,15 +63,15 @@ model Vendor {
   products  Product[]
   createdAt DateTime  @default(now()) @map("created_at")
 
-  @@map("vendors")
+  @@map("marques")
 }
 
 model Product {
   id            String            @id @default(uuid())
   categoryId    String            @map("category_id")
   category      Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  vendorId      String?           @map("vendor_id")
-  vendor        Vendor?           @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  marqueId      String?           @map("marque_id")
+  marque        Marque?           @relation(fields: [marqueId], references: [id], onDelete: SetNull)
   name          String
   slug          String            @unique
   reference     String?

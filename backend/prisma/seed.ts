@@ -81,9 +81,9 @@ const CATEGORIES: CategorySeed[] = [
   },
 ];
 
-type VendorSeed = { slug: string; name: string };
+type MarqueSeed = { slug: string; name: string };
 
-const VENDORS: VendorSeed[] = [
+const MARQUES: MarqueSeed[] = [
   { slug: 'planet-express', name: 'Planet Express' },
   { slug: 'momcorp', name: 'MomCorp' },
   { slug: 'slurm-inc', name: 'Slurm Inc.' },
@@ -95,7 +95,7 @@ type ProductSeed = {
   slug: string;
   name: string;
   categorySlug: string;
-  vendorSlug: string | null;
+  marqueSlug: string | null;
   reference: string;
   description: string;
   price: string;
@@ -112,7 +112,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'slurm-original-pack-6',
     name: 'Slurm Original — pack de 6',
     categorySlug: 'boissons-alimentation',
-    vendorSlug: 'slurm-inc',
+    marqueSlug: 'slurm-inc',
     reference: 'SLM-001',
     description:
       "La boisson la plus consommee de la galaxie, en pack familial de six canettes de 33 cl. Formule originale inchangee depuis 2761.",
@@ -129,7 +129,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'slurm-xtreme',
     name: 'Slurm Xtreme — canette 50 cl',
     categorySlug: 'boissons-alimentation',
-    vendorSlug: 'slurm-inc',
+    marqueSlug: 'slurm-inc',
     reference: 'SLM-050',
     description:
       'Version survitaminee du Slurm original. Deconseillee aux organismes de moins de trois estomacs.',
@@ -146,7 +146,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'olde-fortran',
     name: 'Olde Fortran — malt liquor pour robots',
     categorySlug: 'boissons-alimentation',
-    vendorSlug: 'benders-bending-co',
+    marqueSlug: 'benders-bending-co',
     reference: 'OFR-1701',
     description:
       "Alcool de malt haute densite destine aux unites robotiques. Carburant et boisson a la fois.",
@@ -163,7 +163,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'popplers-500g',
     name: 'Popplers — sachet 500 g',
     categorySlug: 'boissons-alimentation',
-    vendorSlug: 'planet-express',
+    marqueSlug: 'planet-express',
     reference: 'PPL-500',
     description:
       'Bouchees croustillantes ramenees par nos equipages. Origine desormais certifiee sans espece sentiente.',
@@ -179,7 +179,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'bending-unit-22',
     name: 'Bending Unit 22 — robot plieur',
     categorySlug: 'robots-complets',
-    vendorSlug: 'momcorp',
+    marqueSlug: 'momcorp',
     reference: 'BU-22',
     description:
       "Unite de pliage industrielle reconditionnee. Capable de plier tout alliage jusqu'a la classe 8. Personnalite incluse, non desactivable.",
@@ -198,7 +198,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'robot-1x',
     name: 'Robot 1-X — modele ecologique',
     categorySlug: 'robots-complets',
-    vendorSlug: 'momcorp',
+    marqueSlug: 'momcorp',
     reference: 'R1X-100',
     description:
       'Derniere generation MomCorp : consommation nulle, rejets neutralises, rendement superieur de 40% au modele precedent.',
@@ -216,7 +216,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'antenne-communication-robotique',
     name: 'Antenne de communication robotique',
     categorySlug: 'pieces-modules-robotiques',
-    vendorSlug: 'momcorp',
+    marqueSlug: 'momcorp',
     reference: 'ANT-004',
     description:
       'Antenne retractable compatible avec la majorite des unites bipedes. Portee orbitale basse.',
@@ -232,7 +232,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'compartiment-thoracique',
     name: 'Compartiment thoracique universel',
     categorySlug: 'pieces-modules-robotiques',
-    vendorSlug: 'benders-bending-co',
+    marqueSlug: 'benders-bending-co',
     reference: 'CMP-010',
     description:
       'Volume de rangement interne verrouillable. Capacite reelle superieure aux dimensions exterieures.',
@@ -248,7 +248,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'matrice-memoire-quantique',
     name: 'Matrice memoire quantique 64 To',
     categorySlug: 'pieces-modules-robotiques',
-    vendorSlug: 'momcorp',
+    marqueSlug: 'momcorp',
     reference: 'MEM-64',
     description:
       "Extension memoire a acces quantique. Sauvegarde de personnalite incluse, restauration non garantie.",
@@ -266,7 +266,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'moteur-dark-matter',
     name: 'Moteur a distorsion — dark matter',
     categorySlug: 'vaisseaux-pieces',
-    vendorSlug: 'momcorp',
+    marqueSlug: 'momcorp',
     reference: 'DRK-900',
     description:
       "Le moteur ne deplace pas le vaisseau : il deplace l'univers autour. Combustible dark matter non fourni.",
@@ -284,7 +284,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'chambre-cryogenique-portative',
     name: 'Chambre cryogenique portative',
     categorySlug: 'vaisseaux-pieces',
-    vendorSlug: 'applied-cryogenics',
+    marqueSlug: 'applied-cryogenics',
     reference: 'CRY-999',
     description:
       'Unite de conservation individuelle programmable de 1 a 1000 ans. Reveil automatique garanti par contrat.',
@@ -302,7 +302,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'casque-navigation-pe',
     name: 'Casque de navigation Planet Express',
     categorySlug: 'equipement-de-vol',
-    vendorSlug: 'planet-express',
+    marqueSlug: 'planet-express',
     reference: 'CSQ-021',
     description:
       'Casque de pilotage avec affichage tete haute et liaison directe au poste de commandement.',
@@ -318,7 +318,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'combinaison-pressurisee',
     name: 'Combinaison pressurisee classe 3',
     categorySlug: 'equipement-de-vol',
-    vendorSlug: 'planet-express',
+    marqueSlug: 'planet-express',
     reference: 'CMB-003',
     description:
       'Combinaison de sortie extravehiculaire homologuee pour atmospheres corrosives et vide integral.',
@@ -335,7 +335,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'maquette-planet-express',
     name: 'Maquette du vaisseau Planet Express',
     categorySlug: 'collection',
-    vendorSlug: 'planet-express',
+    marqueSlug: 'planet-express',
     reference: 'MQT-001',
     description:
       'Reproduction a l’echelle 1/144 du vaisseau de livraison, montee et peinte a la main.',
@@ -352,7 +352,7 @@ const PRODUCTS: ProductSeed[] = [
     slug: 'trefle-7-feuilles',
     name: 'Trefle a 7 feuilles sous vitrine',
     categorySlug: 'collection',
-    vendorSlug: null,
+    marqueSlug: null,
     reference: 'TRF-007',
     description:
       'Piece unique certifiee, presentee sous vitrine scellee. Porte-bonheur reserve a son proprietaire legitime.',
@@ -648,7 +648,7 @@ async function reset() {
   await prisma.productSpec.deleteMany();
   await prisma.cartItem.deleteMany();
   await prisma.product.deleteMany();
-  await prisma.vendor.deleteMany();
+  await prisma.marque.deleteMany();
   await prisma.category.deleteMany();
   await prisma.postComment.deleteMany();
   await prisma.postLike.deleteMany();
@@ -717,19 +717,19 @@ async function seedCategories(): Promise<Map<string, string>> {
   return ids;
 }
 
-async function seedVendors(): Promise<Map<string, string>> {
+async function seedMarques(): Promise<Map<string, string>> {
   const ids = new Map<string, string>();
 
-  for (const vendor of VENDORS) {
-    const created = await prisma.vendor.create({
+  for (const marque of MARQUES) {
+    const created = await prisma.marque.create({
       data: {
-        name: vendor.name,
-        slug: vendor.slug,
-        logoUrl: `/images/vendors/${vendor.slug}.png`,
+        name: marque.name,
+        slug: marque.slug,
+        logoUrl: `/images/marques/${marque.slug}.png`,
       },
     });
 
-    ids.set(vendor.slug, created.id);
+    ids.set(marque.slug, created.id);
   }
 
   return ids;
@@ -737,7 +737,7 @@ async function seedVendors(): Promise<Map<string, string>> {
 
 async function seedProducts(
   categoryIds: Map<string, string>,
-  vendorIds: Map<string, string>,
+  marqueIds: Map<string, string>,
 ): Promise<Map<string, string>> {
   const ids = new Map<string, string>();
 
@@ -753,8 +753,8 @@ async function seedProducts(
     const created = await prisma.product.create({
       data: {
         categoryId,
-        vendorId: product.vendorSlug
-          ? (vendorIds.get(product.vendorSlug) ?? null)
+        marqueId: product.marqueSlug
+          ? (marqueIds.get(product.marqueSlug) ?? null)
           : null,
         name: product.name,
         slug: product.slug,
@@ -970,8 +970,8 @@ async function main() {
 
   const userIds = await seedUsers();
   const categoryIds = await seedCategories();
-  const vendorIds = await seedVendors();
-  const productIds = await seedProducts(categoryIds, vendorIds);
+  const marqueIds = await seedMarques();
+  const productIds = await seedProducts(categoryIds, marqueIds);
   const relationCount = await seedRelations(productIds);
 
   await seedPromotions(productIds);
@@ -983,7 +983,7 @@ async function main() {
 
   console.log(`  comptes      ${userIds.size} (mot de passe ${DEMO_PASSWORD})`);
   console.log(`  categories   ${categoryIds.size}`);
-  console.log(`  vendeurs     ${vendorIds.size}`);
+  console.log(`  marques      ${marqueIds.size}`);
   console.log(`  produits     ${productIds.size}`);
   console.log(`  relations    ${relationCount}`);
   console.log(`  promotions   ${PROMOTIONS.length}`);

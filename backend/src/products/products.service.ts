@@ -29,16 +29,16 @@ export class ProductsService {
   async create(dto: CreateProductDto) {
     await this.findCategoryOrFail(dto.categoryId);
 
-    const vendorId = dto.vendorId ?? null;
+    const marqueId = dto.marqueId ?? null;
 
-    if (vendorId) {
-      await this.findVendorOrFail(vendorId);
+    if (marqueId) {
+      await this.findMarqueOrFail(marqueId);
     }
 
     return this.prisma.product.create({
       data: {
         categoryId: dto.categoryId,
-        vendorId,
+        marqueId,
         name: dto.name,
         slug: dto.slug,
         reference: dto.reference ?? null,
@@ -77,7 +77,7 @@ export class ProductsService {
         include: {
           images: IMAGES_INCLUDE,
           category: { select: { id: true, name: true, slug: true } },
-          vendor: { select: { id: true, name: true } },
+          marque: { select: { id: true, name: true } },
         },
       }),
       this.prisma.product.count({ where }),
@@ -101,7 +101,7 @@ export class ProductsService {
         images: IMAGES_INCLUDE,
         specs: { orderBy: { displayOrder: 'asc' } },
         category: { select: { id: true, name: true, slug: true } },
-        vendor: { select: { id: true, name: true } },
+        marque: { select: { id: true, name: true } },
         // le backoffice doit voir les avis en attente pour les moderer depuis
         // la fiche ; le public ne voit que les approuves
         reviews: {
@@ -163,19 +163,19 @@ export class ProductsService {
       await this.findCategoryOrFail(dto.categoryId);
     }
 
-    // `undefined` = champ non fourni (on ne touche pas), `null` = detacher le vendeur.
-    const vendorId =
-      dto.vendorId === undefined ? undefined : (dto.vendorId ?? null);
+    // `undefined` = champ non fourni (on ne touche pas), `null` = detacher la marque.
+    const marqueId =
+      dto.marqueId === undefined ? undefined : (dto.marqueId ?? null);
 
-    if (vendorId) {
-      await this.findVendorOrFail(vendorId);
+    if (marqueId) {
+      await this.findMarqueOrFail(marqueId);
     }
 
     return this.prisma.product.update({
       where: { id },
       data: {
         categoryId: dto.categoryId,
-        vendorId,
+        marqueId,
         name: dto.name,
         slug: dto.slug,
         reference: dto.reference,
@@ -345,8 +345,8 @@ export class ProductsService {
       where.categoryId = query.categoryId;
     }
 
-    if (query.vendorId) {
-      where.vendorId = query.vendorId;
+    if (query.marqueId) {
+      where.marqueId = query.marqueId;
     }
 
     if (query.isPremium !== undefined) {
@@ -394,13 +394,13 @@ export class ProductsService {
     return category;
   }
 
-  private async findVendorOrFail(id: string) {
-    const vendor = await this.prisma.vendor.findUnique({ where: { id } });
+  private async findMarqueOrFail(id: string) {
+    const marque = await this.prisma.marque.findUnique({ where: { id } });
 
-    if (!vendor) {
-      throw new NotFoundException(`Vendeur ${id} introuvable`);
+    if (!marque) {
+      throw new NotFoundException(`Marque ${id} introuvable`);
     }
 
-    return vendor;
+    return marque;
   }
 }

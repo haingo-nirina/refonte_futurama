@@ -52,7 +52,7 @@ export const PARAM = {
   search: "q",
   page: "page",
   sort: "tri",
-  vendor: "vendeur",
+  marque: "marque",
   bracket: "prix",
   stock: "stock",
   premium: "premium",
@@ -90,7 +90,7 @@ export type CatalogueFilters = {
   search: string;
   sort: CatalogueSort;
   page: number;
-  vendors: string[];
+  marques: string[];
   brackets: string[];
   inStock: boolean;
   premium: boolean;
@@ -106,7 +106,7 @@ export function parseFilters(searchParams: SearchParams): CatalogueFilters {
     search: single(searchParams[PARAM.search]).trim(),
     sort: parseSort(single(searchParams[PARAM.sort])),
     page: Math.max(1, Number.parseInt(single(searchParams[PARAM.page]), 10) || 1),
-    vendors: list(searchParams[PARAM.vendor]),
+    marques: list(searchParams[PARAM.marque]),
     brackets: list(searchParams[PARAM.bracket]).filter((value) =>
       PRICE_BRACKETS.some((bracket) => bracket.value === value),
     ),
@@ -128,7 +128,7 @@ export function filtersToQuery(
 
   if (filters.search) query.set(PARAM.search, filters.search);
   if (sort !== DEFAULT_SORT) query.set(PARAM.sort, sort);
-  for (const vendor of filters.vendors) query.append(PARAM.vendor, vendor);
+  for (const marque of filters.marques) query.append(PARAM.marque, marque);
   for (const bracket of filters.brackets) query.append(PARAM.bracket, bracket);
   if (filters.inStock) query.set(PARAM.stock, "1");
   if (filters.premium) query.set(PARAM.premium, "1");
@@ -141,7 +141,7 @@ export function filtersToQuery(
 
 export function hasActiveFilters(filters: CatalogueFilters): boolean {
   return (
-    filters.vendors.length > 0 ||
+    filters.marques.length > 0 ||
     filters.brackets.length > 0 ||
     filters.inStock ||
     filters.premium ||
@@ -150,7 +150,7 @@ export function hasActiveFilters(filters: CatalogueFilters): boolean {
   );
 }
 
-type Facet = "search" | "vendor" | "stock" | "premium" | "price";
+type Facet = "search" | "marque" | "stock" | "premium" | "price";
 
 /**
  * `except` retire un critere du filtrage : c'est ce qui permet de compter les
@@ -165,9 +165,9 @@ export function applyFilters(
   const tests: Record<Facet, (product: Product) => boolean> = {
     search: (product) =>
       !filters.search || matchesSearch(product.name, filters.search),
-    vendor: (product) =>
-      filters.vendors.length === 0 ||
-      (!!product.vendor && filters.vendors.includes(product.vendor.id)),
+    marque: (product) =>
+      filters.marques.length === 0 ||
+      (!!product.marque && filters.marques.includes(product.marque.id)),
     stock: (product) => !filters.inStock || product.stock > 0,
     premium: (product) => !filters.premium || product.isPremium,
     price: (product) => inBrackets(product, filters) && inRange(product, filters),
@@ -206,7 +206,7 @@ export function sortProducts(
 export type FacetOption = { value: string; label: string; count: number };
 
 export type CatalogueFacets = {
-  vendors: FacetOption[];
+  marques: FacetOption[];
   brackets: FacetOption[];
   inStock: number;
   premium: number;
@@ -223,19 +223,19 @@ export function buildFacets(
   products: Product[],
   filters: CatalogueFilters,
 ): CatalogueFacets {
-  const forVendors = applyFilters(products, filters, "vendor");
+  const forMarques = applyFilters(products, filters, "marque");
   const forPrice = applyFilters(products, filters, "price");
-  const vendors = new Map<string, FacetOption>();
+  const marques = new Map<string, FacetOption>();
 
-  for (const product of forVendors) {
-    if (!product.vendor) continue;
+  for (const product of forMarques) {
+    if (!product.marque) continue;
 
-    const option = vendors.get(product.vendor.id);
+    const option = marques.get(product.marque.id);
     if (option) option.count += 1;
     else
-      vendors.set(product.vendor.id, {
-        value: product.vendor.id,
-        label: product.vendor.name,
+      marques.set(product.marque.id, {
+        value: product.marque.id,
+        label: product.marque.name,
         count: 1,
       });
   }
@@ -243,7 +243,7 @@ export function buildFacets(
   const prices = products.map(effectivePrice);
 
   return {
-    vendors: [...vendors.values()].sort((a, b) => b.count - a.count),
+    marques: [...marques.values()].sort((a, b) => b.count - a.count),
     brackets: PRICE_BRACKETS.map((bracket) => ({
       value: bracket.value,
       label: bracket.label,

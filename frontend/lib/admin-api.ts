@@ -7,6 +7,8 @@ import type {
   Category,
   CategoryInput,
   DashboardStats,
+  MarqueDetail,
+  MarqueInput,
   ModerationStatus,
   OrderStatus,
   Paginated,
@@ -178,6 +180,34 @@ export function deleteCategory(id: string): Promise<Category> {
   return request<Category>(`/categories/${id}`, { method: "DELETE" });
 }
 
+// ------------------------------------------------------------------ Marques
+
+/**
+ * `GET /marques` est public (voir `lib/api.ts`) ; seules les ecritures passent
+ * par ici.
+ */
+export function createMarque(input: MarqueInput): Promise<MarqueDetail> {
+  return request<MarqueDetail>("/marques", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateMarque(
+  id: string,
+  input: Partial<MarqueInput>,
+): Promise<MarqueDetail> {
+  return request<MarqueDetail>(`/marques/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Les produits de la marque ne sont pas supprimes : ils sont detaches. */
+export function deleteMarque(id: string): Promise<MarqueDetail> {
+  return request<MarqueDetail>(`/marques/${id}`, { method: "DELETE" });
+}
+
 // --------------------------------------------------------------------- Avis
 
 export type AdminReviewsQuery = {
@@ -218,7 +248,7 @@ export function moderateReview(
  * peut donc televerser pendant la creation d'un produit, avant meme qu'il ait
  * un identifiant, puis attacher l'URL une fois le produit cree.
  */
-export type UploadKind = "products" | "categories";
+export type UploadKind = "products" | "categories" | "marques";
 
 export function uploadImage(
   file: File,

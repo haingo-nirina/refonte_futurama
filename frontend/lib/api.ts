@@ -5,6 +5,7 @@ import type {
   Cart,
   Category,
   CreateOrderInput,
+  MarqueDetail,
   LoginInput,
   Order,
   Paginated,
@@ -129,11 +130,18 @@ export function getCategories(): Promise<Category[]> {
   return request<Category[]>("/categories");
 }
 
+// ------------------------------------------------------------------ Marques
+
+/** Lecture publique, comme les categories : le catalogue s'en sert aussi. */
+export function getMarques(): Promise<MarqueDetail[]> {
+  return request<MarqueDetail[]>("/marques");
+}
+
 // ------------------------------------------------------------------ Produits
 
 export type ProductsQuery = {
   categoryId?: string;
-  vendorId?: string;
+  marqueId?: string;
   minPrice?: number;
   maxPrice?: number;
   page?: number;

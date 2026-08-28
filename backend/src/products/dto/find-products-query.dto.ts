@@ -38,7 +38,7 @@ export class FindProductsQueryDto {
 
   @IsOptional()
   @IsUUID()
-  vendorId?: string;
+  marqueId?: string;
 
   @IsOptional()
   @Transform(toBoolean)

@@ -43,9 +43,15 @@ src/<domaine>/
   dto/<action>-<x>.dto.ts   # validation class-validator
 ```
 
-Modules existants : `auth`, `categories`, `products`, `cart`, `orders`, `reviews`, `resellers`, `posts`, `stats`. `PrismaService` est fourni par `src/prisma/`, déclaré `@Global()` : il s'injecte directement dans n'importe quel service sans réimporter `PrismaModule`.
+Modules existants : `auth`, `categories`, `products`, `marques`, `cart`, `orders`, `reviews`, `resellers`, `posts`, `stats`. `PrismaService` est fourni par `src/prisma/`, déclaré `@Global()` : il s'injecte directement dans n'importe quel service sans réimporter `PrismaModule`.
 
-`Vendor` et `Promotion` n'ont pas de module dédié : ils se peuplent uniquement par le seed, et se lisent via les produits (`vendorId` filtre `GET /products`). Conséquence pour le backoffice : le formulaire produit **n'expose pas le vendeur** — il n'y a rien pour en lister. Ne pas envoyer `vendorId` laisse la valeur en place, donc rien n'est perdu.
+`marques` porte les **marques** de produit (Moulinex, Tefal…). La table s'appelle `marques` et le modèle `Marque` : l'ancien `Vendor` a été renommé, il désignait déjà une marque (migration `20260828155500_rename_vendors_to_marques`, un renommage — les lignes existantes et les produits rattachés ont été conservés).
+
+**Le *vendeur*, lui, n'est pas une donnée.** La boutique vend en direct : là où la maquette affiche un vendeur, il s'écrit en dur côté front. Ne pas recréer de table pour ça.
+
+Lecture publique comme les catégories (`GET /marques`) : la facette « Marques » du catalogue et le sélecteur du formulaire produit s'en servent ; les écritures sont `@AdminOnly()`. La liste joint `_count.products`, ce qu'affiche le backoffice et ce qu'annonce sa confirmation de suppression. `Marque.slug` est unique : le `P2002` devient une 409. Supprimer une marque ne supprime **aucun** produit — `Product.marqueId` est en `onDelete: SetNull`, les produits sont détachés.
+
+`Promotion` n'a toujours pas de module dédié : elle se peuple uniquement par le seed.
 
 `uploads` n'a qu'une route, `POST /uploads/images` (admin) : elle écrit le fichier et renvoie son URL, **sans le rattacher à quoi que ce soit**. C'est ce qui permet de téléverser une photo pendant la création d'un produit, avant qu'il ait un identifiant, puis d'attacher l'URL via `PUT /products/:id/images` une fois le produit créé. Détails plus bas.
 
@@ -61,7 +67,7 @@ Modules existants : `auth`, `categories`, `products`, `cart`, `orders`, `reviews
 
 Les photos vivent dans `backend/uploads/` (gitignoré : ce sont des données, pas du code), **hors de `dist/`** pour qu'un rebuild ne les emporte pas. `main.ts` les sert en statique sous `/uploads` via `useStaticAssets`, et `next.config.ts` remonte le même chemin par un second rewrite — l'URL stockée dans `ProductImage.imageUrl` est donc utilisable telle quelle dans un `<img>`, sans préfixe à recoller côté client. Changer `UPLOADS_PREFIX` exigerait une migration des données.
 
-`POST /uploads/images?kind=products|categories` range le fichier dans le sous-dossier correspondant. **`kind` est contraint par une liste blanche** (`UPLOAD_KINDS`) : sans elle, une valeur fabriquée à la main écrirait hors de `UPLOADS_ROOT`.
+`POST /uploads/images?kind=products|categories|marques` range le fichier dans le sous-dossier correspondant. **`kind` est contraint par une liste blanche** (`UPLOAD_KINDS`) : sans elle, une valeur fabriquée à la main écrirait hors de `UPLOADS_ROOT`.
 
 Un visuel peut donc être un chemin absolu servi par nous, ou une URL externe. `@IsUrl()` refuse le premier cas — c'est pourquoi `imageUrl` / `photoUrl` / `logoUrl` utilisent **`@IsImageRef()`** (`src/common/is-image-ref.decorator.ts`), qui accepte les deux. `videoUrl` garde `@IsUrl()` : une vidéo est toujours hébergée ailleurs.
 
@@ -84,9 +90,9 @@ Rien ne supprime le fichier quand l'image est retirée d'un produit : `uploads/`
 
 Routes protégées par un simple JWT : `POST /orders`, `GET /orders`, `GET /orders/:id`, `GET /auth/me`, `POST /reviews`, `POST /posts/:id/comments`, `POST|DELETE /posts/:id/like`.
 
-Routes admin (`@AdminOnly()`) : **toute écriture du catalogue et du contenu** — `POST|PATCH|DELETE /products`, `PUT /products/:id/images|specs|relations`, `POST|PATCH|DELETE /categories`, `POST|PATCH|DELETE /posts`, `DELETE /posts/:id/comments/:commentId`, `POST|PATCH|DELETE /resellers` — plus `GET /orders/admin`, `PATCH /orders/:id/status`, `GET /reviews/admin`, `GET /reviews/pending`, `PATCH /reviews/:id/moderate`, `GET /stats/dashboard`.
+Routes admin (`@AdminOnly()`) : **toute écriture du catalogue et du contenu** — `POST|PATCH|DELETE /products`, `PUT /products/:id/images|specs|relations`, `POST|PATCH|DELETE /categories`, `POST|PATCH|DELETE /marques`, `POST|PATCH|DELETE /posts`, `DELETE /posts/:id/comments/:commentId`, `POST|PATCH|DELETE /resellers` — plus `GET /orders/admin`, `PATCH /orders/:id/status`, `GET /reviews/admin`, `GET /reviews/pending`, `PATCH /reviews/:id/moderate`, `GET /stats/dashboard`.
 
-Le catalogue et le blog restent publics **en lecture**, le panier reste ouvert sans compte.
+Le catalogue (produits, catégories, marques) et le blog restent publics **en lecture**, le panier reste ouvert sans compte.
 
 **Aucune route de `orders` n'est publique** : une commande porte le nom, le téléphone et l'adresse de livraison de son auteur. `GET /orders` renvoie l'historique du **compte appelant, admin compris** — « Mes commandes » reste personnel ; la liste complète du site passe par `GET /orders/admin`, paginée et filtrable (statut, recherche nom/téléphone/email, plage de dates). `GET /orders/:id` refuse en 403 une commande qui n'appartient pas à l'appelant, sauf pour un admin. Le filtre vit dans le service (règle métier), pas dans le controller. `updateStatus` passe par `getOrThrow()`, la lecture interne sans contrôle de propriétaire.
 
@@ -151,7 +157,7 @@ Le rattachement du panier anonyme est gratuit : après `startSession()`, un `not
 
 `prisma/seed.ts`, branché via `migrations.seed` dans `prisma.config.ts` (Prisma 7 : plus de clé `prisma.seed` dans `package.json`). Il tourne sous `ts-node` forcé en CommonJS, et réutilise `PrismaService` directement — pas de second `PrismaClient` à maintenir avec la config TLS.
 
-Contenu : 10 comptes (dont `admin@futurama.test`, seul rôle `admin`), 8 catégories (arborescentes), 5 vendeurs, 15 produits avec images, specs, relations `similar` / `frequently_bought_together`, 3 promotions dont une expirée, 8 avis couvrant les trois statuts de modération, 5 revendeurs, 4 articles dont un brouillon, et une commande de démonstration.
+Contenu : 10 comptes (dont `admin@futurama.test`, seul rôle `admin`), 8 catégories (arborescentes), 5 marques, 15 produits avec images, specs, relations `similar` / `frequently_bought_together`, 3 promotions dont une expirée, 8 avis couvrant les trois statuts de modération, 5 revendeurs, 4 articles dont un brouillon, et une commande de démonstration.
 
 Tous les comptes du seed partagent le mot de passe `futurama2026` (`DEMO_PASSWORD` dans `seed.ts`) — valeur de développement, sans plus. Les avis, commentaires et likes référencent un compte par son email.
 
@@ -167,7 +173,7 @@ Les relations `similar` sont écrites dans les deux sens (`findRelated` filtre s
 Deux applications dans le même paquet Next, séparées par des groupes de routes :
 
 - `app/(boutique)/` — MVP e-commerce : accueil (rayons), catalogue paginé par rayon (facettes, tri), fiche produit, panier, connexion / inscription et confirmation de commande. Le reste de la maquette (chatbot, live shopping, blog, avis, revendeurs) n'est pas implémenté.
-- `app/admin/` — le backoffice : tableau de bord, commandes, produits, catégories, modération des avis.
+- `app/admin/` — le backoffice : tableau de bord, commandes, produits, catégories, marques, modération des avis.
 
 **Le layout racine (`app/layout.tsx`) est volontairement nu** — polices et feuille de styles, rien d'autre. L'en-tête et le pied de page appartiennent à la boutique et vivent dans `app/(boutique)/layout.tsx`. Un layout enfant ne pouvant pas retirer le chrome de son parent, c'est le seul moyen de donner au backoffice une enveloppe distincte. Le groupe `(boutique)` ne change aucune URL.
 
@@ -178,7 +184,7 @@ Deux applications dans le même paquet Next, séparées par des groupes de route
 - `lib/admin-api.ts` regroupe les appels réservés au backoffice. Il partage le `request()` de `lib/api.ts` (une seule implémentation de `fetch`) mais vit à part : ces routes répondent toutes 403 à un compte client, et rien ici ne doit finir appelé depuis une page de la boutique.
 - Les **filtres de liste sont des formulaires GET natifs** : ils vivent dans l'URL, donc partageables et rechargeables, et n'exigent aucun JS. `components/admin/admin-pagination.tsx` reporte tous les filtres courants dans ses liens ; `components/pagination.tsx` fait de même côté boutique, en recevant les filtres déjà sérialisés (`params`).
 - Les mutations sont des Client Components qui appellent `router.refresh()` après succès : les pages sont des Server Components, c'est au serveur de relire.
-- `components/admin/modal.tsx` est bâti sur `<dialog>` natif — piégeage du focus, fermeture par Échap et inertie de la page sont fournis par le navigateur. `confirm-dialog.tsx` s'en sert pour toutes les suppressions ; **plus aucun `window.confirm()`** : la boîte native ne sait afficher ni état d'attente ni erreur serveur. Le formulaire de catégorie s'ouvre en modale, celui des produits garde sa page (12 champs plus galerie, specs et relations).
+- `components/admin/modal.tsx` est bâti sur `<dialog>` natif — piégeage du focus, fermeture par Échap et inertie de la page sont fournis par le navigateur. `confirm-dialog.tsx` s'en sert pour toutes les suppressions ; **plus aucun `window.confirm()`** : la boîte native ne sait afficher ni état d'attente ni erreur serveur. Les formulaires de catégorie et de marque s'ouvrent en modale, celui des produits garde sa page (13 champs plus galerie, specs et relations).
 - Galerie, caractéristiques et produits liés s'éditent en liste locale complète et ne partent qu'à la validation — le backend remplace la collection entière (voir *Sous-ressources produit*).
 - Les classes `admin-input` / `admin-label` / `admin-button` / `admin-card` sont définies dans `app/globals.css`. La boutique garde ses styles inline : ses formulaires sont trop peu nombreux pour justifier une classe.
 
@@ -201,8 +207,8 @@ C'est ce qui fait que `/catalogue/[categorySlug]` charge le rayon **complet** (`
 ### Conventions
 
 - Server Components par défaut. Les Client Components se limitent à l'interactivité réelle : recherche, badge panier, galerie, quantité/ajout, page panier, formulaire de commande, colonne de filtres du catalogue.
-- **La colonne de filtres du catalogue est un formulaire GET** (`components/catalogue/`) : les critères vivent dans l'URL, le rendu reste serveur. `filter-form.tsx` ne fait que naviguer (`router.push` dans un `useTransition`, d'où le voile d'attente : un rendu coûte quelques secondes) et retombe sur la soumission native sans JS. `page` n'est jamais repris — changer un filtre ramène en page 1. Chaque groupe correspond à une donnée que l'API renvoie vraiment (vendeur, stock, `isPremium`, prix) : la maquette montre aussi des notes et des options de livraison, que rien n'alimente. Les compteurs d'une facette sont calculés **sans** cette facette (`applyFilters(..., except)`), sinon cocher une marque ramènerait les autres à zéro.
-- `Product.vendor` n'est joint que par `GET /products` (la liste) : une lecture unitaire ou un produit lié revient sans, d'où son type optionnel.
+- **La colonne de filtres du catalogue est un formulaire GET** (`components/catalogue/`) : les critères vivent dans l'URL, le rendu reste serveur. `filter-form.tsx` ne fait que naviguer (`router.push` dans un `useTransition`, d'où le voile d'attente : un rendu coûte quelques secondes) et retombe sur la soumission native sans JS. `page` n'est jamais repris — changer un filtre ramène en page 1. Chaque groupe correspond à une donnée que l'API renvoie vraiment (marque, stock, `isPremium`, prix) : la maquette montre aussi des notes, un vendeur et des options de livraison, que rien n'alimente. Les compteurs d'une facette sont calculés **sans** cette facette (`applyFilters(..., except)`), sinon cocher une marque ramènerait les autres à zéro.
+- `Product.marque` n'est joint que par `GET /products` (la liste) : une lecture unitaire ou un produit lié revient sans, d'où son type optionnel.
 - Le visiteur est identifié par un `session_id` généré et stocké en localStorage (`lib/session.ts`). Après toute mutation du panier, appeler `notifyCartUpdated()` : le badge du header écoute cet événement.
 - Le panier reste ouvert aux visiteurs, mais **commander exige un compte** : `CheckoutForm` affiche un appel à la connexion tant que `useAuth()` ne renvoie pas d'utilisateur. Les champs du formulaire sont `shippingName` / `shippingPhone` / `shippingAddress`, préremplis depuis le profil et modifiables — le backend les fige sur la commande. `userId` n'est jamais envoyé, il vient du JWT.
 - Un `401` sur une route protégée renvoie vers `/connexion?next=…` plutôt que d'afficher l'erreur brute ; un `403` sur une commande est traité comme un `404` (ne pas révéler qu'elle existe).

@@ -14,6 +14,7 @@ export const UPLOADS_ROOT = join(process.cwd(), 'uploads');
 export const UPLOAD_KIND = {
   PRODUCTS: 'products',
   CATEGORIES: 'categories',
+  MARQUES: 'marques',
 } as const;
 
 export const UPLOAD_KINDS = Object.values(UPLOAD_KIND);
