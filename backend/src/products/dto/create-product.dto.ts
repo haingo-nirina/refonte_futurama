@@ -6,11 +6,11 @@ import {
   IsOptional,
   IsString,
   IsUUID,
-  IsUrl,
   Matches,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsMediaRef } from '../../common/is-media-ref.decorator';
 
 export class CreateProductDto {
   @IsUUID()
@@ -59,9 +59,14 @@ export class CreateProductDto {
   @IsBoolean()
   isPremium?: boolean;
 
+  /**
+   * Televersee (`/uploads/videos/<uuid>.mp4`) ou hebergee ailleurs : les deux
+   * formes sont acceptees, d'ou `@IsMediaRef` plutot que `@IsUrl`. `null`
+   * detache la video, `undefined` laisse la valeur en place.
+   */
   @IsOptional()
-  @IsUrl()
-  videoUrl?: string;
+  @IsMediaRef()
+  videoUrl?: string | null;
 
   @IsOptional()
   @IsBoolean()

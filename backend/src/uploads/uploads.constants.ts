@@ -28,7 +28,14 @@ export type UploadKind = (typeof UPLOAD_KIND)[keyof typeof UPLOAD_KIND];
 export const UPLOADS_PREFIX = '/uploads';
 
 /** 5 Mo : au-dela, c'est une photo non redimensionnee sortie d'un telephone. */
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/**
+ * 50 Mo : une demonstration produit, pas un film. La limite est aussi ce que
+ * multer garde en memoire pendant le televersement (voir `uploads.service.ts`)
+ * — la relever coute directement de la RAM au serveur.
+ */
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 
 /**
  * Types acceptes et extension associee. On ne fait jamais confiance au nom du
@@ -40,3 +47,20 @@ export const IMAGE_EXTENSIONS: Record<string, string> = {
   'image/webp': '.webp',
   'image/avif': '.avif',
 };
+
+/**
+ * Formats video acceptes. Meme regle que pour les images : l'extension vient
+ * du type declare, jamais du nom envoye par le client. Volontairement reduit
+ * aux formats qu'un `<video>` sait lire sans transcodage.
+ */
+export const VIDEO_EXTENSIONS: Record<string, string> = {
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'video/quicktime': '.mov',
+};
+
+/**
+ * Sous-dossier des videos. Contrairement aux images, il n'est pas choisi par
+ * le client : une video n'est rattachee qu'a un produit (`Product.videoUrl`).
+ */
+export const VIDEOS_DIRECTORY = 'videos';

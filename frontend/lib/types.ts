@@ -228,7 +228,8 @@ export type ProductInput = {
   promoPrice?: number;
   stock?: number;
   isPremium?: boolean;
-  videoUrl?: string;
+  /** `null` detache la video, `undefined` laisse la valeur en place. */
+  videoUrl?: string | null;
   isActive?: boolean;
 };
 

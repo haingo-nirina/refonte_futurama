@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { ImageUpload } from "@/components/admin/image-upload";
+import { VideoUpload } from "@/components/admin/video-upload";
 import { ApiError } from "@/lib/api";
 import {
   createProduct,
@@ -104,7 +105,9 @@ export function ProductForm({
       stock: Number(form.stock) || 0,
       isPremium: form.isPremium,
       isActive: form.isActive,
-      videoUrl: form.videoUrl.trim() || undefined,
+      // `null` et non `undefined` : vider le champ doit detacher la video,
+      // pas laisser l'ancienne en place.
+      videoUrl: form.videoUrl.trim() || null,
     };
   }
 
@@ -280,15 +283,13 @@ export function ProductForm({
           />
         </label>
 
-        <label className="block sm:col-span-2">
-          <span className="admin-label">Video (URL)</span>
-          <input
-            type="url"
+        <div className="sm:col-span-2">
+          <span className="admin-label">Video de demonstration</span>
+          <VideoUpload
             value={form.videoUrl}
-            onChange={(event) => set("videoUrl", event.target.value)}
-            className="admin-input"
+            onChange={(url) => set("videoUrl", url)}
           />
-        </label>
+        </div>
 
         {product ? null : (
           <div className="sm:col-span-2">

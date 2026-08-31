@@ -8,7 +8,7 @@ import {
   Matches,
   Min,
 } from 'class-validator';
-import { IsImageRef } from '../../common/is-image-ref.decorator';
+import { IsMediaRef } from '../../common/is-media-ref.decorator';
 import { Type } from 'class-transformer';
 
 export class CreateCategoryDto {
@@ -28,7 +28,7 @@ export class CreateCategoryDto {
   parentId?: string | null;
 
   @IsOptional()
-  @IsImageRef()
+  @IsMediaRef()
   imageUrl?: string;
 
   @IsOptional()

@@ -5,7 +5,7 @@ import {
   IsString,
   Matches,
 } from 'class-validator';
-import { IsImageRef } from '../../common/is-image-ref.decorator';
+import { IsMediaRef } from '../../common/is-media-ref.decorator';
 
 export class CreatePostDto {
   @IsString()
@@ -23,7 +23,7 @@ export class CreatePostDto {
   content: string;
 
   @IsOptional()
-  @IsImageRef()
+  @IsMediaRef()
   photoUrl?: string;
 
   @IsOptional()

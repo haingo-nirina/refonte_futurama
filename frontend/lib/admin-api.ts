@@ -263,7 +263,21 @@ export function uploadImage(
   });
 }
 
-/** Aligne sur `IMAGE_EXTENSIONS` et `MAX_UPLOAD_BYTES` cote backend. */
+/**
+ * Televerse une video de demonstration et renvoie son URL publique, a stocker
+ * dans `Product.videoUrl`. Meme depot independant que les photos : pas de
+ * `kind`, une video n'a qu'un seul point d'attache.
+ */
+export function uploadVideo(
+  file: File,
+): Promise<{ url: string; size: number; mimetype: string }> {
+  const body = new FormData();
+  body.append("file", file);
+
+  return request("/uploads/videos", { method: "POST", body });
+}
+
+/** Aligne sur `IMAGE_EXTENSIONS` et `MAX_IMAGE_BYTES` cote backend. */
 export const ACCEPTED_IMAGE_TYPES = [
   "image/jpeg",
   "image/png",
@@ -272,3 +286,8 @@ export const ACCEPTED_IMAGE_TYPES = [
 ];
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/** Aligne sur `VIDEO_EXTENSIONS` et `MAX_VIDEO_BYTES` cote backend. */
+export const ACCEPTED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;

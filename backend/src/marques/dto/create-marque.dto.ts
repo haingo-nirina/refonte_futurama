@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
-import { IsImageRef } from '../../common/is-image-ref.decorator';
+import { IsMediaRef } from '../../common/is-media-ref.decorator';
 
 export class CreateMarqueDto {
   @IsString()
@@ -17,6 +17,6 @@ export class CreateMarqueDto {
    * refuserait le premier cas.
    */
   @IsOptional()
-  @IsImageRef()
+  @IsMediaRef()
   logoUrl?: string;
 }

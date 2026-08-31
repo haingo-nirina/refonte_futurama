@@ -53,7 +53,7 @@ Lecture publique comme les catégories (`GET /marques`) : la facette « Marques 
 
 `Promotion` n'a toujours pas de module dédié : elle se peuple uniquement par le seed.
 
-`uploads` n'a qu'une route, `POST /uploads/images` (admin) : elle écrit le fichier et renvoie son URL, **sans le rattacher à quoi que ce soit**. C'est ce qui permet de téléverser une photo pendant la création d'un produit, avant qu'il ait un identifiant, puis d'attacher l'URL via `PUT /products/:id/images` une fois le produit créé. Détails plus bas.
+`uploads` a deux routes, `POST /uploads/images` et `POST /uploads/videos` (admin) : elles écrivent le fichier et renvoient son URL, **sans le rattacher à quoi que ce soit**. C'est ce qui permet de téléverser une photo pendant la création d'un produit, avant qu'il ait un identifiant, puis d'attacher l'URL via `PUT /products/:id/images` une fois le produit créé. Détails plus bas.
 
 `stats` n'a qu'une route, `GET /stats/dashboard` : tous les agrégats du tableau de bord en un seul appel. Les découper coûterait autant d'allers-retours vers Aiven — voir les ordres de grandeur plus bas.
 
@@ -69,11 +69,13 @@ Les photos vivent dans `backend/uploads/` (gitignoré : ce sont des données, pa
 
 `POST /uploads/images?kind=products|categories|marques` range le fichier dans le sous-dossier correspondant. **`kind` est contraint par une liste blanche** (`UPLOAD_KINDS`) : sans elle, une valeur fabriquée à la main écrirait hors de `UPLOADS_ROOT`.
 
-Un visuel peut donc être un chemin absolu servi par nous, ou une URL externe. `@IsUrl()` refuse le premier cas — c'est pourquoi `imageUrl` / `photoUrl` / `logoUrl` utilisent **`@IsImageRef()`** (`src/common/is-image-ref.decorator.ts`), qui accepte les deux. `videoUrl` garde `@IsUrl()` : une vidéo est toujours hébergée ailleurs.
+`POST /uploads/videos` écrit dans `uploads/videos` et n'accepte **pas** de `kind` : une vidéo n'a qu'un seul point d'attache, `Product.videoUrl`. Formats MP4 / WebM / MOV, 50 Mo (`MAX_VIDEO_BYTES`) — c'est aussi ce que multer garde en mémoire le temps du téléversement.
 
-Le stockage est en mémoire, pas sur disque : le fichier n'est écrit qu'une fois son type MIME validé, ce qui évite d'avoir à nettoyer un rebut. **Le nom d'origine n'est jamais réutilisé** — il vient du client, et un `../` dedans écrirait n'importe où ; le nom est un UUID et l'extension est déduite du type MIME. Formats acceptés et taille maximale sont dans `uploads.constants.ts`, à garder alignés avec `ACCEPTED_IMAGE_TYPES` / `MAX_IMAGE_BYTES` côté front.
+Un visuel peut donc être un chemin absolu servi par nous, ou une URL externe. `@IsUrl()` refuse le premier cas — c'est pourquoi `imageUrl` / `photoUrl` / `logoUrl` / `videoUrl` utilisent **`@IsMediaRef()`** (`src/common/is-media-ref.decorator.ts`), qui accepte les deux. `videoUrl` accepte en plus `null`, qui détache la vidéo : `undefined` laisserait l'ancienne en place.
 
-Rien ne supprime le fichier quand l'image est retirée d'un produit : `uploads/` accumule les orphelins. Acceptable à ce volume, à reprendre le jour où ça compte.
+Le stockage est en mémoire, pas sur disque : le fichier n'est écrit qu'une fois son type MIME validé, ce qui évite d'avoir à nettoyer un rebut. **Le nom d'origine n'est jamais réutilisé** — il vient du client, et un `../` dedans écrirait n'importe où ; le nom est un UUID et l'extension est déduite du type MIME. Formats acceptés et taille maximale sont dans `uploads.constants.ts`, à garder alignés avec `ACCEPTED_IMAGE_TYPES` / `MAX_IMAGE_BYTES` / `ACCEPTED_VIDEO_TYPES` / `MAX_VIDEO_BYTES` côté front.
+
+Rien ne supprime le fichier quand l'image ou la vidéo est retirée d'un produit : `uploads/` accumule les orphelins. Acceptable à ce volume, à reprendre le jour où ça compte.
 
 ### Authentification
 
