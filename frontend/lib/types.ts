@@ -222,10 +222,12 @@ export type ProductInput = {
   marqueId?: string | null;
   name: string;
   slug: string;
-  reference?: string;
-  description?: string;
+  /** `null` vide le champ, `undefined` laisse la valeur en place. */
+  reference?: string | null;
+  description?: string | null;
   price: number;
-  promoPrice?: number;
+  /** `null` retire la promotion en cours. */
+  promoPrice?: number | null;
   stock?: number;
   isPremium?: boolean;
   /** `null` detache la video, `undefined` laisse la valeur en place. */

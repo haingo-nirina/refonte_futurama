@@ -97,11 +97,12 @@ export function ProductForm({
       marqueId: form.marqueId || null,
       name: form.name.trim(),
       slug: form.slug.trim() || slugify(form.name),
-      // Chaine vide refusee par les @IsNotEmpty du DTO : on omet plutot.
-      reference: form.reference.trim() || undefined,
-      description: form.description.trim() || undefined,
+      // `null` et non `undefined` : vider un champ doit le vider en base, la
+      // ou un champ absent laisserait l'ancienne valeur en place.
+      reference: form.reference.trim() || null,
+      description: form.description.trim() || null,
       price: Number(form.price),
-      promoPrice: form.promoPrice.trim() ? Number(form.promoPrice) : undefined,
+      promoPrice: form.promoPrice.trim() ? Number(form.promoPrice) : null,
       stock: Number(form.stock) || 0,
       isPremium: form.isPremium,
       isActive: form.isActive,

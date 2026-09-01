@@ -30,24 +30,31 @@ export class CreateProductDto {
   })
   slug: string;
 
+  /** `null` vide la reference, `undefined` laisse la valeur en place. */
   @IsOptional()
   @IsString()
-  reference?: string;
+  reference?: string | null;
 
   @IsOptional()
   @IsString()
-  description?: string;
+  description?: string | null;
 
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   price: number;
 
+  /**
+   * `null` retire la promotion, `undefined` laisse celle en place — sans quoi
+   * une promo posee une fois ne pourrait plus etre annulee depuis le
+   * formulaire d'edition. `@Type` n'est pas applique a `null` par
+   * class-transformer, la valeur arrive telle quelle au service.
+   */
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
-  promoPrice?: number;
+  promoPrice?: number | null;
 
   @IsOptional()
   @Type(() => Number)

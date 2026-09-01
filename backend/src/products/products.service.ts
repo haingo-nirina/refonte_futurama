@@ -17,6 +17,17 @@ import { ReplaceProductRelationsDto } from './dto/replace-product-relations.dto'
 import { ReplaceProductSpecsDto } from './dto/replace-product-specs.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
+/**
+ * `undefined` = champ non fourni (on ne touche pas), `null` = retirer la
+ * promotion. Sans cette distinction `new Prisma.Decimal(null)` levait, et le
+ * formulaire d'edition ne pouvait pas annuler une promo.
+ */
+function toPromoPrice(value: number | null | undefined) {
+  if (value === undefined) return undefined;
+
+  return value === null ? null : new Prisma.Decimal(value);
+}
+
 /** Images triees : la principale d'abord, puis l'ordre d'affichage. */
 const IMAGES_INCLUDE = {
   orderBy: [{ isPrimary: 'desc' }, { displayOrder: 'asc' }],
@@ -44,10 +55,7 @@ export class ProductsService {
         reference: dto.reference ?? null,
         description: dto.description ?? null,
         price: new Prisma.Decimal(dto.price),
-        promoPrice:
-          dto.promoPrice === undefined
-            ? null
-            : new Prisma.Decimal(dto.promoPrice),
+        promoPrice: toPromoPrice(dto.promoPrice) ?? null,
         stock: dto.stock ?? 0,
         isPremium: dto.isPremium ?? false,
         videoUrl: dto.videoUrl ?? null,
@@ -182,10 +190,7 @@ export class ProductsService {
         description: dto.description,
         price:
           dto.price === undefined ? undefined : new Prisma.Decimal(dto.price),
-        promoPrice:
-          dto.promoPrice === undefined
-            ? undefined
-            : new Prisma.Decimal(dto.promoPrice),
+        promoPrice: toPromoPrice(dto.promoPrice),
         stock: dto.stock,
         isPremium: dto.isPremium,
         videoUrl: dto.videoUrl,

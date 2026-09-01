@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AdminPagination } from "@/components/admin/admin-pagination";
 import { ActiveBadge } from "@/components/admin/status-badge";
 import { PageHeader } from "@/components/admin/page-header";
+import { ProductRowActions } from "@/components/admin/product-row-actions";
 import { ProductImage } from "@/components/product-image";
 import { getCategories } from "@/lib/api";
 import { getAdminProducts } from "@/lib/admin-api";
@@ -119,6 +120,7 @@ export default async function AdminProductsPage({
                 <th className="px-4 py-3 font-semibold">Prix</th>
                 <th className="px-4 py-3 font-semibold">Stock</th>
                 <th className="px-4 py-3 font-semibold">Etat</th>
+                <th className="px-4 py-3 text-right font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-line divide-y">
@@ -170,6 +172,9 @@ export default async function AdminProductsPage({
                   </td>
                   <td className="px-4 py-3">
                     <ActiveBadge isActive={product.isActive} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <ProductRowActions product={product} />
                   </td>
                 </tr>
               ))}
