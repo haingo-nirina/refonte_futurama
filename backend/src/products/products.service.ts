@@ -117,6 +117,9 @@ export class ProductsService {
             ? {}
             : { moderationStatus: MODERATION_STATUS.APPROVED },
           orderBy: { createdAt: 'desc' },
+          // Le nom affiche vient du compte (`authorName` n'existe plus) : sans
+          // cette jointure la fiche produit n'aurait pas de quoi signer un avis.
+          include: { user: { select: { id: true, fullName: true } } },
         },
         relationsFrom: isAdmin
           ? {

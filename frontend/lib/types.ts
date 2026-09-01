@@ -59,6 +59,9 @@ export type Product = {
 /** `GET /products/:id` enrichit la fiche avec ses caracteristiques. */
 export type ProductDetail = Product & {
   specs: ProductSpec[];
+  /** Les nouveaux avis sont publies directement ; le backend filtre malgre
+   * tout sur `approved`, les avis anterieurs gardent leur statut. */
+  reviews: ProductReview[];
 };
 
 export type Paginated<T> = {
@@ -204,10 +207,27 @@ export type RelationType = (typeof RELATION_TYPES)[number]["value"];
 /** Avis tel que renvoye sur la fiche produit (sans le produit joint). */
 export type ProductReview = {
   id: string;
+  productId: string;
   rating: number;
   comment: string | null;
   moderationStatus: ModerationStatus;
   createdAt: string;
+  /** Le nom affiche vient du compte : `authorName` n'existe plus. */
+  user: { id: string; fullName: string };
+};
+
+/** L'auteur n'y figure pas : le backend le lit sur le JWT. */
+export type ReviewInput = {
+  productId: string;
+  rating: number;
+  comment?: string;
+};
+
+/** Le produit n'y figure pas : un avis ne change pas de produit. */
+export type ReviewUpdateInput = {
+  rating?: number;
+  /** `null` retire le commentaire et ne garde que la note. */
+  comment?: string | null;
 };
 
 /** `GET /products/:id` vu par un admin : specs, relations et avis non moderes. */
@@ -300,7 +320,6 @@ export type DashboardStats = {
     lowStockThreshold: number;
     lowStock: { id: string; name: string; stock: number }[];
   };
-  moderation: { pendingReviews: number };
   customers: number;
   topProducts: { productName: string; quantity: number }[];
   recentOrders: {

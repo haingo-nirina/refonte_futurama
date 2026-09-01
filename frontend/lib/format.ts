@@ -55,6 +55,34 @@ export function formatDateTime(iso: string): string {
   });
 }
 
+const RELATIVE = new Intl.RelativeTimeFormat("fr-FR", { numeric: "auto" });
+
+/** Paliers successifs : chaque valeur est le nombre d'unites avant la suivante. */
+const RELATIVE_STEPS: [Intl.RelativeTimeFormatUnit, number][] = [
+  ["second", 60],
+  ["minute", 60],
+  ["hour", 24],
+  ["day", 7],
+  ["week", 4.35],
+  ["month", 12],
+];
+
+/**
+ * `il y a 4 jours` — la maquette date les avis en relatif. A n'utiliser que
+ * dans un composant serveur : le rendu depend de l'heure courante, et un
+ * composant client rejouerait un texte different de celui du HTML serveur.
+ */
+export function formatRelativeDate(iso: string): string {
+  let value = (new Date(iso).getTime() - Date.now()) / 1000;
+
+  for (const [unit, step] of RELATIVE_STEPS) {
+    if (Math.abs(value) < step) return RELATIVE.format(Math.round(value), unit);
+    value /= step;
+  }
+
+  return RELATIVE.format(Math.round(value), "year");
+}
+
 /** `2026-03-12` : format attendu par un `<input type="date">`. */
 export function toDateInputValue(iso: string): string {
   return new Date(iso).toISOString().slice(0, 10);

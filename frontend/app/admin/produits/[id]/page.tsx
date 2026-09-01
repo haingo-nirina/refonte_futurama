@@ -6,7 +6,6 @@ import {
   RelationsEditor,
   SpecsEditor,
 } from "@/components/admin/product-collections";
-import { ModerationStatusBadge } from "@/components/admin/status-badge";
 import { ApiError, getCategories, getMarques } from "@/lib/api";
 import { getAdminProduct, getAdminProducts } from "@/lib/admin-api";
 import { getServerToken } from "@/lib/auth-server";
@@ -97,7 +96,6 @@ export default async function EditProductPage({
                   <p className="text-muted min-w-0 flex-1 text-[13px]">
                     {review.comment ?? "—"}
                   </p>
-                  <ModerationStatusBadge status={review.moderationStatus} />
                 </li>
               ))}
             </ul>
@@ -107,7 +105,7 @@ export default async function EditProductPage({
             href={`/admin/avis?productId=${product.id}`}
             className="text-brand mt-4 inline-block text-[12.5px] font-bold hover:underline"
           >
-            Moderer les avis de ce produit →
+            Voir tous les avis de ce produit →
           </Link>
         </section>
       </div>

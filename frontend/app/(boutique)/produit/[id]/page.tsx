@@ -5,6 +5,7 @@ import { discountLabel, formatPrice } from "@/lib/format";
 import type { ProductDetail } from "@/lib/types";
 import { AddToCart } from "./add-to-cart";
 import { Gallery } from "./gallery";
+import { ProductReviews } from "./reviews";
 
 const REASSURANCE = [
   { title: "Livraison Antananarivo", desc: "Offerte des 300 000 Ar." },
@@ -24,8 +25,15 @@ async function loadProduct(id: string): Promise<ProductDetail> {
 
 export default async function ProductPage({
   params,
+  searchParams,
 }: PageProps<"/produit/[id]">) {
   const { id } = await params;
+  // Seule la liste des avis est paginee sur cette page.
+  const { page: rawPage } = await searchParams;
+  const page = Math.max(
+    1,
+    Number.parseInt(typeof rawPage === "string" ? rawPage : "", 10) || 1,
+  );
 
   const product = await loadProduct(id);
   const categories = await getCategories().catch(() => []);
@@ -152,6 +160,12 @@ export default async function ProductPage({
           ) : null}
         </div>
       </div>
+
+      <ProductReviews
+        productId={product.id}
+        reviews={product.reviews}
+        page={page}
+      />
     </div>
   );
 }

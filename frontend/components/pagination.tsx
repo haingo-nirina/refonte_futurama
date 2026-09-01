@@ -9,11 +9,14 @@ export function Pagination({
   page,
   totalPages,
   params,
+  hash,
 }: {
   basePath: string;
   page: number;
   totalPages: number;
   params?: URLSearchParams;
+  /** `#avis` : sans ancre, changer de page renverrait en haut de la fiche. */
+  hash?: string;
 }) {
   if (totalPages <= 1) return null;
 
@@ -22,7 +25,7 @@ export function Pagination({
     search.delete("page");
     if (target > 1) search.set("page", String(target));
     const suffix = search.toString();
-    return `${basePath}${suffix ? `?${suffix}` : ""}`;
+    return `${basePath}${suffix ? `?${suffix}` : ""}${hash ?? ""}`;
   };
 
   const pages = Array.from({ length: totalPages }, (_, index) => index + 1);

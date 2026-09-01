@@ -90,7 +90,7 @@ Rien ne supprime le fichier quand l'image ou la vidéo est retirée d'un produit
 - `GET /auth/me` **relit le compte en base** : le JWT porte un `role` figé à l'émission, donc c'est le seul moyen de savoir si un compte est *encore* admin. C'est ce que fait le layout du backoffice.
 - `JWT_SECRET` est obligatoire (l'app refuse de démarrer sans). Voir `.env.example`.
 
-Routes protégées par un simple JWT : `POST /orders`, `GET /orders`, `GET /orders/:id`, `GET /auth/me`, `POST /reviews`, `POST /posts/:id/comments`, `POST|DELETE /posts/:id/like`.
+Routes protégées par un simple JWT : `POST /orders`, `GET /orders`, `GET /orders/:id`, `GET /auth/me`, `POST /reviews`, `PATCH|DELETE /reviews/:id`, `POST /posts/:id/comments`, `POST|DELETE /posts/:id/like`.
 
 Routes admin (`@AdminOnly()`) : **toute écriture du catalogue et du contenu** — `POST|PATCH|DELETE /products`, `PUT /products/:id/images|specs|relations`, `POST|PATCH|DELETE /categories`, `POST|PATCH|DELETE /marques`, `POST|PATCH|DELETE /posts`, `DELETE /posts/:id/comments/:commentId`, `POST|PATCH|DELETE /resellers` — plus `GET /orders/admin`, `PATCH /orders/:id/status`, `GET /reviews/admin`, `GET /reviews/pending`, `PATCH /reviews/:id/moderate`, `GET /stats/dashboard`.
 
@@ -147,10 +147,10 @@ Le rattachement du panier anonyme est gratuit : après `startSession()`, un `not
 - Un visiteur non connecté est identifié par un `session_id` (panier uniquement), passé en query string. Les likes et commentaires d'articles sont désormais rattachés à un compte.
 - Le panier peut démarrer anonyme (`Cart.userId` nullable) : la première requête authentifiée sur ce `session_id` le rattache au compte. Un panier déjà rattaché à un autre compte n'est jamais revendiqué, et `POST /orders` le refuse en 403.
 - `Order.userId` est obligatoire, mais `shippingName` / `shippingPhone` / `shippingAddress` restent dupliqués sur la commande : l'adresse de livraison d'une commande peut différer du profil et ne doit pas bouger si le profil change ensuite. Même logique que `order_items`.
-- `Review` porte `@@unique([productId, userId])` : un avis par produit et par compte, quel que soit le statut de modération du précédent. Le service traduit le `P2002` en 409.
+- `Review` porte `@@unique([productId, userId])` : un avis par produit et par compte, quel que soit le statut de modération du précédent. Le service traduit le `P2002` en 409 — mais la boutique n'y arrive plus, elle propose de modifier l'avis existant au lieu d'en reproposer un. **`PATCH|DELETE /reviews/:id` sont réservées à l'auteur** : le service compare `userId` au JWT et répond 403 sinon, sans exception pour l'admin (le backoffice ne fait que lire). `PATCH` n'accepte ni `productId` ni auteur ; `comment: null` ne garde que la note.
 - `order_items` fige `productName` et `unitPrice` au moment de la commande : une commande ne doit pas bouger si le produit change ensuite.
 - Le nom affiché d'un avis ou d'un commentaire vient du compte (`authorName` n'existe plus) : tout affichage doit joindre `user`. Les services le font déjà via leurs constantes `AUTHOR_INCLUDE` / `COMMENT_AUTHOR_INCLUDE`.
-- Les avis sont créés en `pending` et ne sont visibles publiquement qu'une fois `approved`. La modération ne mène qu'à un état terminal (`approved` / `rejected`), jamais retour à `pending`.
+- **Les avis sont publiés directement** (`create()` les écrit en `approved`) : le backoffice les liste sans action de modération. `moderationStatus` reste en base et les lectures publiques filtrent toujours sur `approved` — les avis antérieurs gardent donc leur statut, un `pending` ou un `rejected` d'avant reste invisible. `GET /reviews/pending` et `PATCH /reviews/:id/moderate` existent encore côté API, plus aucun écran ne les appelle.
 - **`isActive` et `publishedAt` sont des filtres de publication, pas des colonnes d'affichage.** `GET /products` et `GET /products/:id` masquent les produits désactivés (404 sur la fiche), `GET /posts` masque les brouillons et les publications programmées. Un admin identifié par `OptionalJwtAuthGuard` voit tout, et peut filtrer explicitement avec `isActive=true|false`. Un produit désactivé disparaît aussi des `similar` / `frequently_bought_together`.
 - `Order.status` n'a **pas de machine à états** : le backend accepte n'importe quelle transition. Ne pas simuler de garde-fou côté front, ce serait une règle métier posée au mauvais endroit.
 - Les likes d'articles sont idempotents via la contrainte unique `[postId, userId]` ; `likesCount` n'est incrémenté que lorsque la ligne est réellement créée.
@@ -174,8 +174,8 @@ Les relations `similar` sont écrites dans les deux sens (`findRelated` filtre s
 
 Deux applications dans le même paquet Next, séparées par des groupes de routes :
 
-- `app/(boutique)/` — MVP e-commerce : accueil (rayons), catalogue paginé par rayon (facettes, tri), fiche produit, panier, connexion / inscription et confirmation de commande. Le reste de la maquette (chatbot, live shopping, blog, avis, revendeurs) n'est pas implémenté.
-- `app/admin/` — le backoffice : tableau de bord, commandes, produits, catégories, marques, modération des avis.
+- `app/(boutique)/` — MVP e-commerce : accueil (rayons), catalogue paginé par rayon (facettes, tri), fiche produit (avec la section « Avis clients » : moyenne, répartition, dépôt d'un avis), panier, connexion / inscription et confirmation de commande. Le reste de la maquette (chatbot, live shopping, blog, revendeurs) n'est pas implémenté.
+- `app/admin/` — le backoffice : tableau de bord, commandes, produits, catégories, marques, consultation des avis.
 
 **Le layout racine (`app/layout.tsx`) est volontairement nu** — polices et feuille de styles, rien d'autre. L'en-tête et le pied de page appartiennent à la boutique et vivent dans `app/(boutique)/layout.tsx`. Un layout enfant ne pouvant pas retirer le chrome de son parent, c'est le seul moyen de donner au backoffice une enveloppe distincte. Le groupe `(boutique)` ne change aucune URL.
 

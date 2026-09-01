@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { MODERATION_STATUS, ORDER_STATUS } from '../common/constants';
+import { ORDER_STATUS } from '../common/constants';
 
 /** En-deca de ce stock, un produit remonte dans l'alerte du tableau de bord. */
 const LOW_STOCK_THRESHOLD = 5;
@@ -37,7 +37,6 @@ export class StatsService {
       month,
       allTime,
       byStatus,
-      pendingReviews,
       productCount,
       inactiveProductCount,
       categoryCount,
@@ -66,9 +65,6 @@ export class StatsService {
         by: ['status'],
         _count: true,
         orderBy: { status: 'asc' },
-      }),
-      this.prisma.review.count({
-        where: { moderationStatus: MODERATION_STATUS.PENDING },
       }),
       this.prisma.product.count(),
       this.prisma.product.count({ where: { isActive: false } }),
@@ -124,7 +120,6 @@ export class StatsService {
         lowStockThreshold: LOW_STOCK_THRESHOLD,
         lowStock,
       },
-      moderation: { pendingReviews },
       customers: customerCount,
       topProducts: topProducts.map((row) => ({
         productName: row.productName,

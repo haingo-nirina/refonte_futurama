@@ -17,6 +17,7 @@
   --color-ink: oklch(0.26 0.012 60);
   --color-muted: oklch(0.52 0.012 60);
   --color-muted-light: oklch(0.62 0.012 60);
+  --color-star: oklch(0.75 0.15 80);
   --color-success: oklch(0.52 0.09 150);
   --color-success-soft: oklch(0.95 0.03 150);
 

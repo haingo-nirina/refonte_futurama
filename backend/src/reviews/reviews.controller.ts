@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -18,6 +19,7 @@ import { CreateReviewDto } from './dto/create-review.dto';
 import { FindAdminReviewsQueryDto } from './dto/find-admin-reviews-query.dto';
 import { FindReviewsQueryDto } from './dto/find-reviews-query.dto';
 import { ModerateReviewDto } from './dto/moderate-review.dto';
+import { UpdateReviewDto } from './dto/update-review.dto';
 
 @Controller('reviews')
 export class ReviewsController {
@@ -45,6 +47,26 @@ export class ReviewsController {
   @AdminOnly()
   findAllForAdmin(@Query() query: FindAdminReviewsQueryDto) {
     return this.reviewsService.findAllForAdmin(query);
+  }
+
+  /** Reserve a l'auteur : le service refuse l'avis d'un autre compte. */
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateReviewDto,
+  ) {
+    return this.reviewsService.update(id, user.userId, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  remove(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.reviewsService.remove(id, user.userId);
   }
 
   @Patch(':id/moderate')

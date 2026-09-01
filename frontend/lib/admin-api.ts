@@ -9,7 +9,6 @@ import type {
   DashboardStats,
   MarqueDetail,
   MarqueInput,
-  ModerationStatus,
   OrderStatus,
   Paginated,
   ProductImage,
@@ -213,7 +212,6 @@ export function deleteMarque(id: string): Promise<MarqueDetail> {
 export type AdminReviewsQuery = {
   page?: number;
   limit?: number;
-  status?: ModerationStatus;
   productId?: string;
 };
 
@@ -223,17 +221,6 @@ export function getAdminReviews(
 ): Promise<Paginated<AdminReview>> {
   return request<Paginated<AdminReview>>(`/reviews/admin${toQuery(query)}`, {
     token,
-  });
-}
-
-/** La moderation ne mene qu'a un etat terminal : jamais retour a `pending`. */
-export function moderateReview(
-  id: string,
-  status: Exclude<ModerationStatus, "pending">,
-): Promise<AdminReview> {
-  return request<AdminReview>(`/reviews/${id}/moderate`, {
-    method: "PATCH",
-    body: JSON.stringify({ status }),
   });
 }
 

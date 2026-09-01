@@ -65,21 +65,8 @@ export default async function AdminDashboardPage() {
           </ul>
         </Panel>
 
-        <Panel
-          title="A traiter"
-          action={
-            stats.moderation.pendingReviews > 0
-              ? { href: "/admin/avis?status=pending", label: "Moderer" }
-              : undefined
-          }
-        >
+        <Panel title="A traiter">
           <ul className="space-y-3 text-[13.5px]">
-            <li className="flex items-center justify-between gap-3">
-              <span>Avis en attente de moderation</span>
-              <strong className="font-display text-navy text-lg">
-                {stats.moderation.pendingReviews}
-              </strong>
-            </li>
             <li className="flex items-center justify-between gap-3">
               <span>Commandes en attente</span>
               <strong className="font-display text-navy text-lg">

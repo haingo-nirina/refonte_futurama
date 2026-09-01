@@ -11,7 +11,10 @@ import type {
   Paginated,
   Product,
   ProductDetail,
+  ProductReview,
   RegisterInput,
+  ReviewInput,
+  ReviewUpdateInput,
 } from "./types";
 
 /**
@@ -156,6 +159,38 @@ export function getProducts(
 
 export function getProduct(id: string): Promise<ProductDetail> {
   return request<ProductDetail>(`/products/${id}`);
+}
+
+// ---------------------------------------------------------------------- Avis
+
+/**
+ * `GET /products/:id` porte deja les avis du produit : seul le depot passe par
+ * ici. L'avis est publie directement, la liste rendue cote serveur doit donc
+ * etre relue apres l'appel.
+ */
+export function createReview(input: ReviewInput): Promise<ProductReview> {
+  return request<ProductReview>("/reviews", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+/**
+ * Modification et suppression sont reservees a l'auteur : le backend refuse
+ * en 403 l'avis d'un autre compte, le backoffice n'y touche pas.
+ */
+export function updateReview(
+  id: string,
+  input: ReviewUpdateInput,
+): Promise<ProductReview> {
+  return request<ProductReview>(`/reviews/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteReview(id: string): Promise<ProductReview> {
+  return request<ProductReview>(`/reviews/${id}`, { method: "DELETE" });
 }
 
 // -------------------------------------------------------------------- Panier
