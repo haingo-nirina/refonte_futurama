@@ -6,10 +6,19 @@ import {
   RelationsEditor,
   SpecsEditor,
 } from "@/components/admin/product-collections";
-import { ApiError, getCategories, getMarques } from "@/lib/api";
+import {
+  PromotionStatusBadge,
+  promotionState,
+} from "@/components/admin/status-badge";
+import {
+  ApiError,
+  getActivePromotion,
+  getCategories,
+  getMarques,
+} from "@/lib/api";
 import { getAdminProduct, getAdminProducts } from "@/lib/admin-api";
 import { getServerToken } from "@/lib/auth-server";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatPrice } from "@/lib/format";
 
 export const metadata = { title: "Edition produit" };
 
@@ -27,10 +36,11 @@ export default async function EditProductPage({
     throw error;
   });
 
-  const [categories, marques, choices] = await Promise.all([
+  const [categories, marques, choices, promotion] = await Promise.all([
     getCategories(),
     getMarques(),
     getAdminProducts({ limit: RELATION_CHOICES_LIMIT }, token),
+    getActivePromotion(product.id),
   ]);
 
   return (
@@ -68,6 +78,45 @@ export default async function EditProductPage({
           marques={marques}
           product={product}
         />
+
+        {/* Lecture seule : le prix promo n'a plus de champ de saisie, il vient
+            entierement de la table `promotions`. Modifier se fait la-bas. */}
+        <section className="admin-card">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-display text-navy text-[15px] font-extrabold">
+              Promotion en cours
+            </h2>
+            <Link
+              href="/admin/promotions"
+              className="text-brand text-[12.5px] font-bold hover:underline"
+            >
+              Gerer les promotions →
+            </Link>
+          </div>
+
+          {promotion ? (
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
+              <span className="font-display text-navy text-[19px] font-extrabold">
+                {formatPrice(promotion.discountedPrice)}
+                <span className="text-muted-light ml-2 text-[12.5px] font-normal line-through">
+                  {formatPrice(promotion.basePrice)}
+                </span>
+              </span>
+              <span className="font-semibold">
+                -{promotion.discountPercent} %
+              </span>
+              <span className="text-muted">
+                {formatDate(promotion.startDate)} →{" "}
+                {formatDate(promotion.endDate)}
+              </span>
+              <PromotionStatusBadge state={promotionState(promotion)} />
+            </div>
+          ) : (
+            <p className="text-muted-light text-[13px]">
+              Aucune promotion active sur ce produit.
+            </p>
+          )}
+        </section>
 
         <ImagesEditor productId={product.id} images={product.images} />
         <SpecsEditor productId={product.id} specs={product.specs} />
