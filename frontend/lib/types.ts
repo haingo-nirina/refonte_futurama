@@ -302,6 +302,24 @@ export type ProductInput = {
   isActive?: boolean;
 };
 
+/**
+ * Corps attendu par `POST|PATCH /admin/promotions`.
+ *
+ * Les regles sont celles des DTO backend : `discountPercent` entre 0 et 100,
+ * `endDate` strictement posterieure a `startDate`. Les dates partent en ISO,
+ * `@Type(() => Date)` les reconstruit cote serveur.
+ */
+export type PromotionInput = {
+  productId: string;
+  /** `null` retire le titre. */
+  titre?: string | null;
+  discountPercent: number;
+  startDate: string;
+  endDate: string;
+  isActive?: boolean;
+  isFeatured?: boolean;
+};
+
 export type CategoryInput = {
   name: string;
   slug: string;

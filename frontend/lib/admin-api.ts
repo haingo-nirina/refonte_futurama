@@ -15,6 +15,8 @@ import type {
   ProductInput,
   ProductRelation,
   ProductSpec,
+  Promotion,
+  PromotionInput,
   RelationType,
 } from "./types";
 
@@ -54,10 +56,7 @@ export function getAdminOrders(
   });
 }
 
-export function getAdminOrder(
-  id: string,
-  token?: string,
-): Promise<AdminOrder> {
+export function getAdminOrder(id: string, token?: string): Promise<AdminOrder> {
   return request<AdminOrder>(`/orders/${id}`, { token });
 }
 
@@ -207,6 +206,59 @@ export function deleteMarque(id: string): Promise<MarqueDetail> {
   return request<MarqueDetail>(`/marques/${id}`, { method: "DELETE" });
 }
 
+// --------------------------------------------------------------- Promotions
+
+export type AdminPromotionsQuery = {
+  isActive?: boolean;
+  isFeatured?: boolean;
+  productId?: string;
+};
+
+/**
+ * Liste complete, non paginee : une boutique a des promotions par dizaines,
+ * pas par milliers. Le jour ou ca change, c'est le backend qu'il faut paginer.
+ */
+export function getAdminPromotions(
+  query: AdminPromotionsQuery = {},
+  token?: string,
+): Promise<Promotion[]> {
+  return request<Promotion[]>(
+    `/admin/promotions${toQuery({
+      isActive:
+        query.isActive === undefined ? undefined : String(query.isActive),
+      isFeatured:
+        query.isFeatured === undefined ? undefined : String(query.isFeatured),
+      productId: query.productId,
+    })}`,
+    { token },
+  );
+}
+
+export function createPromotion(input: PromotionInput): Promise<Promotion> {
+  return request<Promotion>("/admin/promotions", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updatePromotion(
+  id: string,
+  input: Partial<PromotionInput>,
+): Promise<Promotion> {
+  return request<Promotion>(`/admin/promotions/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+/**
+ * Suppression definitive. Pour retirer une promotion sans la perdre, le
+ * backoffice propose plutot le basculement `isActive`.
+ */
+export function deletePromotion(id: string): Promise<Promotion> {
+  return request<Promotion>(`/admin/promotions/${id}`, { method: "DELETE" });
+}
+
 // --------------------------------------------------------------------- Avis
 
 export type AdminReviewsQuery = {
@@ -275,6 +327,10 @@ export const ACCEPTED_IMAGE_TYPES = [
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 /** Aligne sur `VIDEO_EXTENSIONS` et `MAX_VIDEO_BYTES` cote backend. */
-export const ACCEPTED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+export const ACCEPTED_VIDEO_TYPES = [
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+];
 
 export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
