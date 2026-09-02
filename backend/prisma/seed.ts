@@ -99,7 +99,6 @@ type ProductSeed = {
   reference: string;
   description: string;
   price: string;
-  promoPrice?: string;
   stock: number;
   isPremium?: boolean;
   videoUrl?: string;
@@ -115,7 +114,7 @@ const PRODUCTS: ProductSeed[] = [
     marqueSlug: 'slurm-inc',
     reference: 'SLM-001',
     description:
-      "La boisson la plus consommee de la galaxie, en pack familial de six canettes de 33 cl. Formule originale inchangee depuis 2761.",
+      'La boisson la plus consommee de la galaxie, en pack familial de six canettes de 33 cl. Formule originale inchangee depuis 2761.',
     price: '24000',
     stock: 240,
     specs: [
@@ -134,7 +133,6 @@ const PRODUCTS: ProductSeed[] = [
     description:
       'Version survitaminee du Slurm original. Deconseillee aux organismes de moins de trois estomacs.',
     price: '6500',
-    promoPrice: '4875',
     stock: 480,
     specs: [
       ['Contenance', '50 cl'],
@@ -149,7 +147,7 @@ const PRODUCTS: ProductSeed[] = [
     marqueSlug: 'benders-bending-co',
     reference: 'OFR-1701',
     description:
-      "Alcool de malt haute densite destine aux unites robotiques. Carburant et boisson a la fois.",
+      'Alcool de malt haute densite destine aux unites robotiques. Carburant et boisson a la fois.',
     price: '18000',
     stock: 90,
     specs: [
@@ -251,9 +249,8 @@ const PRODUCTS: ProductSeed[] = [
     marqueSlug: 'momcorp',
     reference: 'MEM-64',
     description:
-      "Extension memoire a acces quantique. Sauvegarde de personnalite incluse, restauration non garantie.",
+      'Extension memoire a acces quantique. Sauvegarde de personnalite incluse, restauration non garantie.',
     price: '780000',
-    promoPrice: '663000',
     stock: 12,
     specs: [
       ['Capacite', '64 To'],
@@ -389,26 +386,56 @@ const BOUGHT_TOGETHER: Record<string, string[]> = {
 
 type PromotionSeed = {
   productSlug: string;
+  titre?: string;
   discountPercent: string;
   startDate: string;
   endDate: string;
   isActive: boolean;
+  /** Entre dans la section « Promotion du mois » de l'accueil. */
+  isFeatured?: boolean;
 };
 
+/** Les quatre cartes de la section « Promotion du mois » partagent ce titre. */
+const PROMO_OF_MONTH = 'Promotion du mois - Septembre 2026';
+
+// Quatre promotions mises en avant, comme la grille de la maquette, prises
+// dans quatre rayons differents : c'est le sur-titre de chaque carte.
 const PROMOTIONS: PromotionSeed[] = [
   {
     productSlug: 'slurm-xtreme',
+    titre: PROMO_OF_MONTH,
     discountPercent: '25',
     startDate: '2026-08-01',
     endDate: '2026-09-30',
     isActive: true,
+    isFeatured: true,
   },
   {
     productSlug: 'matrice-memoire-quantique',
+    titre: PROMO_OF_MONTH,
     discountPercent: '15',
     startDate: '2026-08-15',
     endDate: '2026-10-15',
     isActive: true,
+    isFeatured: true,
+  },
+  {
+    productSlug: 'bending-unit-22',
+    titre: PROMO_OF_MONTH,
+    discountPercent: '11',
+    startDate: '2026-09-01',
+    endDate: '2026-09-30',
+    isActive: true,
+    isFeatured: true,
+  },
+  {
+    productSlug: 'casque-navigation-pe',
+    titre: PROMO_OF_MONTH,
+    discountPercent: '23',
+    startDate: '2026-09-01',
+    endDate: '2026-09-30',
+    isActive: true,
+    isFeatured: true,
   },
   // Promotion terminee : sert a verifier qu'elle n'est plus appliquee.
   {
@@ -590,8 +617,14 @@ const POSTS: PostSeed[] = [
       'bender@planetexpress.test',
     ],
     comments: [
-      { authorEmail: 'fry@planetexpress.test', comment: 'Je ne veux surtout pas savoir.' },
-      { authorEmail: 'bender@planetexpress.test', comment: 'Article correct. Il manque la biere.' },
+      {
+        authorEmail: 'fry@planetexpress.test',
+        comment: 'Je ne veux surtout pas savoir.',
+      },
+      {
+        authorEmail: 'bender@planetexpress.test',
+        comment: 'Article correct. Il manque la biere.',
+      },
     ],
   },
   {
@@ -761,9 +794,6 @@ async function seedProducts(
         reference: product.reference,
         description: product.description,
         price: new Prisma.Decimal(product.price),
-        promoPrice: product.promoPrice
-          ? new Prisma.Decimal(product.promoPrice)
-          : null,
         stock: product.stock,
         isPremium: product.isPremium ?? false,
         videoUrl: product.videoUrl ?? null,
@@ -839,10 +869,12 @@ async function seedPromotions(productIds: Map<string, string>) {
     await prisma.promotion.create({
       data: {
         productId: productIds.get(promotion.productSlug)!,
+        titre: promotion.titre ?? null,
         discountPercent: new Prisma.Decimal(promotion.discountPercent),
         startDate: new Date(promotion.startDate),
         endDate: new Date(promotion.endDate),
         isActive: promotion.isActive,
+        isFeatured: promotion.isFeatured ?? false,
       },
     });
   }
@@ -928,7 +960,7 @@ async function seedDemoOrder(
         productId: product.id,
         productName: product.name,
         quantity: line.quantity,
-        unitPrice: product.promoPrice ?? product.price,
+        unitPrice: product.price,
       };
     }),
   );

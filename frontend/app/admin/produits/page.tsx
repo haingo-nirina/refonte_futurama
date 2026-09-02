@@ -155,9 +155,12 @@ export default async function AdminProductsPage({
                   </td>
                   <td className="px-4 py-3">
                     <span className="font-display text-navy font-extrabold">
-                      {formatPrice(product.promoPrice ?? product.price)}
+                      {formatPrice(
+                        product.activePromotion?.discountedPrice ??
+                          product.price,
+                      )}
                     </span>
-                    {product.promoPrice ? (
+                    {product.activePromotion ? (
                       <span className="text-muted-light ml-1 text-[12px] line-through">
                         {formatPrice(product.price)}
                       </span>

@@ -77,7 +77,9 @@ export default async function ProductPage({
 
           <div className="mt-4 flex items-baseline gap-3">
             <span className="font-display text-brand text-[34px] font-extrabold tracking-tight">
-              {formatPrice(product.promoPrice ?? product.price)}
+              {formatPrice(
+                product.activePromotion?.discountedPrice ?? product.price,
+              )}
             </span>
             {discount ? (
               <span className="bg-brand rounded-md px-2.5 py-1 text-[12.5px] font-bold text-white">

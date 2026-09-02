@@ -16,17 +16,10 @@ import { ReplaceProductImagesDto } from './dto/replace-product-images.dto';
 import { ReplaceProductRelationsDto } from './dto/replace-product-relations.dto';
 import { ReplaceProductSpecsDto } from './dto/replace-product-specs.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-
-/**
- * `undefined` = champ non fourni (on ne touche pas), `null` = retirer la
- * promotion. Sans cette distinction `new Prisma.Decimal(null)` levait, et le
- * formulaire d'edition ne pouvait pas annuler une promo.
- */
-function toPromoPrice(value: number | null | undefined) {
-  if (value === undefined) return undefined;
-
-  return value === null ? null : new Prisma.Decimal(value);
-}
+import {
+  activePromotionInclude,
+  withActivePromotion,
+} from '../promotions/promotion-pricing';
 
 /** Images triees : la principale d'abord, puis l'ordre d'affichage. */
 const IMAGES_INCLUDE = {
@@ -55,7 +48,6 @@ export class ProductsService {
         reference: dto.reference ?? null,
         description: dto.description ?? null,
         price: new Prisma.Decimal(dto.price),
-        promoPrice: toPromoPrice(dto.promoPrice) ?? null,
         stock: dto.stock ?? 0,
         isPremium: dto.isPremium ?? false,
         videoUrl: dto.videoUrl ?? null,
@@ -76,6 +68,10 @@ export class ProductsService {
 
     const where = this.buildWhere(query, isAdmin);
 
+    // Une seule date pour toute la page : deux produits ne doivent pas etre
+    // evalues a deux instants differents.
+    const now = new Date();
+
     const [data, total] = await this.prisma.$transaction([
       this.prisma.product.findMany({
         where,
@@ -86,13 +82,14 @@ export class ProductsService {
           images: IMAGES_INCLUDE,
           category: { select: { id: true, name: true, slug: true } },
           marque: { select: { id: true, name: true } },
+          promotions: activePromotionInclude(now),
         },
       }),
       this.prisma.product.count({ where }),
     ]);
 
     return {
-      data,
+      data: data.map(withActivePromotion),
       meta: {
         page,
         limit,
@@ -128,6 +125,7 @@ export class ProductsService {
               },
             }
           : false,
+        promotions: activePromotionInclude(),
       },
     });
 
@@ -148,12 +146,14 @@ export class ProductsService {
         .catch(() => undefined);
     }
 
-    return product;
+    return withActivePromotion(product);
   }
 
   /** Produits lies via ProductRelation, dans le sens produit -> produit lie. */
   async findRelated(id: string, relationType: RelationType) {
     await this.findOneOrFail(id);
+
+    const now = new Date();
 
     const relations = await this.prisma.productRelation.findMany({
       where: {
@@ -161,10 +161,19 @@ export class ProductsService {
         relationType,
         relatedProduct: { isActive: true },
       },
-      include: { relatedProduct: { include: { images: IMAGES_INCLUDE } } },
+      include: {
+        relatedProduct: {
+          include: {
+            images: IMAGES_INCLUDE,
+            promotions: activePromotionInclude(now),
+          },
+        },
+      },
     });
 
-    return relations.map((relation) => relation.relatedProduct);
+    return relations.map((relation) =>
+      withActivePromotion(relation.relatedProduct),
+    );
   }
 
   async update(id: string, dto: UpdateProductDto) {
@@ -193,7 +202,6 @@ export class ProductsService {
         description: dto.description,
         price:
           dto.price === undefined ? undefined : new Prisma.Decimal(dto.price),
-        promoPrice: toPromoPrice(dto.promoPrice),
         stock: dto.stock,
         isPremium: dto.isPremium,
         videoUrl: dto.videoUrl,

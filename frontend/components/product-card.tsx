@@ -43,7 +43,9 @@ export function ProductCard({ product }: { product: Product }) {
 
       <div className="flex flex-wrap items-baseline gap-[7px]">
         <span className="font-display text-navy text-[18px] font-extrabold tracking-tight">
-          {formatPrice(product.promoPrice ?? product.price)}
+          {formatPrice(
+            product.activePromotion?.discountedPrice ?? product.price,
+          )}
         </span>
         {discount ? (
           <span className="text-muted-light text-[11px] line-through">

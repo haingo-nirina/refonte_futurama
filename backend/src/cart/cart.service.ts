@@ -2,6 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
+import {
+  activePromotionInclude,
+  discountedPrice,
+} from '../promotions/promotion-pricing';
 
 /** Panier + items + produit associe : la forme renvoyee au front. */
 const CART_INCLUDE = {
@@ -55,13 +59,19 @@ export class CartService {
 
     const product = await this.prisma.product.findUnique({
       where: { id: dto.productId },
+      include: { promotions: activePromotionInclude() },
     });
 
     if (!product || !product.isActive) {
       throw new NotFoundException(`Produit ${dto.productId} introuvable`);
     }
 
-    const unitPrice = product.promoPrice ?? product.price;
+    // Le prix facture vient de la promotion active, jamais d'une colonne : le
+    // panier doit annoncer exactement ce que la fiche et le catalogue affichent.
+    const promotion = product.promotions[0];
+    const unitPrice = promotion
+      ? discountedPrice(product.price, promotion.discountPercent)
+      : product.price;
 
     await this.prisma.cartItem.upsert({
       where: {

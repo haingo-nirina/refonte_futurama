@@ -38,7 +38,6 @@ type FormState = {
   reference: string;
   description: string;
   price: string;
-  promoPrice: string;
   stock: string;
   isPremium: boolean;
   isActive: boolean;
@@ -54,7 +53,6 @@ function initialState(product?: AdminProduct): FormState {
     reference: product?.reference ?? "",
     description: product?.description ?? "",
     price: product?.price ?? "",
-    promoPrice: product?.promoPrice ?? "",
     stock: String(product?.stock ?? 0),
     isPremium: product?.isPremium ?? false,
     isActive: product?.isActive ?? true,
@@ -102,7 +100,6 @@ export function ProductForm({
       reference: form.reference.trim() || null,
       description: form.description.trim() || null,
       price: Number(form.price),
-      promoPrice: form.promoPrice.trim() ? Number(form.promoPrice) : null,
       stock: Number(form.stock) || 0,
       isPremium: form.isPremium,
       isActive: form.isActive,
@@ -268,18 +265,6 @@ export function ProductForm({
             step="0.01"
             value={form.price}
             onChange={(event) => set("price", event.target.value)}
-            className="admin-input"
-          />
-        </label>
-
-        <label className="block">
-          <span className="admin-label">Prix promo (Ar)</span>
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            value={form.promoPrice}
-            onChange={(event) => set("promoPrice", event.target.value)}
             className="admin-input"
           />
         </label>

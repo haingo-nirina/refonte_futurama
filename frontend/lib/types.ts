@@ -41,7 +41,6 @@ export type Product = {
   reference: string | null;
   description: string | null;
   price: string;
-  promoPrice: string | null;
   stock: number;
   isPremium: boolean;
   videoUrl: string | null;
@@ -54,6 +53,23 @@ export type Product = {
    * catalogue.
    */
   marque?: Marque | null;
+  /**
+   * Promotion en cours, calculee par le backend a chaque lecture — la seule
+   * source du prix promo. `discountedPrice` est deja arrondi cote serveur : ne
+   * jamais le recalculer ici, les arrondis divergeraient.
+   */
+  activePromotion: ActivePromotion | null;
+};
+
+/** Le sous-ensemble de `Promotion` que portent les lectures produit. */
+export type ActivePromotion = {
+  id: string;
+  titre: string | null;
+  discountPercent: string;
+  startDate: string;
+  endDate: string;
+  isFeatured: boolean;
+  discountedPrice: string;
 };
 
 /** `GET /products/:id` enrichit la fiche avec ses caracteristiques. */
@@ -279,8 +295,6 @@ export type ProductInput = {
   reference?: string | null;
   description?: string | null;
   price: number;
-  /** `null` retire la promotion en cours. */
-  promoPrice?: number | null;
   stock?: number;
   isPremium?: boolean;
   /** `null` detache la video, `undefined` laisse la valeur en place. */

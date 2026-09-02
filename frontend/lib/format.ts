@@ -18,33 +18,37 @@ export function formatPrice(value: string | number | null | undefined): string {
   return `${ARIARY.format(toAmount(value))} Ar`;
 }
 
-/** Prix effectivement paye : la promo prime sur le prix catalogue. */
-export function effectivePrice(product: {
+/**
+ * Un produit tel que le rendent les lectures catalogue : prix de base plus la
+ * promotion active calculee par le backend, seule source du prix promo.
+ */
+type Priced = {
   price: string;
-  promoPrice: string | null;
-}): number {
-  return toAmount(product.promoPrice ?? product.price);
+  activePromotion: { discountPercent: string; discountedPrice: string } | null;
+};
+
+/** Prix effectivement paye : la promo active prime sur le prix catalogue. */
+export function effectivePrice(product: Priced): number {
+  return toAmount(product.activePromotion?.discountedPrice ?? product.price);
 }
 
-/** `-20 %`, ou `null` s'il n'y a pas de promo. */
-export function discountLabel(product: {
-  price: string;
-  promoPrice: string | null;
-}): string | null {
-  const price = toAmount(product.price);
-  const promo = toAmount(product.promoPrice);
+/**
+ * `-25 %`, ou `null` s'il n'y a pas de promotion active.
+ *
+ * Le pourcentage est lu sur la promotion, pas deduit des deux montants : c'est
+ * lui la donnee de reference, et le prix reduit est deja arrondi.
+ */
+export function discountLabel(product: Priced): string | null {
+  if (!product.activePromotion) return null;
 
-  if (!product.promoPrice || promo >= price || price === 0) return null;
-
-  return `-${Math.round((1 - promo / price) * 100)} %`;
+  return promotionDiscountLabel(product.activePromotion.discountPercent);
 }
 
 /**
  * `-25 %` a partir du pourcentage porte par une `Promotion`.
  *
- * Distinct de `discountLabel`, qui deduit la remise de deux montants
- * (`price` / `promoPrice`) : ici le pourcentage est la donnee de reference,
- * il ne faut surtout pas le recalculer depuis les prix arrondis.
+ * C'est la forme brute, quand on tient deja le pourcentage seul ;
+ * `discountLabel` fait la meme chose depuis un produit entier.
  */
 export function promotionDiscountLabel(discountPercent: string): string {
   return `-${PERCENT.format(toAmount(discountPercent))} %`;
