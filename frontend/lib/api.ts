@@ -12,6 +12,7 @@ import type {
   Product,
   ProductDetail,
   ProductReview,
+  Promotion,
   RegisterInput,
   ReviewInput,
   ReviewUpdateInput,
@@ -95,7 +96,9 @@ async function readErrorMessage(response: Response): Promise<string> {
   return `Erreur ${response.status}`;
 }
 
-export function toQuery(params: Record<string, string | number | undefined>): string {
+export function toQuery(
+  params: Record<string, string | number | undefined>,
+): string {
   const search = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
@@ -159,6 +162,24 @@ export function getProducts(
 
 export function getProduct(id: string): Promise<ProductDetail> {
   return request<ProductDetail>(`/products/${id}`);
+}
+
+// ---------------------------------------------------------------- Promotions
+
+/**
+ * La section « Promotion du mois » de l'accueil. Le backend ne renvoie que les
+ * promotions marquees, actives, dans leur fenetre de dates, et dont le produit
+ * est publie : rien a refiltrer ici.
+ */
+export function getFeaturedPromotions(): Promise<Promotion[]> {
+  return request<Promotion[]>("/products/featured-promotion");
+}
+
+/** Promotion en cours sur un produit, ou `null`. */
+export function getActivePromotion(
+  productId: string,
+): Promise<Promotion | null> {
+  return request<Promotion | null>(`/products/${productId}/active-promotion`);
 }
 
 // ---------------------------------------------------------------------- Avis

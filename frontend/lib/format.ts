@@ -10,6 +10,9 @@ export function toAmount(value: string | number | null | undefined): number {
 
 const ARIARY = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
 
+/** La remise garde ses decimales : `Decimal(5, 2)` autorise `12,5 %`. */
+const PERCENT = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
+
 /** `450000` -> `450 000 Ar` */
 export function formatPrice(value: string | number | null | undefined): string {
   return `${ARIARY.format(toAmount(value))} Ar`;
@@ -34,6 +37,17 @@ export function discountLabel(product: {
   if (!product.promoPrice || promo >= price || price === 0) return null;
 
   return `-${Math.round((1 - promo / price) * 100)} %`;
+}
+
+/**
+ * `-25 %` a partir du pourcentage porte par une `Promotion`.
+ *
+ * Distinct de `discountLabel`, qui deduit la remise de deux montants
+ * (`price` / `promoPrice`) : ici le pourcentage est la donnee de reference,
+ * il ne faut surtout pas le recalculer depuis les prix arrondis.
+ */
+export function promotionDiscountLabel(discountPercent: string): string {
+  return `-${PERCENT.format(toAmount(discountPercent))} %`;
 }
 
 export function formatDate(iso: string): string {

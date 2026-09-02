@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ProductImage } from "@/components/product-image";
-import { getCategories } from "@/lib/api";
+import { PromotionOfMonth } from "@/components/promotion-of-month";
+import { getCategories, getFeaturedPromotions } from "@/lib/api";
 import { ALL_CATEGORIES_SLUG } from "@/lib/catalogue";
 import type { Category } from "@/lib/types";
 
@@ -35,7 +36,12 @@ const HERO_TINTS = [
 ];
 
 export default async function HomePage() {
-  const categories = await getCategories();
+  // Les deux lectures sont independantes : les enchainer ajouterait un
+  // aller-retour vers Aiven a la page la plus visitee du site.
+  const [categories, promotions] = await Promise.all([
+    getCategories(),
+    getFeaturedPromotions(),
+  ]);
   const topLevel = categories.filter((category) => category.parentId === null);
   const featured = topLevel.filter((category) => category.isFeatured);
 
@@ -101,6 +107,11 @@ export default async function HomePage() {
         eyebrow="TOUT LE CATALOGUE"
         title="Nos rayons"
         categories={topLevel}
+      />
+
+      <PromotionOfMonth
+        promotions={promotions}
+        href={`/catalogue/${ALL_CATEGORIES_SLUG}`}
       />
     </div>
   );

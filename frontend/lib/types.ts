@@ -64,6 +64,39 @@ export type ProductDetail = Product & {
   reviews: ProductReview[];
 };
 
+/**
+ * Promotion renvoyee par `GET /products/featured-promotion` et
+ * `GET /products/:id/active-promotion`.
+ *
+ * `discountedPrice` est calcule cote serveur a chaque lecture : le prix promo
+ * n'est jamais stocke sur le produit. Ne pas le recalculer ici, les arrondis
+ * divergeraient de ce que le backend a applique.
+ */
+export type Promotion = {
+  id: string;
+  productId: string;
+  titre: string | null;
+  /** Pourcentage en chaine, comme les montants : `"25"`, `"12.5"`. */
+  discountPercent: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  isFeatured: boolean;
+  product: {
+    id: string;
+    name: string;
+    slug: string;
+    price: string;
+    isActive: boolean;
+    category: { id: string; name: string; slug: string };
+    /** Reduite a la principale : la section n'affiche qu'un visuel. */
+    images: ProductImage[];
+  };
+  basePrice: string;
+  discountedPrice: string;
+  savings: string;
+};
+
 export type Paginated<T> = {
   data: T[];
   meta: { page: number; limit: number; total: number; totalPages: number };
