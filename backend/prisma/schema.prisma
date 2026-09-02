@@ -132,15 +132,29 @@ model ProductRelation {
   @@map("product_relations")
 }
 
+/// Promotion appliquee a un produit sur une plage de dates.
+///
+/// Le prix reduit n'est JAMAIS stocke : il se calcule a la volee depuis
+/// `Product.price` et `discountPercent` (PromotionsService.getActivePromotionForProduct).
+///
+/// `isFeatured` fait entrer la promotion dans la section « Promotion du mois »
+/// de l'accueil. Ce n'est pas un elu unique : la maquette aligne quatre
+/// produits, chacun avec sa propre remise.
 model Promotion {
   id              String   @id @default(uuid())
   productId       String   @map("product_id")
   product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  titre           String?
   discountPercent Decimal  @map("discount_percent") @db.Decimal(5, 2)
   startDate       DateTime @map("start_date")
   endDate         DateTime @map("end_date")
   isActive        Boolean  @default(true) @map("is_active")
+  isFeatured      Boolean  @default(false) @map("is_featured")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
+  @@index([productId, isActive, startDate, endDate])
+  @@index([isFeatured, isActive, startDate, endDate])
   @@map("promotions")
 }
 

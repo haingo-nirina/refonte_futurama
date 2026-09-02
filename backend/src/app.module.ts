@@ -5,6 +5,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
+import { PromotionsModule } from './promotions/promotions.module';
 import { MarquesModule } from './marques/marques.module';
 import { CartModule } from './cart/cart.module';
 import { OrdersModule } from './orders/orders.module';
@@ -20,6 +21,7 @@ import { UploadsModule } from './uploads/uploads.module';
     AuthModule,
     CategoriesModule,
     ProductsModule,
+    PromotionsModule,
     MarquesModule,
     CartModule,
     OrdersModule,

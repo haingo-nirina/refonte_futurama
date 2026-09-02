@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
+import { PromotionsService } from '../promotions/promotions.service';
 import { RELATION_TYPE, USER_ROLE } from '../common/constants';
 import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -26,7 +27,10 @@ import { UpdateProductDto } from './dto/update-product.dto';
 
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly promotionsService: PromotionsService,
+  ) {}
 
   @Post()
   @AdminOnly()
@@ -48,6 +52,18 @@ export class ProductsController {
     return this.productsService.findAll(query, isAdmin(user));
   }
 
+  /**
+   * La « promotion du mois » mise en avant sur l'accueil. Lecture publique.
+   *
+   * Doit rester declaree AVANT `@Get(':id')` : Nest resout les routes dans
+   * l'ordre de declaration, et le `ParseUUIDPipe` de `:id` repondrait 400 sur
+   * le segment litteral.
+   */
+  @Get('featured-promotion')
+  findFeaturedPromotion() {
+    return this.promotionsService.findFeatured();
+  }
+
   @Get(':id')
   @UseGuards(OptionalJwtAuthGuard)
   findOne(
@@ -55,6 +71,16 @@ export class ProductsController {
     @CurrentUser() user?: AuthenticatedUser,
   ) {
     return this.productsService.findOne(id, isAdmin(user));
+  }
+
+  /**
+   * Promotion active sur ce produit, ou `null`. Le prix reduit est calcule a
+   * la volee cote serveur : la fiche produit n'a pas a refaire l'arithmetique,
+   * et rien n'est stocke sur le produit.
+   */
+  @Get(':id/active-promotion')
+  findActivePromotion(@Param('id', ParseUUIDPipe) id: string) {
+    return this.promotionsService.getActivePromotionForProduct(id);
   }
 
   @Get(':id/similar')
