@@ -54,6 +54,17 @@ export function promotionDiscountLabel(discountPercent: string): string {
   return `-${PERCENT.format(toAmount(discountPercent))} %`;
 }
 
+const VIEWS = new Intl.NumberFormat("fr-FR", {
+  notation: "compact",
+  compactDisplay: "short",
+  maximumFractionDigits: 1,
+});
+
+/** `3,2 k vues` — le compteur de la section « Le plus consulte ». */
+export function formatViews(count: number): string {
+  return `${VIEWS.format(count)} vue${count > 1 ? "s" : ""}`;
+}
+
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("fr-FR", {
     day: "numeric",

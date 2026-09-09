@@ -183,6 +183,17 @@ export async function getLatestProducts(limit = 4): Promise<Product[]> {
   );
 }
 
+/**
+ * La section « Le plus consulte » de l'accueil.
+ *
+ * Le classement vient du backend (`viewsCount` decroissant, produits publies
+ * uniquement) : il n'y a rien a retrier ici, contrairement aux nouveautes ou
+ * la recence est le contrat de la section.
+ */
+export function getMostViewedProducts(limit = 4): Promise<Product[]> {
+  return request<Product[]>(`/products/most-viewed${toQuery({ limit })}`);
+}
+
 export function getProduct(id: string): Promise<ProductDetail> {
   return request<ProductDetail>(`/products/${id}`);
 }

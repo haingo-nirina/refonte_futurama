@@ -19,6 +19,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/jwt-payload';
 import { CreateProductDto } from './dto/create-product.dto';
+import { FindMostViewedQueryDto } from './dto/find-most-viewed-query.dto';
 import { FindProductsQueryDto } from './dto/find-products-query.dto';
 import { ReplaceProductImagesDto } from './dto/replace-product-images.dto';
 import { ReplaceProductRelationsDto } from './dto/replace-product-relations.dto';
@@ -62,6 +63,17 @@ export class ProductsController {
   @Get('featured-promotion')
   findFeaturedPromotion() {
     return this.promotionsService.findFeatured();
+  }
+
+  /**
+   * La section « Le plus consulte » de l'accueil. Lecture publique.
+   *
+   * Meme contrainte que `featured-promotion` : a declarer AVANT `@Get(':id')`,
+   * sinon le `ParseUUIDPipe` de `:id` repond 400 sur le segment litteral.
+   */
+  @Get('most-viewed')
+  findMostViewed(@Query() query: FindMostViewedQueryDto) {
+    return this.productsService.findMostViewed(query);
   }
 
   @Get(':id')

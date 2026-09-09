@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { LatestProducts } from "@/components/latest-products";
+import { MostViewedProducts } from "@/components/most-viewed-products";
 import { ProductImage } from "@/components/product-image";
 import { PromotionOfMonth } from "@/components/promotion-of-month";
 import {
   getCategories,
   getFeaturedPromotions,
   getLatestProducts,
+  getMostViewedProducts,
 } from "@/lib/api";
 import { ALL_CATEGORIES_SLUG } from "@/lib/catalogue";
 import type { Category } from "@/lib/types";
@@ -25,8 +27,8 @@ const TRUST = [
  * alternent un aplat froid et un aplat chaud. Les tokens vivent dans
  * `app/globals.css`.
  */
-/** Une ligne pleine de la grille « Derniers produits ». */
-const LATEST_PRODUCTS_COUNT = 4;
+/** Une ligne pleine des grilles « Derniers produits » et « Le plus consulte ». */
+const SHOWCASE_COUNT = 4;
 
 const HERO_TINTS = [
   {
@@ -44,12 +46,13 @@ const HERO_TINTS = [
 ];
 
 export default async function HomePage() {
-  // Les trois lectures sont independantes : les enchainer ajouterait autant
+  // Les quatre lectures sont independantes : les enchainer ajouterait autant
   // d'allers-retours vers Aiven a la page la plus visitee du site.
-  const [categories, promotions, latest] = await Promise.all([
+  const [categories, promotions, latest, mostViewed] = await Promise.all([
     getCategories(),
     getFeaturedPromotions(),
-    getLatestProducts(LATEST_PRODUCTS_COUNT),
+    getLatestProducts(SHOWCASE_COUNT),
+    getMostViewedProducts(SHOWCASE_COUNT),
   ]);
   const topLevel = categories.filter((category) => category.parentId === null);
   const featured = topLevel.filter((category) => category.isFeatured);
@@ -125,6 +128,11 @@ export default async function HomePage() {
 
       <LatestProducts
         products={latest}
+        href={`/catalogue/${ALL_CATEGORIES_SLUG}`}
+      />
+
+      <MostViewedProducts
+        products={mostViewed}
         href={`/catalogue/${ALL_CATEGORIES_SLUG}`}
       />
     </div>

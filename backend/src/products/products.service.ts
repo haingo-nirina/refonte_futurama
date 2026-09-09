@@ -11,6 +11,7 @@ import {
   RelationType,
 } from '../common/constants';
 import { CreateProductDto } from './dto/create-product.dto';
+import { FindMostViewedQueryDto } from './dto/find-most-viewed-query.dto';
 import { FindProductsQueryDto } from './dto/find-products-query.dto';
 import { ReplaceProductImagesDto } from './dto/replace-product-images.dto';
 import { ReplaceProductRelationsDto } from './dto/replace-product-relations.dto';
@@ -147,6 +148,34 @@ export class ProductsService {
     }
 
     return withActivePromotion(product);
+  }
+
+  /**
+   * La section « Le plus consulte » de l'accueil : les produits les plus vus,
+   * `viewsCount` etant incremente a chaque ouverture de fiche par un visiteur
+   * (voir `findOne`).
+   *
+   * Lecture publique sans exception admin : c'est une vitrine, pas un outil de
+   * gestion — un produit depublie n'y figure jamais.
+   *
+   * Le tri secondaire sur `createdAt` fixe l'ordre des ex aequo. Sans lui, une
+   * base ou tous les compteurs valent encore 0 renverrait un ordre arbitraire,
+   * different d'un appel a l'autre.
+   */
+  async findMostViewed(query: FindMostViewedQueryDto) {
+    const products = await this.prisma.product.findMany({
+      where: { isActive: true },
+      take: query.limit ?? 4,
+      orderBy: [{ viewsCount: 'desc' }, { createdAt: 'desc' }],
+      include: {
+        images: IMAGES_INCLUDE,
+        category: { select: { id: true, name: true, slug: true } },
+        marque: { select: { id: true, name: true } },
+        promotions: activePromotionInclude(),
+      },
+    });
+
+    return products.map(withActivePromotion);
   }
 
   /** Produits lies via ProductRelation, dans le sens produit -> produit lie. */
