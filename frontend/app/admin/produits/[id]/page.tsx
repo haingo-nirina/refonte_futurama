@@ -59,7 +59,8 @@ export default async function EditProductPage({
           </h1>
           <p className="text-muted mt-1 text-sm">
             {product.viewsCount} vue(s) · cree le{" "}
-            {formatDate(product.createdAt)}
+            {formatDate(product.createdAt)} · modifie le{" "}
+            {formatDate(product.updatedAt)}
           </p>
         </div>
 

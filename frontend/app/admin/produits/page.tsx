@@ -7,7 +7,7 @@ import { ProductImage } from "@/components/product-image";
 import { getCategories } from "@/lib/api";
 import { getAdminProducts } from "@/lib/admin-api";
 import { getServerToken } from "@/lib/auth-server";
-import { formatPrice } from "@/lib/format";
+import { formatDate, formatPrice } from "@/lib/format";
 
 export const metadata = { title: "Produits" };
 
@@ -112,7 +112,7 @@ export default async function AdminProductsPage({
         </p>
       ) : (
         <div className="border-line overflow-x-auto rounded-[14px] border bg-white">
-          <table className="w-full min-w-[760px] text-left text-[13.5px]">
+          <table className="w-full min-w-[980px] text-left text-[13.5px]">
             <thead className="bg-cream-deep text-muted text-[12px] uppercase">
               <tr>
                 <th className="px-4 py-3 font-semibold">Produit</th>
@@ -120,6 +120,8 @@ export default async function AdminProductsPage({
                 <th className="px-4 py-3 font-semibold">Prix</th>
                 <th className="px-4 py-3 font-semibold">Stock</th>
                 <th className="px-4 py-3 font-semibold">Etat</th>
+                <th className="px-4 py-3 font-semibold">Cree le</th>
+                <th className="px-4 py-3 font-semibold">Modifie le</th>
                 <th className="px-4 py-3 text-right font-semibold">Actions</th>
               </tr>
             </thead>
@@ -175,6 +177,12 @@ export default async function AdminProductsPage({
                   </td>
                   <td className="px-4 py-3">
                     <ActiveBadge isActive={product.isActive} />
+                  </td>
+                  <td className="text-muted px-4 py-3 text-[12.5px] whitespace-nowrap">
+                    {formatDate(product.createdAt)}
+                  </td>
+                  <td className="text-muted px-4 py-3 text-[12.5px] whitespace-nowrap">
+                    {formatDate(product.updatedAt)}
                   </td>
                   <td className="px-4 py-3">
                     <ProductRowActions product={product} />

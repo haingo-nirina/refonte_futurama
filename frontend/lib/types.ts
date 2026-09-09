@@ -54,11 +54,26 @@ export type Product = {
    */
   marque?: Marque | null;
   /**
+   * Jointe par `GET /products` (liste) uniquement, comme `marque` : c'est ce
+   * qui donne son rayon a la carte « Derniers produits ».
+   */
+  category?: { id: string; name: string; slug: string };
+  /**
    * Promotion en cours, calculee par le backend a chaque lecture — la seule
    * source du prix promo. `discountedPrice` est deja arrondi cote serveur : ne
    * jamais le recalculer ici, les arrondis divergeraient.
    */
   activePromotion: ActivePromotion | null;
+  /**
+   * Horodatages Prisma, serialises en ISO. `createdAt` est ce qui fait qu'un
+   * produit est « recent » : c'est la cle de tri de `GET /products` et celle
+   * de la section « Derniers produits ». `updatedAt` bouge a chaque
+   * modification et ne doit donc **pas** servir a classer les nouveautes —
+   * corriger le prix d'un produit de l'an dernier n'en refait pas une
+   * nouveaute.
+   */
+  createdAt: string;
+  updatedAt: string;
 };
 
 /** Le sous-ensemble de `Promotion` que portent les lectures produit. */
@@ -230,12 +245,13 @@ export type MarqueInput = {
   logoUrl?: string;
 };
 
-/** `GET /products` renvoie categorie et marque jointes. */
+/**
+ * `GET /products` renvoie categorie et marque jointes : le backoffice les a
+ * toujours, la ou une lecture unitaire les laisse optionnelles.
+ */
 export type AdminProduct = Product & {
   category: { id: string; name: string; slug: string };
   marque: Marque | null;
-  createdAt: string;
-  updatedAt: string;
 };
 
 export type ProductRelation = {

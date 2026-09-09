@@ -160,6 +160,29 @@ export function getProducts(
   return request<Paginated<Product>>(`/products${toQuery(query)}`);
 }
 
+/**
+ * La section « Derniers produits » de l'accueil.
+ *
+ * `GET /products` trie deja par `createdAt` decroissant et masque les produits
+ * depublies : demander la premiere page suffit. Le tri est malgre tout
+ * reapplique ici — la recence est le contrat de cette section, pas un effet de
+ * bord de l'`orderBy` du backend, qui sert aussi la liste du backoffice et
+ * pourrait changer.
+ *
+ * Le classement se fait sur `createdAt`, jamais sur `updatedAt` : modifier un
+ * vieux produit ne doit pas le renvoyer en nouveaute.
+ *
+ * Un produit cree depuis le backoffice apparait donc au rendu suivant — les
+ * lectures sont en `cache: "no-store"`.
+ */
+export async function getLatestProducts(limit = 4): Promise<Product[]> {
+  const { data } = await getProducts({ page: 1, limit });
+
+  return [...data].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  );
+}
+
 export function getProduct(id: string): Promise<ProductDetail> {
   return request<ProductDetail>(`/products/${id}`);
 }
