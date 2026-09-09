@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { Modal } from "@/components/admin/modal";
-import { ProductPicker } from "@/components/admin/product-picker";
+import {
+  ProductPicker,
+  type PickedProduct,
+} from "@/components/admin/product-picker";
 import {
   FeaturedBadge,
   PromotionStatusBadge,
@@ -21,8 +24,10 @@ import { formatDate, formatPrice, toDateInputValue } from "@/lib/format";
 import type { Promotion, PromotionInput } from "@/lib/types";
 
 type Draft = {
-  productId: string;
-  productName: string;
+  /** Le produit entier, pas son seul identifiant : la carte du selecteur
+   * montre visuel et prix, et une promotion en edition doit les retrouver
+   * sans repasser par la recherche. */
+  product: PickedProduct | null;
   titre: string;
   discountPercent: string;
   startDate: string;
@@ -32,8 +37,7 @@ type Draft = {
 };
 
 const EMPTY: Draft = {
-  productId: "",
-  productName: "",
+  product: null,
   titre: "",
   discountPercent: "",
   startDate: "",
@@ -44,8 +48,7 @@ const EMPTY: Draft = {
 
 function toDraft(promotion: Promotion): Draft {
   return {
-    productId: promotion.productId,
-    productName: promotion.product.name,
+    product: promotion.product,
     titre: promotion.titre ?? "",
     discountPercent: promotion.discountPercent,
     startDate: toDateInputValue(promotion.startDate),
@@ -60,7 +63,7 @@ function toDraft(promotion: Promotion): Draft {
  * Le backend revalide de son cote : ceci n'est qu'un confort de saisie.
  */
 function validate(draft: Draft): string | null {
-  if (!draft.productId) return "Choisissez un produit.";
+  if (!draft.product) return "Choisissez un produit.";
 
   const percent = Number(draft.discountPercent);
   if (!draft.discountPercent.trim() || Number.isNaN(percent)) {
@@ -82,9 +85,10 @@ function validate(draft: Draft): string | null {
   return null;
 }
 
-function toPayload(draft: Draft): PromotionInput {
+/** Le produit est passe a part : `validate()` l'a deja garanti non nul. */
+function toPayload(draft: Draft, product: PickedProduct): PromotionInput {
   return {
-    productId: draft.productId,
+    productId: product.id,
     // Chaine vide -> `null` : le backend distingue « pas de titre » de
     // « champ non fourni ».
     titre: draft.titre.trim() || null,
@@ -144,18 +148,22 @@ export function PromotionManager({ promotions }: { promotions: Promotion[] }) {
     if (!editing) return;
 
     const invalid = validate(draft);
-    if (invalid) {
-      setError(invalid);
+    // `!draft.product` fait double emploi avec `validate()` ; il est la pour
+    // que TypeScript le sache aussi.
+    if (invalid || !draft.product) {
+      setError(invalid ?? "Choisissez un produit.");
       return;
     }
+
+    const payload = toPayload(draft, draft.product);
 
     setPending(true);
     setError(null);
 
     try {
       await (editing.mode === "create"
-        ? createPromotion(toPayload(draft))
-        : updatePromotion(editing.promotion.id, toPayload(draft)));
+        ? createPromotion(payload)
+        : updatePromotion(editing.promotion.id, payload));
 
       setEditing(null);
       // La page est un Server Component : c'est au serveur de relire.
@@ -343,13 +351,14 @@ export function PromotionManager({ promotions }: { promotions: Promotion[] }) {
           <div className="sm:col-span-2">
             <span className="admin-label">Produit</span>
             <ProductPicker
-              value={draft.productId}
-              selectedLabel={draft.productName}
+              selected={draft.product}
               disabled={pending}
-              onSelect={(product) => {
-                set("productId", product?.id ?? "");
-                set("productName", product?.name ?? "");
-              }}
+              // La promotion en cours d'edition ne doit pas se signaler
+              // elle-meme comme un conflit sur son propre produit.
+              ignorePromotionId={
+                editing?.mode === "edit" ? editing.promotion.id : undefined
+              }
+              onSelect={(product) => set("product", product)}
             />
           </div>
 
