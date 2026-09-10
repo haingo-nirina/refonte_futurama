@@ -55,6 +55,8 @@ Lecture publique comme les catégories (`GET /marques`) : la facette « Marques 
 
 `posts` porte le **mur de la boutique** (« Nos publications »), pas un blog à plusieurs signatures : `Post` n'a pas d'auteur, la page publie sous son propre nom. `GET /posts` renvoie `{ data, meta }` comme les autres listes paginées et **joint les commentaires** — le mur les affiche sous chaque publication, sans second appel, comme les avis sur la fiche produit. Il joint aussi `liked`, le « j'aime » du **seul lecteur** : la liste complète des likes dirait à n'importe quel visiteur qui a aimé quoi. Un anonyme reçoit donc toujours `liked: false`.
 
+Un commentaire peut porter une **réponse de la boutique** (`PostComment.parentId`, auto-relation) : `POST /posts/:id/comments/:commentId/replies` est `@AdminOnly()`, le mur étant la page de la boutique — elle seule y répond. **Un seul niveau** : répondre à une réponse est refusé en 400, sans quoi le fil deviendrait un arbre que rien n'affiche. C'est aussi ce qui permet au front de signer toute réponse « Futurama.mg » sans jamais exposer le rôle de son auteur. `GET /posts` ne joint donc que les **racines** (`parentId: null`), leurs réponses dans `replies` ; et `_count.comments` compte les fils, pas les lignes, pour que « 3 commentaires » corresponde aux trois fils affichés dessous.
+
 Le tri dépend du lecteur : le mur public classe sur `publishedAt` — la date qu'il affiche — et le backoffice sur `createdAt`, ses brouillons n'ayant pas encore de date de publication. Côté écriture, `publishedAt: null` repasse une publication en brouillon et `photoUrl: null` détache la photo ; `undefined` laisse la valeur en place.
 
 `uploads` a deux routes, `POST /uploads/images` et `POST /uploads/videos` (admin) : elles écrivent le fichier et renvoient son URL, **sans le rattacher à quoi que ce soit**. C'est ce qui permet de téléverser une photo pendant la création d'un produit, avant qu'il ait un identifiant, puis d'attacher l'URL via `PUT /products/:id/images` une fois le produit créé. Détails plus bas.
@@ -94,9 +96,9 @@ Rien ne supprime le fichier quand l'image ou la vidéo est retirée d'un produit
 - `GET /auth/me` **relit le compte en base** : le JWT porte un `role` figé à l'émission, donc c'est le seul moyen de savoir si un compte est *encore* admin. C'est ce que fait le layout du backoffice.
 - `JWT_SECRET` est obligatoire (l'app refuse de démarrer sans). Voir `.env.example`.
 
-Routes protégées par un simple JWT : `POST /orders`, `GET /orders`, `GET /orders/:id`, `GET /auth/me`, `POST /reviews`, `PATCH|DELETE /reviews/:id`, `POST /posts/:id/comments`, `POST|DELETE /posts/:id/like`.
+Routes protégées par un simple JWT : `POST /orders`, `GET /orders`, `GET /orders/:id`, `GET /auth/me`, `POST /reviews`, `PATCH|DELETE /reviews/:id`, `POST /posts/:id/comments`, `PATCH|DELETE /posts/:id/comments/:commentId`, `POST|DELETE /posts/:id/like`.
 
-Routes admin (`@AdminOnly()`) : **toute écriture du catalogue et du contenu** — `POST|PATCH|DELETE /products`, `PUT /products/:id/images|specs|relations`, `POST|PATCH|DELETE /categories`, `POST|PATCH|DELETE /marques`, `POST|PATCH|DELETE /posts`, `DELETE /posts/:id/comments/:commentId`, `POST|PATCH|DELETE /resellers` — plus `GET /orders/admin`, `PATCH /orders/:id/status`, `GET /reviews/admin`, `GET /reviews/pending`, `PATCH /reviews/:id/moderate`, `GET /stats/dashboard`.
+Routes admin (`@AdminOnly()`) : **toute écriture du catalogue et du contenu** — `POST|PATCH|DELETE /products`, `PUT /products/:id/images|specs|relations`, `POST|PATCH|DELETE /categories`, `POST|PATCH|DELETE /marques`, `POST|PATCH|DELETE /posts`, `POST /posts/:id/comments/:commentId/replies`, `POST|PATCH|DELETE /resellers` — plus `GET /orders/admin`, `PATCH /orders/:id/status`, `GET /reviews/admin`, `GET /reviews/pending`, `PATCH /reviews/:id/moderate`, `GET /stats/dashboard`.
 
 Le catalogue (produits, catégories, marques) et le blog restent publics **en lecture**, le panier reste ouvert sans compte.
 
@@ -107,7 +109,7 @@ Le catalogue (produits, catégories, marques) et le blog restent publics **en le
 ### Règles non négociables
 
 - Le controller ne contient **jamais** de logique métier ni d'appel Prisma direct — il délègue tout au service.
-- Toute entrée utilisateur passe par un DTO validé (`class-validator`), y compris les query params.
+- Toute entrée utilisateur passe par un DTO validé (`class-validator`), y compris les query params. Sur un texte obligatoire, `@Transform(trim)` (`src/common/trim.ts`) précède `@IsNotEmpty()` : le validateur ne trimme pas, une suite d'espaces passerait pour un texte renseigné.
 - Pas de chaîne de statut en dur : utiliser `src/common/constants.ts`, qui reprend les valeurs commentées dans `schema.prisma` (statuts de commande, moyens de paiement, statuts de modération, types de relation produit). Y ajouter toute nouvelle valeur plutôt que de l'inliner.
 - Tout nouveau module doit être ajouté aux `imports` de `src/app.module.ts`.
 - Une route d'écriture sans `@AdminOnly()` est publique. Le vérifier explicitement à chaque ajout.
@@ -158,12 +160,14 @@ Le rattachement du panier anonyme est gratuit : après `startSession()`, un `not
 - **`isActive` et `publishedAt` sont des filtres de publication, pas des colonnes d'affichage.** `GET /products` et `GET /products/:id` masquent les produits désactivés (404 sur la fiche), `GET /posts` masque les brouillons et les publications programmées. Un admin identifié par `OptionalJwtAuthGuard` voit tout, et peut filtrer explicitement avec `isActive=true|false`. Un produit désactivé disparaît aussi des `similar` / `frequently_bought_together`.
 - `Order.status` n'a **pas de machine à états** : le backend accepte n'importe quelle transition. Ne pas simuler de garde-fou côté front, ce serait une règle métier posée au mauvais endroit.
 - Les likes d'articles sont idempotents via la contrainte unique `[postId, userId]` ; `likesCount` n'est incrémenté que lorsque la ligne est réellement créée.
+- Supprimer un commentaire emporte ses réponses (`parentId` en `onDelete: Cascade`) : une réponse orpheline n'aurait plus rien à quoi répondre.
+- **`PATCH /posts/:id/comments/:commentId` est réservée à l'auteur du commentaire** (403 sinon), sans exception pour l'admin : modérer, c'est retirer, pas réécrire sous la signature de quelqu'un. `DELETE` a en revanche **deux appelants** — l'auteur depuis le mur, l'admin depuis le backoffice — d'où un simple `JwtAuthGuard` sur la route et le tri dans le service. Les deux vérifient que le commentaire appartient bien à la publication de l'URL, faute de quoi `/posts/A/comments/<id de B>` toucherait B.
 
 ## Seed
 
 `prisma/seed.ts`, branché via `migrations.seed` dans `prisma.config.ts` (Prisma 7 : plus de clé `prisma.seed` dans `package.json`). Il tourne sous `ts-node` forcé en CommonJS, et réutilise `PrismaService` directement — pas de second `PrismaClient` à maintenir avec la config TLS.
 
-Contenu : 10 comptes (dont `admin@futurama.test`, seul rôle `admin`), 8 catégories (arborescentes), 5 marques, 15 produits avec images, specs, relations `similar` / `frequently_bought_together`, 3 promotions dont une expirée, 8 avis couvrant les trois statuts de modération, 5 revendeurs, 4 articles dont un brouillon, et une commande de démonstration.
+Contenu : 10 comptes (dont `admin@futurama.test`, seul rôle `admin`), 8 catégories (arborescentes), 5 marques, 15 produits avec images, specs, relations `similar` / `frequently_bought_together`, 3 promotions dont une expirée, 8 avis couvrant les trois statuts de modération, 5 revendeurs, 4 articles dont un brouillon — l'un de leurs commentaires portant une réponse de la boutique —, et une commande de démonstration.
 
 Tous les comptes du seed partagent le mot de passe `futurama2026` (`DEMO_PASSWORD` dans `seed.ts`) — valeur de développement, sans plus. Les avis, commentaires et likes référencent un compte par son email.
 
@@ -178,7 +182,7 @@ Les relations `similar` sont écrites dans les deux sens (`findRelated` filtre s
 
 Deux applications dans le même paquet Next, séparées par des groupes de routes :
 
-- `app/(boutique)/` — MVP e-commerce : accueil (rayons), catalogue paginé par rayon (facettes, tri), fiche produit (avec la section « Avis clients » : moyenne, répartition, dépôt d'un avis), panier, connexion / inscription et confirmation de commande. Le mur « Nos publications » vit sur `/publications` (paginé, la plus récente en haut) et l'accueil en annonce les deux dernières via `LatestPublications`. Le reste de la maquette (chatbot, live shopping, revendeurs) n'est pas implémenté.
+- `app/(boutique)/` — MVP e-commerce : accueil (rayons), catalogue paginé par rayon (facettes, tri), fiche produit (avec la section « Avis clients » : moyenne, répartition, dépôt d'un avis), panier, connexion / inscription et confirmation de commande. Le mur « Nos publications » vit sur `/publications` (paginé, la plus récente en haut) et l'accueil en annonce les deux dernières via `LatestPublications`. Sous chaque publication, les réponses de la boutique s'affichent indentées sous leur commentaire, signées « Futurama.mg » (toute réponse vient d'une route admin : le front n'a pas à connaître le rôle de son auteur). L'auteur d'un commentaire peut le **modifier ou le retirer** (`components/publications/post-comment-item.tsx`, sur le modèle de `review-item.tsx`) ; les boutons ne sont masqués aux autres que par confort, le backend tranche. Le reste de la maquette (chatbot, live shopping, revendeurs) n'est pas implémenté.
 - `app/admin/` — le backoffice : tableau de bord, commandes, produits, catégories, marques, promotions, publications, consultation des avis.
 
 **Le layout racine (`app/layout.tsx`) est volontairement nu** — polices et feuille de styles, rien d'autre. L'en-tête et le pied de page appartiennent à la boutique et vivent dans `app/(boutique)/layout.tsx`. Un layout enfant ne pouvant pas retirer le chrome de son parent, c'est le seul moyen de donner au backoffice une enveloppe distincte. Le groupe `(boutique)` ne change aucune URL.
@@ -187,7 +191,8 @@ Deux applications dans le même paquet Next, séparées par des groupes de route
 
 `app/admin/layout.tsx` est un Server Component qui **relit le compte via `GET /auth/me`** avant d'ouvrir le shell : le rôle du JWT est figé à l'émission, et le `localStorage` du navigateur ne prouve rien. Sans token → `/connexion?next=/admin` ; compte non-admin → `notFound()` (404 plutôt que 403 : inutile d'annoncer l'existence d'un backoffice). Ce garde n'est **qu'un confort d'affichage** — chaque route admin du backend revalide de son côté, un contournement de cette page ne donne accès à rien.
 
-- `lib/admin-api.ts` regroupe les appels réservés au backoffice. Il partage le `request()` de `lib/api.ts` (une seule implémentation de `fetch`) mais vit à part : ces routes répondent toutes 403 à un compte client, et rien ici ne doit finir appelé depuis une page de la boutique.
+- `lib/admin-api.ts` regroupe les appels réservés au backoffice. Il partage le `request()` de `lib/api.ts` (une seule implémentation de `fetch`) mais vit à part : ces routes répondent toutes 403 à un compte client, et rien ici ne doit finir appelé depuis une page de la boutique. `deletePostComment()` fait donc exception et vit dans `lib/api.ts` : la boutique s'en sert aussi, l'auteur pouvant retirer son propre commentaire.
+- La modération des commentaires — et la **réponse de la boutique** — passe par `components/admin/post-comments-modal.tsx`, ouvert depuis le compteur « N commentaires » de chaque publication : le fil est **déjà joint** à `GET /posts`, aucun second appel n'est fait. La confirmation y est en ligne, pas en `ConfirmDialog` — deux `<dialog>` ouverts en même temps se disputent le piégeage du focus. La modale se retrouve par identifiant dans la liste (`posts.find(...)`) pour repartir de la donnée fraîche après `router.refresh()`.
 - Les **filtres de liste sont des formulaires GET natifs** : ils vivent dans l'URL, donc partageables et rechargeables, et n'exigent aucun JS. `components/admin/admin-pagination.tsx` reporte tous les filtres courants dans ses liens ; `components/pagination.tsx` fait de même côté boutique, en recevant les filtres déjà sérialisés (`params`).
 - Les mutations sont des Client Components qui appellent `router.refresh()` après succès : les pages sont des Server Components, c'est au serveur de relire.
 - `components/admin/modal.tsx` est bâti sur `<dialog>` natif — piégeage du focus, fermeture par Échap et inertie de la page sont fournis par le navigateur. `confirm-dialog.tsx` s'en sert pour toutes les suppressions ; **plus aucun `window.confirm()`** : la boîte native ne sait afficher ni état d'attente ni erreur serveur. Les formulaires de catégorie et de marque s'ouvrent en modale, celui des produits garde sa page (13 champs plus galerie, specs et relations).

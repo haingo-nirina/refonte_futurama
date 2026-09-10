@@ -165,13 +165,13 @@ model Promotion {
 // userId optionnel : le panier peut demarrer en invite (sessionId),
 // se rattacher a un compte une fois connecte
 model Cart {
-  id         String     @id @default(uuid())
-  userId     String?    @map("user_id")
-  user       User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  sessionId  String?    @map("session_id")
-  items      CartItem[]
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
+  id        String     @id @default(uuid())
+  userId    String?    @map("user_id")
+  user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessionId String?    @map("session_id")
+  items     CartItem[]
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
 
   @@map("carts")
 }
@@ -293,14 +293,20 @@ model PostLike {
 }
 
 // userId remplace l'ancien authorName en texte libre
+// parentId : reponse de la boutique a un commentaire. Un seul niveau — une
+// reponse n'a jamais d'enfant —, et seule une route admin en cree : le mur les
+// signe donc « Futurama.mg », comme la publication elle-meme.
 model PostComment {
-  id        String   @id @default(uuid())
-  postId    String   @map("post_id")
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String        @id @default(uuid())
+  postId    String        @map("post_id")
+  post      Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String        @map("user_id")
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   comment   String
-  createdAt DateTime @default(now()) @map("created_at")
+  parentId  String?       @map("parent_id")
+  parent    PostComment?  @relation("PostCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   PostComment[] @relation("PostCommentReplies")
+  createdAt DateTime      @default(now()) @map("created_at")
 
   @@map("post_comments")
 }

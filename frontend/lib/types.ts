@@ -202,6 +202,13 @@ export type PostComment = {
   comment: string;
   createdAt: string;
   user: { id: string; fullName: string };
+  /** Non nul = reponse de la boutique au commentaire d'identifiant `parentId`. */
+  parentId: string | null;
+  /**
+   * Les reponses de la boutique, jointes aux seules racines : le fil ne
+   * descend qu'a un niveau. Absent sur une reponse.
+   */
+  replies?: PostComment[];
 };
 
 /**
@@ -222,7 +229,9 @@ export type Post = {
   /** `null` = brouillon ; une date a venir = publication programmee. */
   publishedAt: string | null;
   createdAt: string;
+  /** Les racines du fil ; les reponses de la boutique sont dans leur `replies`. */
   comments: PostComment[];
+  /** `comments` compte les fils, pas les lignes : les reponses en sont exclues. */
   _count: { comments: number; likes: number };
   /**
    * Le compte appelant a-t-il deja aime. Toujours `false` pour un visiteur

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { Modal } from "@/components/admin/modal";
+import { PostCommentsModal } from "@/components/admin/post-comments-modal";
 import { ProductImage } from "@/components/product-image";
 import { ApiError } from "@/lib/api";
 import { createPost, deletePost, updatePost } from "@/lib/admin-api";
@@ -109,6 +110,10 @@ export function PublicationManager({ posts }: { posts: Post[] }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // L'identifiant plutot que la publication : apres un `router.refresh()`, le
+  // fil doit repartir de la liste fraiche, pas de l'objet fige a l'ouverture.
+  const [commentsFor, setCommentsFor] = useState<string | null>(null);
+
   const [deleting, setDeleting] = useState<Post | null>(null);
   const [deletePending, setDeletePending] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -187,13 +192,17 @@ export function PublicationManager({ posts }: { posts: Post[] }) {
 
             return (
               <li key={post.id} className="admin-card flex items-start gap-4">
-                <div className="border-line h-14 w-20 shrink-0 overflow-hidden rounded-[10px] border">
-                  <ProductImage
-                    src={post.photoUrl}
-                    alt={post.title}
-                    className="h-full w-full"
-                  />
-                </div>
+                {/* Une publication texte reste du texte : pas de vignette de
+                    secours, le titre prend toute la largeur. */}
+                {post.photoUrl ? (
+                  <div className="border-line h-14 w-20 shrink-0 overflow-hidden rounded-[10px] border">
+                    <ProductImage
+                      src={post.photoUrl}
+                      alt={post.title}
+                      className="h-full w-full"
+                    />
+                  </div>
+                ) : null}
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -215,8 +224,15 @@ export function PublicationManager({ posts }: { posts: Post[] }) {
                     {post.publishedAt
                       ? formatDateTime(post.publishedAt)
                       : `Redigee le ${formatDateTime(post.createdAt)}`}{" "}
-                    · {post.likesCount} j&apos;aime · {post._count.comments}{" "}
-                    commentaire{post._count.comments > 1 ? "s" : ""}
+                    · {post.likesCount} j&apos;aime ·{" "}
+                    <button
+                      type="button"
+                      onClick={() => setCommentsFor(post.id)}
+                      className="hover:text-brand font-bold underline underline-offset-2"
+                    >
+                      {post._count.comments} commentaire
+                      {post._count.comments > 1 ? "s" : ""}
+                    </button>
                   </p>
                 </div>
 
@@ -384,6 +400,11 @@ export function PublicationManager({ posts }: { posts: Post[] }) {
           </div>
         </form>
       </Modal>
+
+      <PostCommentsModal
+        post={posts.find((post) => post.id === commentsFor) ?? null}
+        onClose={() => setCommentsFor(null)}
+      />
 
       <ConfirmDialog
         open={deleting !== null}

@@ -325,3 +325,34 @@ export function commentPost(
     body: JSON.stringify({ comment }),
   });
 }
+
+/**
+ * Modifier son commentaire. Reserve a son auteur — le backend compare au JWT
+ * et repond 403 sinon, sans exception pour l'admin : moderer, c'est retirer,
+ * pas reecrire au nom de quelqu'un.
+ */
+export function updatePostComment(
+  postId: string,
+  commentId: string,
+  comment: string,
+): Promise<PostComment> {
+  return request<PostComment>(`/posts/${postId}/comments/${commentId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ comment }),
+  });
+}
+
+/**
+ * Retrait d'un commentaire. Deux appelants pour la meme route : son auteur
+ * depuis le mur, l'admin depuis le backoffice au titre de la moderation. Elle
+ * ne vit donc pas dans `admin-api.ts`, qui ne regroupe que l'interdit au
+ * client.
+ */
+export function deletePostComment(
+  postId: string,
+  commentId: string,
+): Promise<PostComment> {
+  return request<PostComment>(`/posts/${postId}/comments/${commentId}`, {
+    method: "DELETE",
+  });
+}

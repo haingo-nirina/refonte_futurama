@@ -601,7 +601,8 @@ type PostSeed = {
   content: string;
   publishedAt: string | null;
   likeUserEmails: string[];
-  comments: { authorEmail: string; comment: string }[];
+  /** `reply` : la reponse de la boutique, ecrite sous le compte admin. */
+  comments: { authorEmail: string; comment: string; reply?: string }[];
 };
 
 const POSTS: PostSeed[] = [
@@ -624,6 +625,7 @@ const POSTS: PostSeed[] = [
       {
         authorEmail: 'bender@planetexpress.test',
         comment: 'Article correct. Il manque la biere.',
+        reply: 'Merci ! Le rayon boissons arrive le mois prochain.',
       },
     ],
   },
@@ -906,7 +908,7 @@ async function seedResellers() {
 
 async function seedPosts(userIds: Map<string, string>) {
   for (const post of POSTS) {
-    await prisma.post.create({
+    const created = await prisma.post.create({
       data: {
         title: post.title,
         slug: post.slug,
@@ -928,7 +930,29 @@ async function seedPosts(userIds: Map<string, string>) {
           })),
         },
       },
+      include: { comments: true },
     });
+
+    // En second temps : une reponse porte `postId` en plus de son parent, que
+    // le create imbrique ci-dessus ne peut pas connaitre avant l'insertion.
+    for (const seed of post.comments) {
+      if (!seed.reply) continue;
+
+      const parent = created.comments.find(
+        (comment) => comment.comment === seed.comment,
+      )!;
+
+      await prisma.postComment.create({
+        data: {
+          postId: created.id,
+          parentId: parent.id,
+          // La boutique repond sous le compte admin ; le mur la signe de son
+          // propre nom, jamais de celui du compte.
+          userId: userIds.get('admin@futurama.test')!,
+          comment: seed.reply,
+        },
+      });
+    }
   }
 }
 

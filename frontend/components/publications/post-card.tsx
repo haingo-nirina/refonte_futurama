@@ -2,6 +2,7 @@ import { ProductImage } from "@/components/product-image";
 import { formatRelativeDate } from "@/lib/format";
 import type { Post } from "@/lib/types";
 import { PostCommentForm } from "./post-comment-form";
+import { PostCommentItem } from "./post-comment-item";
 import { PostLikeButton } from "./post-like-button";
 
 /**
@@ -75,12 +76,17 @@ export function PostCard({ post }: { post: Post }) {
       {post.comments.length > 0 ? (
         <ul className="mb-2.5 flex flex-col gap-2">
           {post.comments.map((comment) => (
-            <li key={comment.id} className="text-ink/80 text-[12.5px]">
-              <strong className="text-ink font-semibold">
-                {comment.user.fullName} :
-              </strong>{" "}
-              {comment.comment}
-            </li>
+            <PostCommentItem
+              key={comment.id}
+              comment={comment}
+              // Formatee ici : `formatRelativeDate` depend de l'heure courante
+              // et rejouerait un texte different a l'hydratation.
+              date={formatRelativeDate(comment.createdAt)}
+              replies={(comment.replies ?? []).map((reply) => ({
+                comment: reply,
+                date: formatRelativeDate(reply.createdAt),
+              }))}
+            />
           ))}
         </ul>
       ) : null}

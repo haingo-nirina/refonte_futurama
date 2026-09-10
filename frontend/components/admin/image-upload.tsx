@@ -97,8 +97,12 @@ export function ImageUpload({
         >
           {pending ? (
             <span className="text-muted text-[11px]">…</span>
+          ) : value ? (
+            <ProductImage src={value} alt={alt} className="size-full" />
           ) : (
-            <ProductImage src={value || null} alt={alt} className="size-full" />
+            // Pas d'aplat a initiale sur un champ vide : il se lit comme une
+            // photo deja choisie alors que rien n'est televerse.
+            <span className="text-muted-light text-[18px] leading-none">+</span>
           )}
         </button>
         {error ? (
@@ -115,9 +119,20 @@ export function ImageUpload({
       {input}
 
       <div className="flex flex-wrap items-center gap-4">
-        <div className="border-line size-[92px] shrink-0 overflow-hidden rounded-[12px] border">
-          <ProductImage src={value || null} alt={alt} className="size-full" />
-        </div>
+        {value ? (
+          <div className="border-line size-[92px] shrink-0 overflow-hidden rounded-[12px] border">
+            <ProductImage src={value} alt={alt} className="size-full" />
+          </div>
+        ) : (
+          // Champ vide : un cadre en pointilles, pas l'aplat a initiale de
+          // `ProductImage` — celui-ci sert de secours a un visuel manquant,
+          // ici il ferait croire qu'une photo est deja attachee.
+          <div className="border-line-strong text-muted-light flex size-[92px] shrink-0 items-center justify-center rounded-[12px] border-[1.5px] border-dashed text-center text-[11.5px] leading-tight">
+            Aucune
+            <br />
+            photo
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <button

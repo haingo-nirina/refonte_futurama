@@ -12,6 +12,7 @@ import type {
   OrderStatus,
   Paginated,
   Post,
+  PostComment,
   PostInput,
   ProductImage,
   ProductInput,
@@ -297,13 +298,21 @@ export function deletePost(id: string): Promise<Post> {
   return request<Post>(`/posts/${id}`, { method: "DELETE" });
 }
 
-/** Moderation : retrait d'un commentaire depose sur le mur. */
-export function deletePostComment(
+/**
+ * La reponse de la boutique a un commentaire. Route admin : le mur est sa
+ * page, elle seule y repond — le front signe donc toute reponse
+ * « Futurama.mg », sans avoir a connaitre le role de son auteur.
+ *
+ * Un seul niveau : repondre a une reponse est refuse en 400.
+ */
+export function replyToPostComment(
   postId: string,
   commentId: string,
-): Promise<unknown> {
-  return request(`/posts/${postId}/comments/${commentId}`, {
-    method: "DELETE",
+  comment: string,
+): Promise<PostComment> {
+  return request<PostComment>(`/posts/${postId}/comments/${commentId}/replies`, {
+    method: "POST",
+    body: JSON.stringify({ comment }),
   });
 }
 

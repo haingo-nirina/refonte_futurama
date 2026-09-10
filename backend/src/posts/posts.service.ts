@@ -1,9 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { PaginatePostsDto } from './dto/paginate-posts.dto';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
@@ -21,12 +27,32 @@ const COMMENT_AUTHOR_INCLUDE = {
  * comme un fil : le mur de la boutique les affiche sous chaque publication,
  * sans second appel. Meme parti que les avis sur la fiche produit — ils
  * tiennent dans la reponse a ce volume.
+ *
+ * Seules les racines (`parentId: null`) sont listees : les reponses de la
+ * boutique arrivent sous leur commentaire, dans `replies`. Sans ce filtre
+ * elles apparaitraient aussi a plat, en double.
  */
 const COMMENTS_INCLUDE = {
   comments: {
-    include: COMMENT_AUTHOR_INCLUDE,
+    where: { parentId: null },
+    include: {
+      ...COMMENT_AUTHOR_INCLUDE,
+      replies: {
+        include: COMMENT_AUTHOR_INCLUDE,
+        orderBy: { createdAt: 'asc' },
+      },
+    },
     orderBy: { createdAt: 'asc' },
   },
+} as const satisfies Prisma.PostInclude;
+
+/**
+ * Le compteur affiche sous la publication : les fils, pas les lignes. Les
+ * reponses de la boutique en sont exclues, sinon « 3 commentaires » ne
+ * correspondrait plus aux trois fils affiches dessous.
+ */
+const COUNT_SELECT = {
+  _count: { select: { comments: { where: { parentId: null } }, likes: true } },
 } as const satisfies Prisma.PostInclude;
 
 /**
@@ -47,6 +73,12 @@ function isPublished(publishedAt: Date | null): boolean {
  * « j'aime » a lui.
  */
 export type PostViewer = { userId?: string; isAdmin?: boolean };
+
+/**
+ * Qui agit sur un commentaire. L'auteur dispose du sien ; l'admin ne peut que
+ * le retirer — moderer, c'est supprimer, pas reecrire au nom de quelqu'un.
+ */
+export type CommentActor = { userId: string; isAdmin?: boolean };
 
 @Injectable()
 export class PostsService {
@@ -89,7 +121,7 @@ export class PostsService {
         include: {
           ...COMMENTS_INCLUDE,
           ...this.likedInclude(viewer.userId),
-          _count: { select: { comments: true, likes: true } },
+          ...COUNT_SELECT,
         },
       }),
       this.prisma.post.count({ where }),
@@ -107,7 +139,7 @@ export class PostsService {
       include: {
         ...COMMENTS_INCLUDE,
         ...this.likedInclude(viewer.userId),
-        _count: { select: { comments: true, likes: true } },
+        ...COUNT_SELECT,
       },
     });
 
@@ -199,8 +231,79 @@ export class PostsService {
     });
   }
 
-  /** Retire un commentaire ; verifie qu'il appartient bien a l'article vise. */
-  async removeComment(postId: string, commentId: string) {
+  /**
+   * La reponse de la boutique a un commentaire, depuis le backoffice.
+   *
+   * Un seul niveau : on ne repond pas a une reponse. Sans cette limite le fil
+   * deviendrait un arbre, que ni le mur ni la modale de moderation n'affichent.
+   */
+  async addReply(
+    postId: string,
+    commentId: string,
+    userId: string,
+    dto: CreateCommentDto,
+  ) {
+    const parent = await this.findCommentOrFail(postId, commentId);
+
+    if (parent.parentId !== null) {
+      throw new BadRequestException(
+        "On ne repond pas a une reponse : repondez au commentaire d'origine",
+      );
+    }
+
+    return this.prisma.postComment.create({
+      data: {
+        postId,
+        userId,
+        parentId: commentId,
+        comment: dto.comment,
+      },
+      include: COMMENT_AUTHOR_INCLUDE,
+    });
+  }
+
+  /** Modifier son commentaire : l'auteur seul, comme pour un avis. */
+  async updateComment(
+    postId: string,
+    commentId: string,
+    actor: CommentActor,
+    dto: UpdateCommentDto,
+  ) {
+    const comment = await this.findCommentOrFail(postId, commentId);
+
+    // Pas d'exception pour l'admin : reecrire le texte d'un client sous sa
+    // signature n'est pas de la moderation.
+    if (comment.userId !== actor.userId) {
+      throw new ForbiddenException("Ce commentaire n'est pas le votre");
+    }
+
+    return this.prisma.postComment.update({
+      where: { id: commentId },
+      data: { comment: dto.comment },
+      include: COMMENT_AUTHOR_INCLUDE,
+    });
+  }
+
+  /**
+   * Retire un commentaire : son auteur, ou un admin au titre de la moderation.
+   * Ses reponses partent avec lui (`onDelete: Cascade`) — une reponse orpheline
+   * n'aurait plus rien a quoi repondre.
+   */
+  async removeComment(postId: string, commentId: string, actor: CommentActor) {
+    const comment = await this.findCommentOrFail(postId, commentId);
+
+    if (!actor.isAdmin && comment.userId !== actor.userId) {
+      throw new ForbiddenException("Ce commentaire n'est pas le votre");
+    }
+
+    return this.prisma.postComment.delete({ where: { id: commentId } });
+  }
+
+  /**
+   * Le commentaire vise, en verifiant qu'il appartient bien a l'article de
+   * l'URL : sans ce controle, `/posts/A/comments/<id de B>` toucherait B.
+   */
+  private async findCommentOrFail(postId: string, commentId: string) {
     await this.findPostOrFail(postId);
 
     const comment = await this.prisma.postComment.findUnique({
@@ -211,7 +314,7 @@ export class PostsService {
       throw new NotFoundException(`Commentaire ${commentId} introuvable`);
     }
 
-    return this.prisma.postComment.delete({ where: { id: commentId } });
+    return comment;
   }
 
   private async findPostOrFail(id: string) {
