@@ -9,6 +9,8 @@ import type {
   LoginInput,
   Order,
   Paginated,
+  Post,
+  PostComment,
   Product,
   ProductDetail,
   ProductReview,
@@ -281,4 +283,45 @@ export function getOrder(id: string, token?: string): Promise<Order> {
 /** Historique du compte appelant ; la totalite du site pour un admin. */
 export function getMyOrders(token?: string): Promise<Order[]> {
   return request<Order[]>("/orders", { token });
+}
+
+// ------------------------------------------------------------- Publications
+
+/**
+ * Le mur de la boutique. Le backend classe du plus recent au plus ancien sur
+ * `publishedAt` — la date que le mur affiche — et masque brouillons et
+ * publications programmees.
+ *
+ * `token` n'est utile que depuis un Server Component : sans lui la reponse
+ * revient avec `liked: false`, le backend n'ayant aucun lecteur a qui
+ * rattacher les « j'aime ».
+ */
+export function getPosts(
+  query: { page?: number; limit?: number } = {},
+  token?: string,
+): Promise<Paginated<Post>> {
+  return request<Paginated<Post>>(`/posts${toQuery(query)}`, { token });
+}
+
+/**
+ * Les deux sens du « j'aime », idempotents cote backend : liker deux fois ne
+ * compte qu'une. Ils renvoient la publication a jour, compteur compris.
+ */
+export function likePost(id: string): Promise<Post> {
+  return request<Post>(`/posts/${id}/like`, { method: "POST" });
+}
+
+export function unlikePost(id: string): Promise<Post> {
+  return request<Post>(`/posts/${id}/like`, { method: "DELETE" });
+}
+
+/** L'auteur n'est pas dans le corps : le backend le lit sur le JWT. */
+export function commentPost(
+  id: string,
+  comment: string,
+): Promise<PostComment> {
+  return request<PostComment>(`/posts/${id}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ comment }),
+  });
 }

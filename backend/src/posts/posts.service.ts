@@ -17,6 +17,19 @@ const COMMENT_AUTHOR_INCLUDE = {
 } as const;
 
 /**
+ * Les commentaires partent avec la publication, du plus ancien au plus recent
+ * comme un fil : le mur de la boutique les affiche sous chaque publication,
+ * sans second appel. Meme parti que les avis sur la fiche produit — ils
+ * tiennent dans la reponse a ce volume.
+ */
+const COMMENTS_INCLUDE = {
+  comments: {
+    include: COMMENT_AUTHOR_INCLUDE,
+    orderBy: { createdAt: 'asc' },
+  },
+} as const satisfies Prisma.PostInclude;
+
+/**
  * Un article est publie quand `publishedAt` est renseigne et deja passe :
  * une date future sert de publication programmee.
  */
@@ -27,6 +40,13 @@ const PUBLISHED_WHERE = (): Prisma.PostWhereInput => ({
 function isPublished(publishedAt: Date | null): boolean {
   return publishedAt !== null && publishedAt <= new Date();
 }
+
+/**
+ * Qui lit. `isAdmin` leve le filtre de publication ; `userId` sert a dire au
+ * lecteur s'il a deja aime la publication — un visiteur anonyme n'a jamais de
+ * « j'aime » a lui.
+ */
+export type PostViewer = { userId?: string; isAdmin?: boolean };
 
 @Injectable()
 export class PostsService {
@@ -46,50 +66,56 @@ export class PostsService {
 
   /**
    * `isAdmin` leve le filtre de publication : un brouillon n'apparait jamais
-   * au blog public, mais doit rester listable depuis le backoffice.
+   * au mur public, mais doit rester listable depuis le backoffice.
+   *
+   * Le mur classe sur `publishedAt` — la date qu'il affiche, donc celle qui
+   * doit ordonner la liste. Le backoffice classe sur `createdAt` : ses
+   * brouillons n'ont pas encore de date de publication.
    */
-  async findAll(query: PaginatePostsDto, isAdmin = false) {
+  async findAll(query: PaginatePostsDto, viewer: PostViewer = {}) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
 
-    const where = isAdmin ? {} : PUBLISHED_WHERE();
+    const where = viewer.isAdmin ? {} : PUBLISHED_WHERE();
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.post.findMany({
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: { _count: { select: { comments: true } } },
+        orderBy: viewer.isAdmin
+          ? { createdAt: 'desc' }
+          : { publishedAt: 'desc' },
+        include: {
+          ...COMMENTS_INCLUDE,
+          ...this.likedInclude(viewer.userId),
+          _count: { select: { comments: true, likes: true } },
+        },
       }),
       this.prisma.post.count({ where }),
     ]);
 
     return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      data: data.map((post) => this.withLiked(post)),
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
 
-  async findOne(id: string, isAdmin = false) {
+  async findOne(id: string, viewer: PostViewer = {}) {
     const post = await this.prisma.post.findUnique({
       where: { id },
       include: {
-        comments: {
-          include: COMMENT_AUTHOR_INCLUDE,
-          orderBy: { createdAt: 'desc' },
-        },
+        ...COMMENTS_INCLUDE,
+        ...this.likedInclude(viewer.userId),
+        _count: { select: { comments: true, likes: true } },
       },
     });
 
-    if (!post || (!isAdmin && !isPublished(post.publishedAt))) {
+    if (!post || (!viewer.isAdmin && !isPublished(post.publishedAt))) {
       throw new NotFoundException(`Article ${id} introuvable`);
     }
 
-    return post;
+    return this.withLiked(post);
   }
 
   async update(id: string, dto: UpdatePostDto) {
@@ -98,8 +124,16 @@ export class PostsService {
     return this.prisma.post.update({
       where: { id },
       data: {
-        ...dto,
-        publishedAt: dto.publishedAt ? new Date(dto.publishedAt) : undefined,
+        title: dto.title,
+        slug: dto.slug,
+        content: dto.content,
+        // `null` detache la photo, `undefined` laisse l'ancienne en place.
+        photoUrl: dto.photoUrl,
+        // Meme distinction : `null` repasse la publication en brouillon.
+        publishedAt:
+          dto.publishedAt === undefined || dto.publishedAt === null
+            ? dto.publishedAt
+            : new Date(dto.publishedAt),
       },
     });
   }
@@ -129,7 +163,7 @@ export class PostsService {
       // deja like par ce compte : on ne re-incremente pas
     }
 
-    return this.findPostOrFail(postId);
+    return this.findOne(postId, { userId });
   }
 
   /** Idempotent : unliker sans like prealable ne decremente rien. */
@@ -149,7 +183,7 @@ export class PostsService {
       }
     });
 
-    return this.findPostOrFail(postId);
+    return this.findOne(postId, { userId });
   }
 
   async addComment(postId: string, userId: string, dto: CreateCommentDto) {
@@ -188,6 +222,25 @@ export class PostsService {
     }
 
     return post;
+  }
+
+  /**
+   * Les « j'aime » du seul lecteur, jamais la liste complete : elle dirait qui
+   * a aime quoi a n'importe quel visiteur. Anonyme, on ne joint rien.
+   */
+  private likedInclude(userId: string | undefined) {
+    return {
+      likes: userId
+        ? { where: { userId }, select: { id: true } }
+        : (false as const),
+    } satisfies Prisma.PostInclude;
+  }
+
+  /** Remplace la jointure technique par le booleen que le front attend. */
+  private withLiked<T extends { likes?: { id: string }[] }>(post: T) {
+    const { likes, ...rest } = post;
+
+    return { ...rest, liked: (likes?.length ?? 0) > 0 };
   }
 
   private isAlreadyLiked(error: unknown): boolean {

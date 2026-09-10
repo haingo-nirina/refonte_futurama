@@ -64,6 +64,14 @@ export async function SiteHeader() {
             {category.name}
           </Link>
         ))}
+
+        {/* Le mur n'est pas un rayon : il ferme la barre, apres les categories. */}
+        <Link
+          href="/publications"
+          className="text-ink hover:border-brand hover:text-brand ml-auto border-b-2 border-transparent px-4 py-4 text-[13.5px] font-medium whitespace-nowrap"
+        >
+          Publications
+        </Link>
       </nav>
     </header>
   );

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LatestProducts } from "@/components/latest-products";
+import { LatestPublications } from "@/components/publications/latest-publications";
 import { MostViewedProducts } from "@/components/most-viewed-products";
 import { ProductImage } from "@/components/product-image";
 import { PromotionOfMonth } from "@/components/promotion-of-month";
@@ -8,7 +9,9 @@ import {
   getFeaturedPromotions,
   getLatestProducts,
   getMostViewedProducts,
+  getPosts,
 } from "@/lib/api";
+import { getServerToken } from "@/lib/auth-server";
 import { ALL_CATEGORIES_SLUG } from "@/lib/catalogue";
 import type { Category } from "@/lib/types";
 
@@ -30,6 +33,10 @@ const TRUST = [
 /** Une ligne pleine des grilles « Derniers produits » et « Le plus consulte ». */
 const SHOWCASE_COUNT = 4;
 
+/** L'accueil n'annonce que les dernieres nouvelles ; le mur complet est sur
+ * `/publications`. */
+const PUBLICATIONS_COUNT = 2;
+
 const HERO_TINTS = [
   {
     card: "bg-tint-cool",
@@ -46,14 +53,21 @@ const HERO_TINTS = [
 ];
 
 export default async function HomePage() {
-  // Les quatre lectures sont independantes : les enchainer ajouterait autant
+  // Le token part explicitement : cote serveur le cookie n'est pas lisible
+  // depuis `lib/api.ts`, et sans lui le mur ignorerait ce que le visiteur a
+  // deja aime.
+  const token = await getServerToken();
+
+  // Les cinq lectures sont independantes : les enchainer ajouterait autant
   // d'allers-retours vers Aiven a la page la plus visitee du site.
-  const [categories, promotions, latest, mostViewed] = await Promise.all([
-    getCategories(),
-    getFeaturedPromotions(),
-    getLatestProducts(SHOWCASE_COUNT),
-    getMostViewedProducts(SHOWCASE_COUNT),
-  ]);
+  const [categories, promotions, latest, mostViewed, publications] =
+    await Promise.all([
+      getCategories(),
+      getFeaturedPromotions(),
+      getLatestProducts(SHOWCASE_COUNT),
+      getMostViewedProducts(SHOWCASE_COUNT),
+      getPosts({ page: 1, limit: PUBLICATIONS_COUNT }, token),
+    ]);
   const topLevel = categories.filter((category) => category.parentId === null);
   const featured = topLevel.filter((category) => category.isFeatured);
 
@@ -135,6 +149,8 @@ export default async function HomePage() {
         products={mostViewed}
         href={`/catalogue/${ALL_CATEGORIES_SLUG}`}
       />
+
+      <LatestPublications posts={publications.data} />
     </div>
   );
 }

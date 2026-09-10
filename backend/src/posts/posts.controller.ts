@@ -16,7 +16,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/jwt-payload';
-import { PostsService } from './posts.service';
+import { PostsService, type PostViewer } from './posts.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { PaginatePostsDto } from './dto/paginate-posts.dto';
@@ -43,7 +43,7 @@ export class PostsController {
     @Query() query: PaginatePostsDto,
     @CurrentUser() user?: AuthenticatedUser,
   ) {
-    return this.postsService.findAll(query, isAdmin(user));
+    return this.postsService.findAll(query, toViewer(user));
   }
 
   @Get(':id')
@@ -52,7 +52,7 @@ export class PostsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user?: AuthenticatedUser,
   ) {
-    return this.postsService.findOne(id, isAdmin(user));
+    return this.postsService.findOne(id, toViewer(user));
   }
 
   @Patch(':id')
@@ -106,6 +106,10 @@ export class PostsController {
   }
 }
 
-function isAdmin(user: AuthenticatedUser | undefined): boolean {
-  return user?.role === USER_ROLE.ADMIN;
+/**
+ * Le lecteur tel que le service l'attend : son role leve — ou non — le filtre
+ * de publication, son identifiant dit s'il a deja aime la publication.
+ */
+function toViewer(user: AuthenticatedUser | undefined): PostViewer {
+  return { userId: user?.userId, isAdmin: user?.role === USER_ROLE.ADMIN };
 }

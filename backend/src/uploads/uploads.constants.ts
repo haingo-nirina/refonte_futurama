@@ -15,6 +15,7 @@ export const UPLOAD_KIND = {
   PRODUCTS: 'products',
   CATEGORIES: 'categories',
   MARQUES: 'marques',
+  POSTS: 'posts',
 } as const;
 
 export const UPLOAD_KINDS = Object.values(UPLOAD_KIND);

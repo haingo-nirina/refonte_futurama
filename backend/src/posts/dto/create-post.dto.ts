@@ -22,11 +22,20 @@ export class CreatePostDto {
   @IsNotEmpty()
   content: string;
 
+  /**
+   * Televersee (`/uploads/posts/<uuid>.jpg`) ou hebergee ailleurs : les deux
+   * formes sont acceptees, d'ou `@IsMediaRef` plutot que `@IsUrl`. `null`
+   * detache la photo, `undefined` laisse la valeur en place.
+   */
   @IsOptional()
   @IsMediaRef()
-  photoUrl?: string;
+  photoUrl?: string | null;
 
+  /**
+   * Vide, la publication reste un brouillon ; une date a venir la programme.
+   * `null` la retire du mur sans la supprimer.
+   */
   @IsOptional()
   @IsDateString()
-  publishedAt?: string;
+  publishedAt?: string | null;
 }

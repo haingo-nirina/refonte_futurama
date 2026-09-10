@@ -53,6 +53,10 @@ Lecture publique comme les catégories (`GET /marques`) : la facette « Marques 
 
 `Promotion` n'a toujours pas de module dédié : elle se peuple uniquement par le seed.
 
+`posts` porte le **mur de la boutique** (« Nos publications »), pas un blog à plusieurs signatures : `Post` n'a pas d'auteur, la page publie sous son propre nom. `GET /posts` renvoie `{ data, meta }` comme les autres listes paginées et **joint les commentaires** — le mur les affiche sous chaque publication, sans second appel, comme les avis sur la fiche produit. Il joint aussi `liked`, le « j'aime » du **seul lecteur** : la liste complète des likes dirait à n'importe quel visiteur qui a aimé quoi. Un anonyme reçoit donc toujours `liked: false`.
+
+Le tri dépend du lecteur : le mur public classe sur `publishedAt` — la date qu'il affiche — et le backoffice sur `createdAt`, ses brouillons n'ayant pas encore de date de publication. Côté écriture, `publishedAt: null` repasse une publication en brouillon et `photoUrl: null` détache la photo ; `undefined` laisse la valeur en place.
+
 `uploads` a deux routes, `POST /uploads/images` et `POST /uploads/videos` (admin) : elles écrivent le fichier et renvoient son URL, **sans le rattacher à quoi que ce soit**. C'est ce qui permet de téléverser une photo pendant la création d'un produit, avant qu'il ait un identifiant, puis d'attacher l'URL via `PUT /products/:id/images` une fois le produit créé. Détails plus bas.
 
 `stats` n'a qu'une route, `GET /stats/dashboard` : tous les agrégats du tableau de bord en un seul appel. Les découper coûterait autant d'allers-retours vers Aiven — voir les ordres de grandeur plus bas.
@@ -67,7 +71,7 @@ Lecture publique comme les catégories (`GET /marques`) : la facette « Marques 
 
 Les photos vivent dans `backend/uploads/` (gitignoré : ce sont des données, pas du code), **hors de `dist/`** pour qu'un rebuild ne les emporte pas. `main.ts` les sert en statique sous `/uploads` via `useStaticAssets`, et `next.config.ts` remonte le même chemin par un second rewrite — l'URL stockée dans `ProductImage.imageUrl` est donc utilisable telle quelle dans un `<img>`, sans préfixe à recoller côté client. Changer `UPLOADS_PREFIX` exigerait une migration des données.
 
-`POST /uploads/images?kind=products|categories|marques` range le fichier dans le sous-dossier correspondant. **`kind` est contraint par une liste blanche** (`UPLOAD_KINDS`) : sans elle, une valeur fabriquée à la main écrirait hors de `UPLOADS_ROOT`.
+`POST /uploads/images?kind=products|categories|marques|posts` range le fichier dans le sous-dossier correspondant. **`kind` est contraint par une liste blanche** (`UPLOAD_KINDS`) : sans elle, une valeur fabriquée à la main écrirait hors de `UPLOADS_ROOT`.
 
 `POST /uploads/videos` écrit dans `uploads/videos` et n'accepte **pas** de `kind` : une vidéo n'a qu'un seul point d'attache, `Product.videoUrl`. Formats MP4 / WebM / MOV, 50 Mo (`MAX_VIDEO_BYTES`) — c'est aussi ce que multer garde en mémoire le temps du téléversement.
 
@@ -174,8 +178,8 @@ Les relations `similar` sont écrites dans les deux sens (`findRelated` filtre s
 
 Deux applications dans le même paquet Next, séparées par des groupes de routes :
 
-- `app/(boutique)/` — MVP e-commerce : accueil (rayons), catalogue paginé par rayon (facettes, tri), fiche produit (avec la section « Avis clients » : moyenne, répartition, dépôt d'un avis), panier, connexion / inscription et confirmation de commande. Le reste de la maquette (chatbot, live shopping, blog, revendeurs) n'est pas implémenté.
-- `app/admin/` — le backoffice : tableau de bord, commandes, produits, catégories, marques, consultation des avis.
+- `app/(boutique)/` — MVP e-commerce : accueil (rayons), catalogue paginé par rayon (facettes, tri), fiche produit (avec la section « Avis clients » : moyenne, répartition, dépôt d'un avis), panier, connexion / inscription et confirmation de commande. Le mur « Nos publications » vit sur `/publications` (paginé, la plus récente en haut) et l'accueil en annonce les deux dernières via `LatestPublications`. Le reste de la maquette (chatbot, live shopping, revendeurs) n'est pas implémenté.
+- `app/admin/` — le backoffice : tableau de bord, commandes, produits, catégories, marques, promotions, publications, consultation des avis.
 
 **Le layout racine (`app/layout.tsx`) est volontairement nu** — polices et feuille de styles, rien d'autre. L'en-tête et le pied de page appartiennent à la boutique et vivent dans `app/(boutique)/layout.tsx`. Un layout enfant ne pouvant pas retirer le chrome de son parent, c'est le seul moyen de donner au backoffice une enveloppe distincte. Le groupe `(boutique)` ne change aucune URL.
 

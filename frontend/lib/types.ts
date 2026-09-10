@@ -190,6 +190,57 @@ export type CreateOrderInput = {
   paymentMethod: PaymentMethod;
 };
 
+// ------------------------------------------------------------- Publications
+
+/**
+ * Un commentaire du mur. Le nom affiche vient du compte : `authorName`
+ * n'existe plus, le backend joint toujours `user`.
+ */
+export type PostComment = {
+  id: string;
+  postId: string;
+  comment: string;
+  createdAt: string;
+  user: { id: string; fullName: string };
+};
+
+/**
+ * Une publication du mur (`GET /posts`).
+ *
+ * Le backend joint les commentaires a la liste : le mur les affiche sous
+ * chaque publication, sans second appel — meme parti que les avis sur la fiche
+ * produit.
+ */
+export type Post = {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  photoUrl: string | null;
+  viewsCount: number;
+  likesCount: number;
+  /** `null` = brouillon ; une date a venir = publication programmee. */
+  publishedAt: string | null;
+  createdAt: string;
+  comments: PostComment[];
+  _count: { comments: number; likes: number };
+  /**
+   * Le compte appelant a-t-il deja aime. Toujours `false` pour un visiteur
+   * anonyme : le backend ne joint les « j'aime » que du lecteur identifie, il
+   * ne dit jamais qui a aime quoi.
+   */
+  liked: boolean;
+};
+
+/** `null` detache la photo ou repasse en brouillon ; `undefined` ne touche a rien. */
+export type PostInput = {
+  title: string;
+  slug: string;
+  content: string;
+  photoUrl?: string | null;
+  publishedAt?: string | null;
+};
+
 // --------------------------------------------------------------------- Auth
 
 export type AuthUser = {

@@ -11,6 +11,8 @@ import type {
   MarqueInput,
   OrderStatus,
   Paginated,
+  Post,
+  PostInput,
   ProductImage,
   ProductInput,
   ProductRelation,
@@ -259,6 +261,52 @@ export function deletePromotion(id: string): Promise<Promotion> {
   return request<Promotion>(`/admin/promotions/${id}`, { method: "DELETE" });
 }
 
+// ------------------------------------------------------------- Publications
+
+/**
+ * Meme route que le mur de la boutique, lue avec un token admin : le backend
+ * leve alors le filtre de publication et renvoie aussi les brouillons et les
+ * publications programmees, classes par date de creation.
+ */
+export function getAdminPosts(
+  query: { page?: number; limit?: number } = {},
+  token?: string,
+): Promise<Paginated<Post>> {
+  return request<Paginated<Post>>(`/posts${toQuery(query)}`, { token });
+}
+
+export function createPost(input: PostInput): Promise<Post> {
+  return request<Post>("/posts", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updatePost(
+  id: string,
+  input: Partial<PostInput>,
+): Promise<Post> {
+  return request<Post>(`/posts/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Emporte ses commentaires et ses « j'aime » (`onDelete: Cascade`). */
+export function deletePost(id: string): Promise<Post> {
+  return request<Post>(`/posts/${id}`, { method: "DELETE" });
+}
+
+/** Moderation : retrait d'un commentaire depose sur le mur. */
+export function deletePostComment(
+  postId: string,
+  commentId: string,
+): Promise<unknown> {
+  return request(`/posts/${postId}/comments/${commentId}`, {
+    method: "DELETE",
+  });
+}
+
 // --------------------------------------------------------------------- Avis
 
 export type AdminReviewsQuery = {
@@ -287,7 +335,7 @@ export function getAdminReviews(
  * peut donc televerser pendant la creation d'un produit, avant meme qu'il ait
  * un identifiant, puis attacher l'URL une fois le produit cree.
  */
-export type UploadKind = "products" | "categories" | "marques";
+export type UploadKind = "products" | "categories" | "marques" | "posts";
 
 export function uploadImage(
   file: File,
