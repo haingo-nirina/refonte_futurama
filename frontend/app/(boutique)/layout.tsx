@@ -1,5 +1,6 @@
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { AiAssistant } from "@/components/ai-assistant";
 
 /** Enveloppe de la boutique. Le groupe `(boutique)` ne change aucune URL. */
 export default function BoutiqueLayout({
@@ -10,6 +11,7 @@ export default function BoutiqueLayout({
       <SiteHeader />
       <main className="flex-1">{children}</main>
       <SiteFooter />
+      <AiAssistant />
     </>
   );
 }
