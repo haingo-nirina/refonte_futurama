@@ -12,6 +12,10 @@ export const metadata = {
 /**
  * Porte d'entree du backoffice.
  *
+ * Ce layout vit dans le groupe `(shell)` et non directement sous `app/admin/` :
+ * il ne doit pas couvrir `/admin/connexion`, sans quoi le garde redirigerait
+ * vers une page qu'il garde lui-meme, en boucle.
+ *
  * Le controle se fait ici, cote serveur, et **relit le compte en base** via
  * `GET /auth/me` : le role est fige dans le JWT a l'emission, donc un compte
  * retrograde garderait un token « admin » valide jusqu'a expiration. Le
@@ -23,11 +27,11 @@ export const metadata = {
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const token = await getServerToken();
 
-  if (!token) redirect("/connexion?next=/admin");
+  if (!token) redirect("/admin/connexion");
 
   const me = await getMe(token).catch(() => null);
 
-  if (!me) redirect("/connexion?next=/admin");
+  if (!me) redirect("/admin/connexion");
   // 404 plutot que 403 : inutile d'annoncer l'existence d'un backoffice.
   if (me.role !== "admin") notFound();
 
