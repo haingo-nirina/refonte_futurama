@@ -5,6 +5,7 @@ import { discountLabel, formatPrice } from "@/lib/format";
 import type { ProductDetail } from "@/lib/types";
 import { AddToCart } from "./add-to-cart";
 import { Gallery } from "./gallery";
+import { ProductVideo } from "./product-video";
 import { ProductReviews } from "./reviews";
 
 const REASSURANCE = [
@@ -162,6 +163,10 @@ export default async function ProductPage({
           ) : null}
         </div>
       </div>
+
+      {product.videoUrl ? (
+        <ProductVideo url={product.videoUrl} name={product.name} />
+      ) : null}
 
       <ProductReviews
         productId={product.id}

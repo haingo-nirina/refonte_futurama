@@ -7,9 +7,7 @@ import {
   MAX_VIDEO_BYTES,
   uploadVideo,
 } from "@/lib/admin-api";
-
-/** Extensions qu'un `<video>` sait lire : le reste n'a pas d'apercu. */
-const PLAYABLE = /\.(mp4|webm|mov)(\?.*)?$/i;
+import { isPlayableVideo } from "@/lib/video";
 
 /**
  * Video de demonstration d'un produit : soit televersee depuis le poste de
@@ -79,7 +77,7 @@ export function VideoUpload({
         className="hidden"
       />
 
-      {value && PLAYABLE.test(value) ? (
+      {value && isPlayableVideo(value) ? (
         <video
           // `key` : sans lui, React garde l'element et la video precedente
           // reste chargee apres un remplacement.

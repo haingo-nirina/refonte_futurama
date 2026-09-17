@@ -80,7 +80,11 @@ export async function request<T>(
     throw new ApiError(response.status, await readErrorMessage(response));
   }
 
-  return response.json() as Promise<T>;
+  // Un handler Nest qui renvoie `null` (ou un 204) repond avec un corps vide :
+  // `response.json()` echouerait alors en « Unexpected end of JSON input ».
+  // C'est le cas de `GET /products/:id/active-promotion` sans promotion.
+  const text = await response.text();
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 /** Nest renvoie `{ message: string | string[] }` sur ses erreurs de validation. */
