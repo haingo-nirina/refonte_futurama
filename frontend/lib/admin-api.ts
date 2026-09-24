@@ -127,6 +127,24 @@ export function deleteProduct(id: string): Promise<AdminProduct> {
   return request<AdminProduct>(`/products/${id}`, { method: "DELETE" });
 }
 
+/**
+ * Suppression groupee : soit les produits coches, soit tout ce qui correspond
+ * aux filtres de la liste (pages suivantes comprises). Renvoie le nombre
+ * reellement supprime.
+ */
+export type BulkDeleteProductsInput =
+  | { ids: string[] }
+  | { all: true; q?: string; categoryId?: string; isActive?: boolean };
+
+export function deleteProducts(
+  input: BulkDeleteProductsInput,
+): Promise<{ count: number }> {
+  return request<{ count: number }>("/products/bulk-delete", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 /** Galerie, specs et relations se remplacent en bloc : voir le backend. */
 export function replaceProductImages(
   id: string,

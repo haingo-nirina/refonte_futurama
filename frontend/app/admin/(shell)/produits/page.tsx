@@ -3,6 +3,12 @@ import { AdminPagination } from "@/components/admin/admin-pagination";
 import { ActiveBadge } from "@/components/admin/status-badge";
 import { PageHeader } from "@/components/admin/page-header";
 import { ProductRowActions } from "@/components/admin/product-row-actions";
+import {
+  ProductBulkBar,
+  ProductSelectAll,
+  ProductSelectCheckbox,
+  ProductSelectionProvider,
+} from "@/components/admin/product-selection";
 import { ProductImage } from "@/components/product-image";
 import { getCategories } from "@/lib/api";
 import { getAdminProducts } from "@/lib/admin-api";
@@ -27,6 +33,9 @@ export default async function AdminProductsPage({
   const state = readParam(params.state);
   const page = Math.max(1, Number.parseInt(readParam(params.page), 10) || 1);
 
+  // `state` vide = actifs et inactifs melanges.
+  const isActive = state === "" ? undefined : state === "active";
+
   const token = await getServerToken();
   const [categories, { data, meta }] = await Promise.all([
     getCategories(),
@@ -36,8 +45,7 @@ export default async function AdminProductsPage({
         limit: PAGE_SIZE,
         q: q || undefined,
         categoryId: categoryId || undefined,
-        // `state` vide = actifs et inactifs melanges.
-        isActive: state === "" ? undefined : state === "active",
+        isActive,
       },
       token,
     ),
@@ -111,87 +119,114 @@ export default async function AdminProductsPage({
           Aucun produit ne correspond a ces filtres.
         </p>
       ) : (
-        <div className="border-line overflow-x-auto rounded-[14px] border bg-white">
-          <table className="w-full min-w-[980px] text-left text-[13.5px]">
-            <thead className="bg-cream-deep text-muted text-[12px] uppercase">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Produit</th>
-                <th className="px-4 py-3 font-semibold">Categorie</th>
-                <th className="px-4 py-3 font-semibold">Prix</th>
-                <th className="px-4 py-3 font-semibold">Stock</th>
-                <th className="px-4 py-3 font-semibold">Etat</th>
-                <th className="px-4 py-3 font-semibold">Cree le</th>
-                <th className="px-4 py-3 font-semibold">Modifie le</th>
-                <th className="px-4 py-3 text-right font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-line divide-y">
-              {data.map((product) => (
-                <tr key={product.id} className="hover:bg-cream-deep transition">
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/admin/produits/${product.id}`}
-                      className="group flex items-center gap-3"
-                    >
-                      <span className="size-11 shrink-0 overflow-hidden rounded-[8px]">
-                        <ProductImage
-                          src={product.images[0]?.imageUrl}
-                          alt=""
-                          className="size-full object-cover"
-                        />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="group-hover:text-brand block font-semibold">
-                          {product.name}
-                        </span>
-                        {product.reference ? (
-                          <span className="text-muted block text-[12px]">
-                            {product.reference}
-                          </span>
-                        ) : null}
-                      </span>
-                    </Link>
-                  </td>
-                  <td className="text-muted px-4 py-3">
-                    {product.category.name}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="font-display text-navy font-extrabold">
-                      {formatPrice(
-                        product.activePromotion?.discountedPrice ??
-                          product.price,
-                      )}
-                    </span>
-                    {product.activePromotion ? (
-                      <span className="text-muted-light ml-1 text-[12px] line-through">
-                        {formatPrice(product.price)}
-                      </span>
-                    ) : null}
-                  </td>
-                  <td
-                    className={`px-4 py-3 font-semibold ${
-                      product.stock === 0 ? "text-brand" : ""
-                    }`}
-                  >
-                    {product.stock}
-                  </td>
-                  <td className="px-4 py-3">
-                    <ActiveBadge isActive={product.isActive} />
-                  </td>
-                  <td className="text-muted px-4 py-3 text-[12.5px] whitespace-nowrap">
-                    {formatDate(product.createdAt)}
-                  </td>
-                  <td className="text-muted px-4 py-3 text-[12.5px] whitespace-nowrap">
-                    {formatDate(product.updatedAt)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <ProductRowActions product={product} />
-                  </td>
+        <ProductSelectionProvider
+          // Une selection ne survit pas a un changement de page ou de filtre.
+          key={`${page}|${q}|${categoryId}|${state}`}
+          pageIds={data.map((product) => product.id)}
+          total={meta.total}
+          filters={{
+            q: q || undefined,
+            categoryId: categoryId || undefined,
+            isActive,
+          }}
+        >
+          <ProductBulkBar />
+          <div className="border-line overflow-x-auto rounded-[14px] border bg-white">
+            <table className="w-full min-w-[980px] text-left text-[13.5px]">
+              <thead className="bg-cream-deep text-muted text-[12px] uppercase">
+                <tr>
+                  <th className="w-10 py-3 pr-0 pl-4">
+                    <ProductSelectAll />
+                  </th>
+                  <th className="px-4 py-3 font-semibold">Produit</th>
+                  <th className="px-4 py-3 font-semibold">Categorie</th>
+                  <th className="px-4 py-3 font-semibold">Prix</th>
+                  <th className="px-4 py-3 font-semibold">Stock</th>
+                  <th className="px-4 py-3 font-semibold">Etat</th>
+                  <th className="px-4 py-3 font-semibold">Cree le</th>
+                  <th className="px-4 py-3 font-semibold">Modifie le</th>
+                  <th className="px-4 py-3 text-right font-semibold">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-line divide-y">
+                {data.map((product) => (
+                  <tr
+                    key={product.id}
+                    className="hover:bg-cream-deep transition"
+                  >
+                    <td className="py-3 pr-0 pl-4">
+                      <ProductSelectCheckbox
+                        id={product.id}
+                        name={product.name}
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/admin/produits/${product.id}`}
+                        className="group flex items-center gap-3"
+                      >
+                        <span className="size-11 shrink-0 overflow-hidden rounded-[8px]">
+                          <ProductImage
+                            src={product.images[0]?.imageUrl}
+                            alt=""
+                            className="size-full object-cover"
+                          />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="group-hover:text-brand block font-semibold">
+                            {product.name}
+                          </span>
+                          {product.reference ? (
+                            <span className="text-muted block text-[12px]">
+                              {product.reference}
+                            </span>
+                          ) : null}
+                        </span>
+                      </Link>
+                    </td>
+                    <td className="text-muted px-4 py-3">
+                      {product.category.name}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-display text-navy font-extrabold">
+                        {formatPrice(
+                          product.activePromotion?.discountedPrice ??
+                            product.price,
+                        )}
+                      </span>
+                      {product.activePromotion ? (
+                        <span className="text-muted-light ml-1 text-[12px] line-through">
+                          {formatPrice(product.price)}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td
+                      className={`px-4 py-3 font-semibold ${
+                        product.stock === 0 ? "text-brand" : ""
+                      }`}
+                    >
+                      {product.stock}
+                    </td>
+                    <td className="px-4 py-3">
+                      <ActiveBadge isActive={product.isActive} />
+                    </td>
+                    <td className="text-muted px-4 py-3 text-[12.5px] whitespace-nowrap">
+                      {formatDate(product.createdAt)}
+                    </td>
+                    <td className="text-muted px-4 py-3 text-[12.5px] whitespace-nowrap">
+                      {formatDate(product.updatedAt)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <ProductRowActions product={product} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </ProductSelectionProvider>
       )}
 
       <AdminPagination

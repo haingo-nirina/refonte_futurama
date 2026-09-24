@@ -10,6 +10,7 @@ import {
   RELATION_TYPE,
   RelationType,
 } from '../common/constants';
+import { BulkDeleteProductsDto } from './dto/bulk-delete-products.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { FindMostViewedQueryDto } from './dto/find-most-viewed-query.dto';
 import { FindProductsQueryDto } from './dto/find-products-query.dto';
@@ -244,6 +245,35 @@ export class ProductsService {
     await this.findOneOrFail(id);
 
     return this.prisma.product.delete({ where: { id } });
+  }
+
+  /**
+   * Suppression groupee depuis la liste du backoffice. Memes consequences
+   * qu'une suppression unitaire (cascade sur galerie, specs, avis, relations,
+   * promotions, lignes de panier ; `SetNull` sur les lignes de commande), en
+   * une seule requete.
+   *
+   * Des identifiants inconnus sont ignores plutot que de faire echouer le
+   * lot : un autre onglet a pu en supprimer un entre-temps, le resultat voulu
+   * est atteint quand meme. `count` dit ce qui a reellement ete supprime.
+   */
+  async removeMany(dto: BulkDeleteProductsDto) {
+    if (dto.all && dto.ids) {
+      throw new BadRequestException(
+        '`ids` et `all` sont exclusifs : cocher des produits ou tout supprimer',
+      );
+    }
+
+    const where: Prisma.ProductWhereInput = dto.all
+      ? this.buildWhere(
+          { q: dto.q, categoryId: dto.categoryId, isActive: dto.isActive },
+          true,
+        )
+      : { id: { in: dto.ids } };
+
+    const { count } = await this.prisma.product.deleteMany({ where });
+
+    return { count };
   }
 
   /** Remplace la galerie en bloc ; au plus une image principale. */

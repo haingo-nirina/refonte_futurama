@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -18,6 +19,7 @@ import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import type { AuthenticatedUser } from '../auth/jwt-payload';
+import { BulkDeleteProductsDto } from './dto/bulk-delete-products.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { FindMostViewedQueryDto } from './dto/find-most-viewed-query.dto';
 import { FindProductsQueryDto } from './dto/find-products-query.dto';
@@ -37,6 +39,20 @@ export class ProductsController {
   @AdminOnly()
   create(@Body() dto: CreateProductDto) {
     return this.productsService.create(dto);
+  }
+
+  /**
+   * Suppression groupee. En POST plutot qu'en `DELETE /products` : un corps
+   * sur un DELETE n'est pas garanti par tous les intermediaires HTTP, et la
+   * liste d'identifiants ne tient pas proprement en query string.
+   *
+   * `HttpCode(200)` : rien n'est cree, le 201 par defaut d'un POST mentirait.
+   */
+  @Post('bulk-delete')
+  @HttpCode(200)
+  @AdminOnly()
+  removeMany(@Body() dto: BulkDeleteProductsDto) {
+    return this.productsService.removeMany(dto);
   }
 
   /**
