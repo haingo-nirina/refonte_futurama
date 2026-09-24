@@ -199,6 +199,17 @@ export function deleteCategory(id: string): Promise<Category> {
   return request<Category>(`/categories/${id}`, { method: "DELETE" });
 }
 
+/**
+ * Suppression groupee, tout ou rien : le backend refuse le lot entier (400) si
+ * une des categories porte encore des produits, en les nommant.
+ */
+export function deleteCategories(ids: string[]): Promise<{ count: number }> {
+  return request<{ count: number }>("/categories/bulk-delete", {
+    method: "POST",
+    body: JSON.stringify({ ids }),
+  });
+}
+
 // ------------------------------------------------------------------ Marques
 
 /**

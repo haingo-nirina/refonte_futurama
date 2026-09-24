@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -10,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { CategoriesService } from './categories.service';
+import { BulkDeleteCategoriesDto } from './dto/bulk-delete-categories.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
@@ -21,6 +23,18 @@ export class CategoriesController {
   @AdminOnly()
   create(@Body() dto: CreateCategoryDto) {
     return this.categoriesService.create(dto);
+  }
+
+  /**
+   * Suppression groupee, en POST pour la meme raison que
+   * `POST /products/bulk-delete` : un corps sur un DELETE n'est pas garanti
+   * par tous les intermediaires HTTP.
+   */
+  @Post('bulk-delete')
+  @HttpCode(200)
+  @AdminOnly()
+  removeMany(@Body() dto: BulkDeleteCategoriesDto) {
+    return this.categoriesService.removeMany(dto);
   }
 
   @Get()

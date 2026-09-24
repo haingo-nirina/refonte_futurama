@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { BulkDeleteCategoriesDto } from './dto/bulk-delete-categories.dto';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
@@ -104,6 +105,40 @@ export class CategoriesService {
     }
 
     return this.prisma.category.delete({ where: { id } });
+  }
+
+  /**
+   * Suppression groupee depuis le backoffice. Tout ou rien : si une seule
+   * categorie porte encore des produits (`onDelete: Restrict`), aucune n'est
+   * supprimee et la 400 les nomme toutes — une suppression partielle laisserait
+   * l'admin deviner lesquelles sont restees.
+   *
+   * Les sous-rayons non coches sont detaches (`SetNull`), comme en unitaire.
+   * Des identifiants inconnus sont ignores : `count` dit ce qui a reellement
+   * ete supprime.
+   */
+  async removeMany(dto: BulkDeleteCategoriesDto) {
+    const blocked = await this.prisma.category.findMany({
+      where: { id: { in: dto.ids }, products: { some: {} } },
+      select: { name: true, _count: { select: { products: true } } },
+      orderBy: { name: 'asc' },
+    });
+
+    if (blocked.length > 0) {
+      const list = blocked
+        .map((category) => `${category.name} (${category._count.products})`)
+        .join(', ');
+
+      throw new BadRequestException(
+        `Categories encore rattachees a des produits : ${list}. Deplacez ou supprimez ces produits d'abord.`,
+      );
+    }
+
+    const { count } = await this.prisma.category.deleteMany({
+      where: { id: { in: dto.ids } },
+    });
+
+    return { count };
   }
 
   private async findOneOrFail(id: string) {

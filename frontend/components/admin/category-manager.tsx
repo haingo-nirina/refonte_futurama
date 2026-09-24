@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { ImageUpload } from "@/components/admin/image-upload";
@@ -8,6 +8,7 @@ import { Modal } from "@/components/admin/modal";
 import { ApiError } from "@/lib/api";
 import {
   createCategory,
+  deleteCategories,
   deleteCategory,
   updateCategory,
 } from "@/lib/admin-api";
@@ -87,7 +88,62 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
   const [deletePending, setDeletePending] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Selection multiple. Apres un `router.refresh()`, on ne garde coche que ce
+  // qui existe encore.
+  const [checked, setChecked] = useState<Set<string>>(() => new Set());
+  const [bulkConfirming, setBulkConfirming] = useState(false);
+  const [bulkPending, setBulkPending] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+
   const roots = categories.filter((category) => !category.parentId);
+  const selected = categories.filter((category) => checked.has(category.id));
+  const allSelected =
+    categories.length > 0 && selected.length === categories.length;
+
+  function toggle(id: string) {
+    setChecked((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setChecked(
+      allSelected
+        ? new Set()
+        : new Set(categories.map((category) => category.id)),
+    );
+  }
+
+  async function onBulkDelete() {
+    setBulkPending(true);
+    setBulkError(null);
+
+    try {
+      await deleteCategories(selected.map((category) => category.id));
+      setBulkConfirming(false);
+      setChecked(new Set());
+      router.refresh();
+    } catch (cause) {
+      // Tout ou rien : le backend nomme les categories encore rattachees a
+      // des produits, rien n'a ete supprime.
+      setBulkError(
+        cause instanceof ApiError ? cause.message : "Suppression impossible",
+      );
+    } finally {
+      setBulkPending(false);
+    }
+  }
+
+  // Sous-rayons non coches dont le parent part : ils seront detaches.
+  const orphaned = categories.filter(
+    (category) =>
+      category.parentId &&
+      checked.has(category.parentId) &&
+      !checked.has(category.id),
+  ).length;
 
   function startCreate(parentId = "") {
     setDraft({ ...EMPTY, parentId });
@@ -157,21 +213,57 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
 
   return (
     <div>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        {categories.length > 0 ? (
+          <SelectAllCheckbox
+            checked={allSelected}
+            indeterminate={!allSelected && selected.length > 0}
+            onChange={toggleAll}
+          />
+        ) : null}
         <button
           type="button"
           onClick={() => startCreate()}
-          className="admin-button"
+          className="admin-button ml-auto"
         >
           Nouvelle categorie
         </button>
       </div>
+
+      {selected.length > 0 ? (
+        <div className="border-line bg-cream-deep mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[14px] border px-4 py-3 text-[13.5px]">
+          <span className="font-semibold">
+            {allSelected
+              ? `Les ${categories.length} categories sont selectionnees.`
+              : `${selected.length} categorie(s) selectionnee(s).`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setChecked(new Set())}
+            className="text-muted hover:text-ink font-bold"
+          >
+            Tout deselectionner
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setBulkError(null);
+              setBulkConfirming(true);
+            }}
+            className="admin-button ml-auto"
+          >
+            Supprimer ({selected.length})
+          </button>
+        </div>
+      ) : null}
 
       <div className="space-y-3">
         {roots.map((root) => (
           <section key={root.id} className="admin-card">
             <CategoryRow
               category={root}
+              checked={checked.has(root.id)}
+              onToggle={() => toggle(root.id)}
               onEdit={() => startEdit(root)}
               onRemove={() => startDelete(root)}
               onAddChild={() => startCreate(root.id)}
@@ -187,6 +279,8 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
                     <li key={child.id}>
                       <CategoryRow
                         category={full}
+                        checked={checked.has(full.id)}
+                        onToggle={() => toggle(full.id)}
                         onEdit={() => startEdit(full)}
                         onRemove={() => startDelete(full)}
                       />
@@ -347,23 +441,97 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
         onConfirm={() => void onDelete()}
         onCancel={() => setDeleting(null)}
       />
+
+      <ConfirmDialog
+        open={bulkConfirming}
+        title={`Supprimer ${selected.length} categorie(s) ?`}
+        message={
+          allSelected ? (
+            <>
+              <strong>Toutes les categories</strong> ({categories.length})
+              disparaitront de la navigation de la boutique.
+            </>
+          ) : (
+            <>
+              <strong>{selected.length} categorie(s)</strong> disparaitront de
+              la navigation de la boutique.
+            </>
+          )
+        }
+        detail={
+          <>
+            {orphaned > 0
+              ? `${orphaned} sous-rayon(s) non selectionne(s) seront detaches et deviendront des rayons principaux. `
+              : null}
+            Si une seule categorie est encore rattachee a des produits, rien
+            n&apos;est supprime : deplacez ou supprimez d&apos;abord ces
+            produits.
+          </>
+        }
+        confirmLabel={`Supprimer ${selected.length} categorie(s)`}
+        pending={bulkPending}
+        error={bulkError}
+        onConfirm={() => void onBulkDelete()}
+        onCancel={() => setBulkConfirming(false)}
+      />
     </div>
+  );
+}
+
+function SelectAllCheckbox({
+  checked,
+  indeterminate,
+  onChange,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  onChange: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+
+  // `indeterminate` n'existe qu'en propriete DOM, pas en attribut HTML.
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+
+  return (
+    <label className="flex cursor-pointer items-center gap-2 text-[13.5px] font-semibold">
+      <input
+        ref={ref}
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="size-4 cursor-pointer"
+      />
+      Tout selectionner
+    </label>
   );
 }
 
 function CategoryRow({
   category,
+  checked,
+  onToggle,
   onEdit,
   onRemove,
   onAddChild,
 }: {
   category: Category;
+  checked: boolean;
+  onToggle: () => void;
   onEdit: () => void;
   onRemove: () => void;
   onAddChild?: () => void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-3">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onToggle}
+        aria-label={`Selectionner ${category.name}`}
+        className="size-4 shrink-0 cursor-pointer"
+      />
       <div className="min-w-0 flex-1">
         <p className="text-[14px] font-semibold">
           {category.name}

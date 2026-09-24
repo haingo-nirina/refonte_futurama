@@ -98,7 +98,7 @@ Rien ne supprime le fichier quand l'image ou la vidéo est retirée d'un produit
 
 Routes protégées par un simple JWT : `POST /orders`, `GET /orders`, `GET /orders/:id`, `GET /auth/me`, `POST /reviews`, `PATCH|DELETE /reviews/:id`, `POST /posts/:id/comments`, `PATCH|DELETE /posts/:id/comments/:commentId`, `POST|DELETE /posts/:id/like`.
 
-Routes admin (`@AdminOnly()`) : **toute écriture du catalogue et du contenu** — `POST|PATCH|DELETE /products`, `POST /products/bulk-delete`, `PUT /products/:id/images|specs|relations`, `POST|PATCH|DELETE /categories`, `POST|PATCH|DELETE /marques`, `POST|PATCH|DELETE /posts`, `POST /posts/:id/comments/:commentId/replies`, `POST|PATCH|DELETE /resellers` — plus `GET /orders/admin`, `PATCH /orders/:id/status`, `GET /reviews/admin`, `GET /reviews/pending`, `PATCH /reviews/:id/moderate`, `GET /stats/dashboard`.
+Routes admin (`@AdminOnly()`) : **toute écriture du catalogue et du contenu** — `POST|PATCH|DELETE /products`, `POST /products/bulk-delete`, `PUT /products/:id/images|specs|relations`, `POST|PATCH|DELETE /categories`, `POST /categories/bulk-delete`, `POST|PATCH|DELETE /marques`, `POST|PATCH|DELETE /posts`, `POST /posts/:id/comments/:commentId/replies`, `POST|PATCH|DELETE /resellers` — plus `GET /orders/admin`, `PATCH /orders/:id/status`, `GET /reviews/admin`, `GET /reviews/pending`, `PATCH /reviews/:id/moderate`, `GET /stats/dashboard`.
 
 Le catalogue (produits, catégories, marques) et le blog restent publics **en lecture**, le panier reste ouvert sans compte.
 
