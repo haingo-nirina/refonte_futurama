@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { SalesChart } from "@/components/admin/sales-chart";
 import { OrderStatusBadge } from "@/components/admin/status-badge";
+import { TopProductsChart } from "@/components/admin/top-products-chart";
 import { getServerToken } from "@/lib/auth-server";
 import { getDashboard } from "@/lib/admin-api";
 import { formatDateTime, formatPrice } from "@/lib/format";
@@ -42,6 +44,36 @@ export default async function AdminDashboardPage() {
       <p className="text-muted mt-3 text-[12px]">
         Les commandes annulees sont exclues du chiffre d&apos;affaires.
       </p>
+
+      <Panel title="Ventes des 30 derniers jours" className="mt-8">
+        <SalesChart
+          granularity="day"
+          points={stats.salesByDay.map(({ date, ...rest }) => ({
+            key: date,
+            ...rest,
+          }))}
+        />
+      </Panel>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-2">
+        <Panel title="Ventes par mois">
+          <SalesChart
+            granularity="month"
+            points={stats.salesByMonth.map(({ month, ...rest }) => ({
+              key: month,
+              ...rest,
+            }))}
+          />
+        </Panel>
+
+        <Panel title="Meilleures ventes">
+          {stats.topProducts.length === 0 ? (
+            <Empty>Aucune vente enregistree.</Empty>
+          ) : (
+            <TopProductsChart products={stats.topProducts} />
+          )}
+        </Panel>
+      </div>
 
       <div className="mt-8 grid gap-6 xl:grid-cols-2">
         <Panel title="Commandes par statut">
@@ -114,25 +146,6 @@ export default async function AdminDashboardPage() {
           )}
         </Panel>
 
-        <Panel title="Meilleures ventes">
-          {stats.topProducts.length === 0 ? (
-            <Empty>Aucune vente enregistree.</Empty>
-          ) : (
-            <ul className="space-y-2 text-[13.5px]">
-              {stats.topProducts.map((product) => (
-                <li
-                  key={product.productName}
-                  className="flex items-center justify-between gap-3"
-                >
-                  <span className="truncate">{product.productName}</span>
-                  <span className="font-display text-navy shrink-0 font-extrabold">
-                    {product.quantity}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
       </div>
 
       <Panel

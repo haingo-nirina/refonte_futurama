@@ -470,4 +470,8 @@ export type DashboardStats = {
     total: string;
     createdAt: string;
   }[];
+  /** 30 derniers jours, aujourd'hui en dernier ; `date` au format `2026-03-12`. */
+  salesByDay: { date: string; revenue: string; orders: number }[];
+  /** 12 derniers mois, le mois en cours en dernier ; `month` au format `2026-03`. */
+  salesByMonth: { month: string; revenue: string; orders: number }[];
 };
