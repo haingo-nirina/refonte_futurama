@@ -24,9 +24,16 @@ function initial(fullName: string): string {
 export function ReviewItem({
   review,
   date,
+  onChange,
 }: {
   review: ProductReview;
   date: string;
+  /**
+   * Appele apres une modification ou une suppression reussie, en plus du
+   * `router.refresh()` : l'avis en attente affiche par le formulaire n'est pas
+   * rendu cote serveur, le refresh ne le relirait pas.
+   */
+  onChange?: () => void | Promise<void>;
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -66,6 +73,7 @@ export function ReviewItem({
       setEditing(false);
       // La liste est rendue cote serveur : c'est a lui de la relire.
       router.refresh();
+      await onChange?.();
     } catch (cause) {
       fail(cause, "Modification impossible");
     } finally {
@@ -80,6 +88,7 @@ export function ReviewItem({
     try {
       await deleteReview(review.id);
       router.refresh();
+      await onChange?.();
     } catch (cause) {
       fail(cause, "Suppression impossible");
       setPending(false);
@@ -115,6 +124,10 @@ export function ReviewItem({
             placeholder="Qu'avez-vous pense de ce produit ?"
             className="border-line-strong focus:border-brand resize-y rounded-[9px] border-[1.5px] bg-white px-3.5 py-2.5 text-[13.5px] outline-none"
           />
+
+          <p className="text-muted-light text-[12px]">
+            Votre avis modifie sera publie apres validation.
+          </p>
 
           <div className="flex flex-wrap items-center gap-3">
             <button

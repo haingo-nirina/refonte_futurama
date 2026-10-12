@@ -27,10 +27,8 @@ export class ReviewsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * L'avis est publie directement : le backoffice se contente de lister les
-   * avis, il n'a plus d'action de moderation. `moderationStatus` reste en base
-   * — les avis anterieurs gardent leur statut, et `moderate()` reste le moyen
-   * de les debloquer si besoin.
+   * L'avis arrive en attente : il n'apparait sur la fiche produit qu'une fois
+   * valide depuis le backoffice (`moderate()`).
    */
   async create(userId: string, dto: CreateReviewDto) {
     const product = await this.prisma.product.findUnique({
@@ -48,7 +46,7 @@ export class ReviewsService {
           userId,
           rating: dto.rating,
           comment: dto.comment ?? null,
-          moderationStatus: MODERATION_STATUS.APPROVED,
+          moderationStatus: MODERATION_STATUS.PENDING,
         },
         include: AUTHOR_INCLUDE,
       });
@@ -81,6 +79,18 @@ export class ReviewsService {
   }
 
   /**
+   * L'avis de l'appelant sur un produit, quel que soit son statut : la fiche
+   * ne liste que les approuves, c'est le seul moyen pour l'auteur de savoir
+   * que le sien attend une validation — et de ne pas en deposer un second.
+   */
+  findMine(productId: string, userId: string) {
+    return this.prisma.review.findUnique({
+      where: { productId_userId: { productId, userId } },
+      include: AUTHOR_INCLUDE,
+    });
+  }
+
+  /**
    * Un avis n'appartient qu'a son auteur : le backoffice le lit sans pouvoir
    * le toucher. Le controle vit ici, c'est une regle metier, pas du routage.
    */
@@ -90,7 +100,13 @@ export class ReviewsService {
     return this.prisma.review.update({
       where: { id },
       // `undefined` laisse le champ en place ; `null` vide le commentaire.
-      data: { rating: dto.rating, comment: dto.comment },
+      // Un texte modifie n'a pas ete relu : il repasse en validation, sans
+      // quoi un avis valide pourrait etre reecrit a volonte apres coup.
+      data: {
+        rating: dto.rating,
+        comment: dto.comment,
+        moderationStatus: MODERATION_STATUS.PENDING,
+      },
       include: AUTHOR_INCLUDE,
     });
   }

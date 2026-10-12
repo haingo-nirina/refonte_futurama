@@ -42,6 +42,16 @@ export class ReviewsController {
     return this.reviewsService.findPending();
   }
 
+  /** L'avis de l'appelant, meme en attente. Declaree avant `:id`. */
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  findMine(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: FindReviewsQueryDto,
+  ) {
+    return this.reviewsService.findMine(query.product_id, user.userId);
+  }
+
   /** Declaree avant `:id` comme `pending` : Nest resout dans l'ordre. */
   @Get('admin')
   @AdminOnly()

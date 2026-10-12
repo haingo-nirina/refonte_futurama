@@ -1,4 +1,9 @@
-import { ORDER_STATUSES, type OrderStatus } from "@/lib/types";
+import {
+  MODERATION_STATUSES,
+  ORDER_STATUSES,
+  type ModerationStatus,
+  type OrderStatus,
+} from "@/lib/types";
 
 /**
  * Les statuts sont des chaines libres cote base : on retombe sur la valeur
@@ -90,6 +95,25 @@ export function FeaturedBadge() {
   return (
     <span className={`${BASE} bg-tint-warm text-tint-warm-ink`}>
       Mise en avant
+    </span>
+  );
+}
+
+const MODERATION_TONE: Record<ModerationStatus, string> = {
+  pending: "bg-tint-warm text-tint-warm-ink",
+  approved: "bg-success-soft text-success",
+  rejected: "bg-line text-muted",
+};
+
+/** « Approuve » = publie sur la fiche produit ; les deux autres restent masques. */
+export function ModerationBadge({ status }: { status: ModerationStatus }) {
+  const label =
+    MODERATION_STATUSES.find((entry) => entry.value === status)?.label ??
+    status;
+
+  return (
+    <span className={`${BASE} ${MODERATION_TONE[status] ?? "bg-line text-muted"}`}>
+      {label}
     </span>
   );
 }

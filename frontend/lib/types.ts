@@ -424,7 +424,7 @@ export type AdminOrder = Order & { user: OrderCustomer };
 /** Doit rester aligne sur `backend/src/common/constants.ts`. */
 export const MODERATION_STATUSES = [
   { value: "pending", label: "En attente" },
-  { value: "approved", label: "Approuve" },
+  { value: "approved", label: "Publie" },
   { value: "rejected", label: "Rejete" },
 ] as const;
 
@@ -462,6 +462,8 @@ export type DashboardStats = {
     lowStock: { id: string; name: string; stock: number }[];
   };
   customers: number;
+  /** Avis deposes en attente de validation. */
+  pendingReviews: number;
   topProducts: { productName: string; quantity: number }[];
   recentOrders: {
     id: string;

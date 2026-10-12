@@ -9,6 +9,7 @@ import type {
   DashboardStats,
   MarqueDetail,
   MarqueInput,
+  ModerationStatus,
   OrderStatus,
   Paginated,
   Post,
@@ -350,6 +351,7 @@ export function replyToPostComment(
 export type AdminReviewsQuery = {
   page?: number;
   limit?: number;
+  status?: ModerationStatus;
   productId?: string;
 };
 
@@ -359,6 +361,17 @@ export function getAdminReviews(
 ): Promise<Paginated<AdminReview>> {
   return request<Paginated<AdminReview>>(`/reviews/admin${toQuery(query)}`, {
     token,
+  });
+}
+
+/** Valider publie l'avis sur la fiche produit ; rejeter le laisse masque. */
+export function moderateReview(
+  id: string,
+  status: Exclude<ModerationStatus, "pending">,
+): Promise<AdminReview> {
+  return request<AdminReview>(`/reviews/${id}/moderate`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
   });
 }
 

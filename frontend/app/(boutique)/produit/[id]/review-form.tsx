@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ApiError, createReview } from "@/lib/api";
+import { useCallback, useEffect, useState } from "react";
+import { ApiError, createReview, getMyReview } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { formatDate } from "@/lib/format";
+import type { ProductReview } from "@/lib/types";
 import { RatingPicker } from "./rating-picker";
+import { ReviewItem } from "./review-item";
 
 /**
  * Deposer un avis exige un compte, comme commander : le backend lit l'auteur
@@ -28,6 +31,27 @@ export function ReviewForm({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  // `undefined` : pas encore lu. La fiche ne liste que les avis publies, celui
+  // de l'auteur peut attendre une validation — il faut le demander a part.
+  const [mine, setMine] = useState<ProductReview | null | undefined>(undefined);
+
+  const loadMine = useCallback(async () => {
+    try {
+      setMine(await getMyReview(productId));
+    } catch {
+      // Au pire on retombe sur le formulaire : le backend refusera un doublon.
+      setMine(null);
+    }
+  }, [productId]);
+
+  // `authorIds` change apres un `router.refresh()` : un avis publie qu'on
+  // modifie repasse en attente et quitte la liste, il faut alors le relire.
+  const authorKey = authorIds.join();
+  useEffect(() => {
+    if (!user) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lecture reseau
+    void loadMine();
+  }, [user, loadMine, authorKey]);
 
   const loginHref = `/connexion?next=${encodeURIComponent(`/produit/${productId}`)}`;
 
@@ -43,13 +67,9 @@ export function ReviewForm({
         comment: comment.trim() || undefined,
       });
 
-      // L'avis est publie directement : la liste est rendue cote serveur,
-      // c'est donc au serveur de la relire pour l'y faire apparaitre. Le
-      // nouvel avis ouvre la premiere page — depuis une autre, il resterait
-      // invisible alors que le message annonce le contraire.
+      // L'avis arrive en attente : il n'apparaitra dans la liste qu'une fois
+      // valide depuis le backoffice, rien a relire ici.
       setSent(true);
-      router.replace(`/produit/${productId}#avis`);
-      router.refresh();
     } catch (cause) {
       // Token expire pendant que la page etait ouverte : on renvoie se
       // reconnecter plutot que d'afficher un « Unauthorized » brut.
@@ -67,7 +87,7 @@ export function ReviewForm({
   }
 
   // Avant hydratation on ne sait pas encore si le visiteur est connecte.
-  if (user === undefined) {
+  if (user === undefined || (user && mine === undefined && !sent)) {
     return (
       <div className="bg-cream-deep text-muted rounded-[14px] p-5.5 text-[13.5px]">
         Chargement…
@@ -94,22 +114,6 @@ export function ReviewForm({
     );
   }
 
-  // Un second avis serait refuse en 409 : on renvoie plutot vers le sien, que
-  // l'auteur peut modifier ou supprimer depuis la liste.
-  if (!sent && authorIds.includes(user.id)) {
-    return (
-      <div className="bg-cream-deep rounded-[14px] p-5.5">
-        <h3 className="font-display text-navy text-[15px] font-bold">
-          Vous avez deja donne votre avis
-        </h3>
-        <p className="text-muted mt-2 text-[13px]">
-          Retrouvez-le dans la liste : vous pouvez le modifier ou le supprimer a
-          tout moment.
-        </p>
-      </div>
-    );
-  }
-
   if (sent) {
     return (
       <div className="bg-success-soft rounded-[14px] p-5.5">
@@ -117,7 +121,49 @@ export function ReviewForm({
           Merci pour votre avis
         </h3>
         <p className="text-ink/80 mt-2 text-[13px]">
-          Il est publie sur cette page, juste a cote.
+          Il sera publie sur cette page apres validation par notre equipe.
+        </p>
+      </div>
+    );
+  }
+
+  // Avis en attente ou rejete : absent de la liste publique, on le montre ici
+  // a son seul auteur, qui peut encore le modifier ou le retirer.
+  if (mine && mine.moderationStatus !== "approved") {
+    return (
+      <div className="bg-cream-deep rounded-[14px] p-5.5">
+        <h3 className="font-display text-navy text-[15px] font-bold">
+          {mine.moderationStatus === "pending"
+            ? "Votre avis est en attente de validation"
+            : "Votre avis n'a pas ete publie"}
+        </h3>
+        <p className="text-muted mt-2 text-[13px]">
+          {mine.moderationStatus === "pending"
+            ? "Il apparaitra sur cette page des que notre equipe l'aura valide."
+            : "Notre equipe ne l'a pas retenu. Vous pouvez le modifier pour le soumettre a nouveau."}
+        </p>
+        <ul className="mt-2">
+          <ReviewItem
+            review={mine}
+            date={formatDate(mine.createdAt)}
+            onChange={loadMine}
+          />
+        </ul>
+      </div>
+    );
+  }
+
+  // Un second avis serait refuse en 409 : on renvoie plutot vers le sien, que
+  // l'auteur peut modifier ou supprimer depuis la liste.
+  if (mine || authorIds.includes(user.id)) {
+    return (
+      <div className="bg-cream-deep rounded-[14px] p-5.5">
+        <h3 className="font-display text-navy text-[15px] font-bold">
+          Vous avez deja donne votre avis
+        </h3>
+        <p className="text-muted mt-2 text-[13px]">
+          Retrouvez-le dans la liste : vous pouvez le modifier ou le supprimer a
+          tout moment. Une modification repasse par la validation.
         </p>
       </div>
     );
@@ -149,11 +195,11 @@ export function ReviewForm({
         disabled={pending}
         className="bg-brand hover:bg-brand-dark font-display self-start rounded-[9px] px-5.5 py-3 text-[14px] font-bold text-white transition disabled:opacity-50"
       >
-        {pending ? "Envoi…" : "Publier l'avis"}
+        {pending ? "Envoi…" : "Envoyer l'avis"}
       </button>
 
       <p className="text-muted-light text-[12px]">
-        Un avis par produit et par compte.
+        Un avis par produit et par compte, publie apres validation.
       </p>
     </form>
   );

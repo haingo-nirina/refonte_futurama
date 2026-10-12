@@ -225,9 +225,9 @@ export function getActivePromotion(
 // ---------------------------------------------------------------------- Avis
 
 /**
- * `GET /products/:id` porte deja les avis du produit : seul le depot passe par
- * ici. L'avis est publie directement, la liste rendue cote serveur doit donc
- * etre relue apres l'appel.
+ * `GET /products/:id` porte deja les avis approuves du produit : seul le depot
+ * passe par ici. L'avis arrive en attente, il n'apparaitra sur la fiche
+ * qu'une fois valide depuis le backoffice.
  */
 export function createReview(input: ReviewInput): Promise<ProductReview> {
   return request<ProductReview>("/reviews", {
@@ -237,8 +237,20 @@ export function createReview(input: ReviewInput): Promise<ProductReview> {
 }
 
 /**
+ * L'avis du compte connecte sur ce produit, quel que soit son statut — `null`
+ * s'il n'en a pas. La fiche ne liste que les approuves : sans cet appel,
+ * l'auteur d'un avis en attente ne le retrouverait nulle part.
+ */
+export function getMyReview(productId: string): Promise<ProductReview | null> {
+  return request<ProductReview | null>(
+    `/reviews/mine${toQuery({ product_id: productId })}`,
+  );
+}
+
+/**
  * Modification et suppression sont reservees a l'auteur : le backend refuse
- * en 403 l'avis d'un autre compte, le backoffice n'y touche pas.
+ * en 403 l'avis d'un autre compte, le backoffice n'y touche pas. Une
+ * modification repasse l'avis en attente de validation.
  */
 export function updateReview(
   id: string,

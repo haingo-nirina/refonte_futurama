@@ -106,6 +106,14 @@ export default async function AdminDashboardPage() {
               </strong>
             </li>
             <li className="flex items-center justify-between gap-3">
+              <Link href="/admin/avis" className="hover:text-brand">
+                Avis a valider
+              </Link>
+              <strong className="font-display text-navy text-lg">
+                {stats.pendingReviews}
+              </strong>
+            </li>
+            <li className="flex items-center justify-between gap-3">
               <span>Produits hors ligne</span>
               <strong className="font-display text-navy text-lg">
                 {stats.catalog.inactiveProducts}
