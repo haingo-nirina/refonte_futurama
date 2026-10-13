@@ -10,11 +10,14 @@ import {
  * brute plutot que d'afficher un vide si une nouvelle valeur apparait.
  */
 const ORDER_TONE: Record<OrderStatus, string> = {
-  pending: "bg-tint-warm text-tint-warm-ink",
-  confirmed: "bg-tint-cool text-tint-cool-ink",
-  shipped: "bg-tint-cool text-tint-cool-accent",
-  delivered: "bg-success-soft text-success",
-  cancelled: "bg-line text-muted",
+  EN_ATTENTE_PAIEMENT: "bg-tint-warm text-tint-warm-ink",
+  PAYEE: "bg-tint-cool text-tint-cool-ink",
+  EN_PREPARATION: "bg-tint-cool text-tint-cool-ink",
+  EXPEDIEE: "bg-tint-cool text-tint-cool-accent",
+  PRETE_A_RETIRER: "bg-tint-cool text-tint-cool-accent",
+  LIVREE: "bg-success-soft text-success",
+  RETIREE: "bg-success-soft text-success",
+  ANNULEE: "bg-line text-muted",
 };
 
 const BASE =

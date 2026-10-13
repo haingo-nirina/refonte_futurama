@@ -14,6 +14,8 @@ import { ResellersModule } from './resellers/resellers.module';
 import { PostsModule } from './posts/posts.module';
 import { StatsModule } from './stats/stats.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { DeliveryZonesModule } from './delivery-zones/delivery-zones.module';
+import { StoresModule } from './stores/stores.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { UploadsModule } from './uploads/uploads.module';
     PostsModule,
     StatsModule,
     UploadsModule,
+    DeliveryZonesModule,
+    StoresModule,
   ],
   controllers: [AppController],
   providers: [AppService],

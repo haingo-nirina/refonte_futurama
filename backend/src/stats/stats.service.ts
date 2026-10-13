@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { MODERATION_STATUS, ORDER_STATUS } from '../common/constants';
+import {
+  MODERATION_STATUS,
+  ORDER_STATUS,
+  PAYMENT_STATUS,
+} from '../common/constants';
 
 /** En-deca de ce stock, un produit remonte dans l'alerte du tableau de bord. */
 const LOW_STOCK_THRESHOLD = 5;
@@ -41,11 +45,13 @@ function serializeBuckets(buckets: Map<string, SalesBucket>, label: string) {
 }
 
 /**
- * Une commande annulee ne compte pas dans le chiffre d'affaires ; elle reste
- * visible dans la repartition par statut.
+ * Seule une commande payee compte dans le chiffre d'affaires : une commande en
+ * attente de paiement ou annulee reste visible dans la repartition par statut.
+ * Une commande annulee apres paiement (remboursement) en sort aussi.
  */
 const REVENUE_WHERE: Prisma.OrderWhereInput = {
-  status: { not: ORDER_STATUS.CANCELLED },
+  paymentStatus: PAYMENT_STATUS.PAYE,
+  status: { not: ORDER_STATUS.ANNULEE },
 };
 
 @Injectable()
@@ -124,8 +130,8 @@ export class StatsService {
         orderBy: { stock: 'asc' },
         take: 10,
       }),
-      // Les commandes annulees sont ecartees : un produit commande puis annule
-      // n'a pas ete vendu, meme regle que le chiffre d'affaires.
+      // Seules les commandes payees comptent : un produit commande puis jamais
+      // paye n'a pas ete vendu, meme regle que le chiffre d'affaires.
       // groupBy sur productName et non productId : une ligne de commande
       // survit a la suppression du produit (productId passe a NULL), le nom
       // reste fige. C'est la meme convention que le reste d'order_items.
@@ -141,7 +147,8 @@ export class StatsService {
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
-          shippingName: true,
+          number: true,
+          contactName: true,
           status: true,
           total: true,
           createdAt: true,

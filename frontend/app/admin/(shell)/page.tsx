@@ -100,9 +100,9 @@ export default async function AdminDashboardPage() {
         <Panel title="A traiter">
           <ul className="space-y-3 text-[13.5px]">
             <li className="flex items-center justify-between gap-3">
-              <span>Commandes en attente</span>
+              <span>Commandes payees a preparer</span>
               <strong className="font-display text-navy text-lg">
-                {stats.orders.byStatus.pending ?? 0}
+                {stats.orders.byStatus.PAYEE ?? 0}
               </strong>
             </li>
             <li className="flex items-center justify-between gap-3">
@@ -173,7 +173,7 @@ export default async function AdminDashboardPage() {
                 >
                   <div className="min-w-0">
                     <p className="truncate text-[13.5px] font-semibold">
-                      {order.shippingName}
+                      {order.contactName}
                     </p>
                     <p className="text-muted text-[12px]">
                       {formatDateTime(order.createdAt)}

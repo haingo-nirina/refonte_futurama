@@ -149,9 +149,9 @@ export default async function AdminOrdersPage({
                     </span>
                   </Td>
                   <Td>
-                    <span className="block">{order.shippingName}</span>
+                    <span className="block">{order.contactName}</span>
                     <span className="text-muted text-[12px]">
-                      {order.shippingPhone}
+                      {order.contactPhone}
                     </span>
                   </Td>
                   <Td>{order.items.length}</Td>

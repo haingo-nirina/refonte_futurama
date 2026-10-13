@@ -3,13 +3,21 @@ import 'dotenv/config';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import {
+  FULFILLMENT_METHOD,
   MODERATION_STATUS,
   ORDER_STATUS,
   PAYMENT_METHOD,
+  PAYMENT_STATUS,
   RELATION_TYPE,
   USER_ROLE,
 } from '../src/common/constants';
 import { PrismaService } from '../src/prisma/prisma.service';
+import {
+  DELIVERY_ZONES,
+  STORE,
+  seedDeliveryZones,
+  seedStore,
+} from './checkout-data';
 
 /**
  * Jeu de donnees de developpement.
@@ -962,7 +970,7 @@ async function seedPosts(userIds: Map<string, string>) {
  */
 async function seedDemoOrder(
   productIds: Map<string, string>,
-  userIds: Map<string, string>,
+  zoneIds: Map<string, string>,
 ) {
   if ((await prisma.order.count()) > 0) {
     return false;
@@ -994,26 +1002,59 @@ async function seedDemoOrder(
     (sum, item) => sum.add(item.unitPrice.mul(item.quantity)),
     new Prisma.Decimal(0),
   );
-  const shippingFee = new Prisma.Decimal('8000');
+  const zone = DELIVERY_ZONES[0];
+  const shippingFee =
+    zone.freeThreshold && subtotal.gte(zone.freeThreshold)
+      ? new Prisma.Decimal(0)
+      : new Prisma.Decimal(zone.price);
 
   const buyer = await prisma.user.findUniqueOrThrow({
     where: { email: 'fry@planetexpress.test' },
   });
 
+  const year = new Date().getFullYear();
+  const counter = await prisma.orderCounter.upsert({
+    where: { year },
+    update: { lastValue: { increment: 1 } },
+    create: { year, lastValue: 1 },
+  });
+  const paidAt = new Date();
+
   await prisma.order.create({
     data: {
+      number: `FUT-${year}-${String(counter.lastValue).padStart(6, '0')}`,
       userId: buyer.id,
-      // Copie figee : l'adresse de livraison de cette commande ne suit pas les
-      // modifications ulterieures du profil.
-      shippingName: buyer.fullName,
-      shippingPhone: buyer.phone!,
+      fulfillmentMethod: FULFILLMENT_METHOD.LIVRAISON,
+      // Copie figee : le contact et l'adresse de cette commande ne suivent pas
+      // les modifications ulterieures du profil.
+      contactName: buyer.fullName,
+      contactPhone: buyer.phone!,
       shippingAddress: buyer.address!,
-      status: ORDER_STATUS.CONFIRMED,
+      deliveryZoneId: zoneIds.get(zone.name)!,
+      deliveryZoneName: zone.name,
+      deliveryDelayDays: zone.delayDays,
+      status: ORDER_STATUS.EN_PREPARATION,
+      paymentStatus: PAYMENT_STATUS.PAYE,
       paymentMethod: PAYMENT_METHOD.MVOLA,
+      mvolaPhone: buyer.phone!,
+      paidAt,
       subtotal,
       shippingFee,
       total: subtotal.add(shippingFee),
       items: { create: items },
+      statusHistory: {
+        create: [
+          { toStatus: ORDER_STATUS.EN_ATTENTE_PAIEMENT },
+          {
+            fromStatus: ORDER_STATUS.EN_ATTENTE_PAIEMENT,
+            toStatus: ORDER_STATUS.PAYEE,
+          },
+          {
+            fromStatus: ORDER_STATUS.PAYEE,
+            toStatus: ORDER_STATUS.EN_PREPARATION,
+          },
+        ],
+      },
     },
   });
 
@@ -1035,7 +1076,10 @@ async function main() {
   await seedResellers();
   await seedPosts(userIds);
 
-  const orderCreated = await seedDemoOrder(productIds, userIds);
+  const zoneIds = await seedDeliveryZones(prisma);
+  await seedStore(prisma);
+
+  const orderCreated = await seedDemoOrder(productIds, zoneIds);
 
   console.log(`  comptes      ${userIds.size} (mot de passe ${DEMO_PASSWORD})`);
   console.log(`  categories   ${categoryIds.size}`);
@@ -1046,6 +1090,8 @@ async function main() {
   console.log(`  avis         ${REVIEWS.length}`);
   console.log(`  revendeurs   ${RESELLERS.length}`);
   console.log(`  articles     ${POSTS.length}`);
+  console.log(`  zones        ${zoneIds.size}`);
+  console.log(`  boutique     ${STORE.name}`);
   console.log(
     `  commande demo ${orderCreated ? 'creee' : 'ignoree (commandes existantes)'}`,
   );

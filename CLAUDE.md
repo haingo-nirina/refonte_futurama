@@ -43,7 +43,9 @@ src/<domaine>/
   dto/<action>-<x>.dto.ts   # validation class-validator
 ```
 
-Modules existants : `auth`, `categories`, `products`, `marques`, `cart`, `orders`, `reviews`, `resellers`, `posts`, `stats`. `PrismaService` est fourni par `src/prisma/`, déclaré `@Global()` : il s'injecte directement dans n'importe quel service sans réimporter `PrismaModule`.
+Modules existants : `auth`, `categories`, `products`, `marques`, `cart`, `orders`, `reviews`, `resellers`, `posts`, `stats`, `delivery-zones`, `stores`.
+
+`delivery-zones` et `stores` sont en lecture publique (`GET /delivery-zones`, `GET /stores`, actifs uniquement) : la page panier les charge au rendu serveur. **`POST /orders` ne lit aucun montant dans la requête** : prix relus sur le produit (promotion active comprise), frais via `shippingFeeFor` (`delivery-zones/shipping-fee.ts`), stock réservé par un décrément conditionnel dans la transaction (409 si insuffisant), numéro via `nextOrderNumber`. Le numéro MVola est normalisé puis validé (034/038, `common/mvola-phone.ts`), avec la même règle côté front dans `lib/checkout.ts`. `PrismaService` est fourni par `src/prisma/`, déclaré `@Global()` : il s'injecte directement dans n'importe quel service sans réimporter `PrismaModule`.
 
 `marques` porte les **marques** de produit (Moulinex, Tefal…). La table s'appelle `marques` et le modèle `Marque` : l'ancien `Vendor` a été renommé, il désignait déjà une marque (migration `20260828155500_rename_vendors_to_marques`, un renommage — les lignes existantes et les produits rattachés ont été conservés).
 
@@ -110,7 +112,7 @@ Le catalogue (produits, catégories, marques) et le blog restent publics **en le
 
 - Le controller ne contient **jamais** de logique métier ni d'appel Prisma direct — il délègue tout au service.
 - Toute entrée utilisateur passe par un DTO validé (`class-validator`), y compris les query params. Sur un texte obligatoire, `@Transform(trim)` (`src/common/trim.ts`) précède `@IsNotEmpty()` : le validateur ne trimme pas, une suite d'espaces passerait pour un texte renseigné.
-- Pas de chaîne de statut en dur : utiliser `src/common/constants.ts`, qui reprend les valeurs commentées dans `schema.prisma` (statuts de commande, moyens de paiement, statuts de modération, types de relation produit). Y ajouter toute nouvelle valeur plutôt que de l'inliner.
+- Pas de chaîne de statut en dur : utiliser `src/common/constants.ts`, qui reprend les valeurs commentées dans `schema.prisma` (statuts de modération, types de relation produit) et ré-exporte les **enums Prisma** de la commande (`ORDER_STATUS`, `PAYMENT_STATUS`, `PAYMENT_METHOD`, `FULFILLMENT_METHOD`, `PAYMENT_TRANSACTION_STATUS`). Y ajouter toute nouvelle valeur plutôt que de l'inliner.
 - Tout nouveau module doit être ajouté aux `imports` de `src/app.module.ts`.
 - Une route d'écriture sans `@AdminOnly()` est publique. Le vérifier explicitement à chaque ajout.
 
@@ -144,15 +146,17 @@ Trois modules, à ne pas confondre :
 
 `request()` dans `lib/api.ts` pose `Authorization: Bearer` tout seul dans le navigateur. Côté serveur le cookie n'est pas lisible depuis ce module : passer explicitement `await getServerToken()` en second argument (`getOrder(id, token)`, `getMyOrders(token)`).
 
-Le rattachement du panier anonyme est gratuit : après `startSession()`, un `notifyCartUpdated()` refait lire `GET /cart` avec le token, et le backend rattache le panier au compte. C'est ce que fait `components/auth-form.tsx`.
+Le rattachement du panier anonyme est gratuit : après `startSession()`, un `notifyCartUpdated()` refait lire `GET /cart` avec le token, et le backend fusionne le panier visiteur dans celui du compte. C'est ce que fait `components/auth-form.tsx`.
 
 `?next=` passe toujours par `safeNextPath()` (routes internes uniquement) — sinon c'est une redirection ouverte.
 
 ### Conventions métier encodées dans le schéma
 
 - Un visiteur non connecté est identifié par un `session_id` (panier uniquement), passé en query string. Les likes et commentaires d'articles sont désormais rattachés à un compte.
-- Le panier peut démarrer anonyme (`Cart.userId` nullable) : la première requête authentifiée sur ce `session_id` le rattache au compte. Un panier déjà rattaché à un autre compte n'est jamais revendiqué, et `POST /orders` le refuse en 403.
-- `Order.userId` est obligatoire, mais `shippingName` / `shippingPhone` / `shippingAddress` restent dupliqués sur la commande : l'adresse de livraison d'une commande peut différer du profil et ne doit pas bouger si le profil change ensuite. Même logique que `order_items`.
+- Le panier peut démarrer anonyme (`Cart.userId` nullable). **Connecté, on lit le panier du compte, pas celui du `session_id`** (`CartService.getCart`) : le panier visiteur de la session y est fusionné (quantités additionnées, plafonnées au stock — `mergedQuantity`) puis supprimé ; un panier de session rattaché à un autre compte est ignoré sans erreur (navigateur partagé). Un anonyme ne reçoit jamais le panier d'un compte. `POST /orders` passe par la même résolution.
+- `Order.userId` est obligatoire, mais `contactName` / `contactPhone` / `shippingAddress` restent dupliqués sur la commande : le contact et l'adresse d'une commande peuvent différer du profil et ne doivent pas bouger si le profil change ensuite. Même logique que `order_items`, et que `deliveryZoneName` / `deliveryDelayDays`, copiés depuis la zone. (`contact_*` s'appelaient `shipping_name` / `shipping_phone` : renommées par la migration `20261013090000_checkout_mvola`, qui a aussi converti les anciens statuts texte vers les enums.)
+- Mode de réception (`fulfillmentMethod`) : en `LIVRAISON`, `shippingAddress` + `deliveryZone*` sont renseignés ; en `RETRAIT_BOUTIQUE`, c'est `storeId`. `DeliveryZone` porte le prix, le délai en jours ouvrés et un seuil de gratuité optionnel ; `Store` les boutiques de retrait (une seule pour l'instant, Analakely).
+- `Order.number` (`FUT-AAAA-000123`) est attribué via `OrderCounter`, un compteur par année incrémenté dans la transaction de création.
 - `Review` porte `@@unique([productId, userId])` : un avis par produit et par compte, quel que soit le statut de modération du précédent. Le service traduit le `P2002` en 409 — mais la boutique n'y arrive plus, elle propose de modifier l'avis existant au lieu d'en reproposer un. **`PATCH|DELETE /reviews/:id` sont réservées à l'auteur** : le service compare `userId` au JWT et répond 403 sinon, sans exception pour l'admin (le backoffice modère, il ne réécrit pas). `PATCH` n'accepte ni `productId` ni auteur ; `comment: null` ne garde que la note.
 - `order_items` fige `productName` et `unitPrice` au moment de la commande : une commande ne doit pas bouger si le produit change ensuite.
 - Le nom affiché d'un avis ou d'un commentaire vient du compte (`authorName` n'existe plus) : tout affichage doit joindre `user`. Les services le font déjà via leurs constantes `AUTHOR_INCLUDE` / `COMMENT_AUTHOR_INCLUDE`.
@@ -167,7 +171,7 @@ Le rattachement du panier anonyme est gratuit : après `startSession()`, un `not
 
 `prisma/seed.ts`, branché via `migrations.seed` dans `prisma.config.ts` (Prisma 7 : plus de clé `prisma.seed` dans `package.json`). Il tourne sous `ts-node` forcé en CommonJS, et réutilise `PrismaService` directement — pas de second `PrismaClient` à maintenir avec la config TLS.
 
-Contenu : 10 comptes (dont `admin@futurama.test`, seul rôle `admin`), 8 catégories (arborescentes), 5 marques, 15 produits avec images, specs, relations `similar` / `frequently_bought_together`, 3 promotions dont une expirée, 8 avis couvrant les trois statuts de modération, 5 revendeurs, 4 articles dont un brouillon — l'un de leurs commentaires portant une réponse de la boutique —, et une commande de démonstration.
+Contenu : 10 comptes (dont `admin@futurama.test`, seul rôle `admin`), 8 catégories (arborescentes), 5 marques, 15 produits avec images, specs, relations `similar` / `frequently_bought_together`, 3 promotions dont une expirée, 8 avis couvrant les trois statuts de modération, 5 revendeurs, 4 articles dont un brouillon — l'un de leurs commentaires portant une réponse de la boutique —, 3 zones de livraison (tarifs provisoires), la boutique d'Analakely, et une commande de démonstration.
 
 Tous les comptes du seed partagent le mot de passe `futurama2026` (`DEMO_PASSWORD` dans `seed.ts`) — valeur de développement, sans plus. Les avis, commentaires et likes référencent un compte par son email.
 
@@ -227,7 +231,7 @@ C'est ce qui fait que `/catalogue/[categorySlug]` charge le rayon **complet** (`
 - **La colonne de filtres du catalogue est un formulaire GET** (`components/catalogue/`) : les critères vivent dans l'URL, le rendu reste serveur. `filter-form.tsx` ne fait que naviguer (`router.push` dans un `useTransition`, d'où le voile d'attente : un rendu coûte quelques secondes) et retombe sur la soumission native sans JS. `page` n'est jamais repris — changer un filtre ramène en page 1. Chaque groupe correspond à une donnée que l'API renvoie vraiment (marque, stock, `isPremium`, prix) : la maquette montre aussi des notes, un vendeur et des options de livraison, que rien n'alimente. Les compteurs d'une facette sont calculés **sans** cette facette (`applyFilters(..., except)`), sinon cocher une marque ramènerait les autres à zéro.
 - `Product.marque` n'est joint que par `GET /products` (la liste) : une lecture unitaire ou un produit lié revient sans, d'où son type optionnel.
 - Le visiteur est identifié par un `session_id` généré et stocké en localStorage (`lib/session.ts`). Après toute mutation du panier, appeler `notifyCartUpdated()` : le badge du header écoute cet événement.
-- Le panier reste ouvert aux visiteurs, mais **commander exige un compte** : `CheckoutForm` affiche un appel à la connexion tant que `useAuth()` ne renvoie pas d'utilisateur. Les champs du formulaire sont `shippingName` / `shippingPhone` / `shippingAddress`, préremplis depuis le profil et modifiables — le backend les fige sur la commande. `userId` n'est jamais envoyé, il vient du JWT.
+- Le panier reste ouvert aux visiteurs, mais **commander exige un compte** : `CheckoutForm` affiche un appel à la connexion tant que `useAuth()` ne renvoie pas d'utilisateur. Le récapitulatif (`app/(boutique)/panier/checkout-form.tsx`) propose livraison (zone + adresse) ou retrait (boutique + carte Google Maps en `<iframe>`, sans clé), puis ouvre une popup de confirmation avant `POST /orders`. Les champs `contactName` / `contactPhone` / `shippingAddress` / `mvolaPhone` sont préremplis depuis le profil et modifiables — le backend les fige sur la commande. `userId` n'est jamais envoyé, il vient du JWT.
 - Un `401` sur une route protégée renvoie vers `/connexion?next=…` plutôt que d'afficher l'erreur brute ; un `403` sur une commande est traité comme un `404` (ne pas révéler qu'elle existe).
 - Les montants arrivent en **chaîne** (`Decimal` Prisma sérialisé). Les parser via `lib/format.ts`, jamais avec un `Number()` inline.
 - Les visuels du seed (`/images/products/*.jpg`) n'existent pas dans `public/`. `components/product-image.tsx` retombe sur un aplat ; il traite aussi le cas d'une image déjà en 404 au rendu serveur, où `onError` ne se déclenche jamais. Les photos téléversées depuis le backoffice, elles, sont servies sous `/uploads/products/…` (voir *Visuels téléversés*).

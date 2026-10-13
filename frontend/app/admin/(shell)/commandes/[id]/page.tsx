@@ -113,10 +113,10 @@ export default async function AdminOrderDetailPage({
               Livraison
             </h2>
             {/* Adresse figee sur la commande : elle ne suit pas le profil. */}
-            <p className="text-[13.5px] font-semibold">{order.shippingName}</p>
-            <p className="text-muted text-[12.5px]">{order.shippingPhone}</p>
+            <p className="text-[13.5px] font-semibold">{order.contactName}</p>
+            <p className="text-muted text-[12.5px]">{order.contactPhone}</p>
             <p className="mt-2 text-[13px] whitespace-pre-line">
-              {order.shippingAddress}
+              {order.shippingAddress ?? "Retrait en boutique"}
             </p>
           </section>
 

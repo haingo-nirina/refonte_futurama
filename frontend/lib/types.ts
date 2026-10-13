@@ -158,13 +158,21 @@ export type OrderItem = {
 
 export type Order = {
   id: string;
+  /** Numero lisible FUT-AAAA-000123 */
+  number: string;
   userId: string;
-  /** Adresse de CETTE commande, figee : elle ne suit pas le profil du compte. */
-  shippingName: string;
-  shippingPhone: string;
-  shippingAddress: string;
+  fulfillmentMethod: FulfillmentMethod;
+  /** Contact et adresse de CETTE commande, figes : ils ne suivent pas le profil. */
+  contactName: string;
+  contactPhone: string;
+  /** null en retrait boutique */
+  shippingAddress: string | null;
+  deliveryZoneName: string | null;
+  store: Store | null;
+  mvolaPhone: string | null;
   paymentMethod: PaymentMethod;
-  status: string;
+  paymentStatus: PaymentStatus;
+  status: OrderStatus;
   subtotal: string;
   shippingFee: string;
   total: string;
@@ -174,20 +182,51 @@ export type Order = {
 
 /** Doit rester aligne sur `backend/src/common/constants.ts`. */
 export const PAYMENT_METHODS = [
-  { value: "cash_on_delivery", label: "Paiement a la livraison" },
-  { value: "mvola", label: "Mvola" },
-  { value: "orange_money", label: "Orange Money" },
+  { value: "MVOLA", label: "MVola" },
+  // anciennes commandes uniquement : le backend refuse ce moyen a la creation
+  { value: "CASH_ON_DELIVERY", label: "Paiement a la livraison" },
 ] as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]["value"];
 
-/** `userId` n'y figure pas : le backend le lit sur le JWT, jamais sur le body. */
+/**
+ * Ni `userId` ni montant : le compte vient du JWT, les prix et les frais de
+ * livraison sont recalcules par le backend depuis le catalogue et la zone.
+ */
 export type CreateOrderInput = {
   session_id: string;
-  shippingName: string;
-  shippingPhone: string;
-  shippingAddress: string;
-  paymentMethod: PaymentMethod;
+  fulfillmentMethod: FulfillmentMethod;
+  contactName: string;
+  contactPhone: string;
+  /** Livraison uniquement */
+  deliveryZoneId?: string;
+  shippingAddress?: string;
+  /** Retrait uniquement */
+  storeId?: string;
+  paymentMethod: "MVOLA";
+  mvolaPhone: string;
+};
+
+/** Zone de livraison (`GET /delivery-zones`) ; montants en chaine. */
+export type DeliveryZone = {
+  id: string;
+  name: string;
+  price: string;
+  /** Jours ouvres */
+  delayDays: number;
+  freeThreshold: string | null;
+};
+
+/** Boutique de retrait (`GET /stores`). */
+export type Store = {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  /** Multi-lignes */
+  openingHours: string;
+  latitude: string | null;
+  longitude: string | null;
 };
 
 // ------------------------------------------------------------- Publications
@@ -407,14 +446,34 @@ export type CategoryInput = {
 
 /** Doit rester aligne sur `backend/src/common/constants.ts`. */
 export const ORDER_STATUSES = [
-  { value: "pending", label: "En attente" },
-  { value: "confirmed", label: "Confirmee" },
-  { value: "shipped", label: "Expediee" },
-  { value: "delivered", label: "Livree" },
-  { value: "cancelled", label: "Annulee" },
+  { value: "EN_ATTENTE_PAIEMENT", label: "En attente de paiement" },
+  { value: "PAYEE", label: "Payee" },
+  { value: "EN_PREPARATION", label: "En preparation" },
+  { value: "EXPEDIEE", label: "Expediee" },
+  { value: "LIVREE", label: "Livree" },
+  { value: "PRETE_A_RETIRER", label: "Prete a retirer" },
+  { value: "RETIREE", label: "Retiree" },
+  { value: "ANNULEE", label: "Annulee" },
 ] as const;
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number]["value"];
+
+/** Doit rester aligne sur l'enum `PaymentStatus` de `schema.prisma`. */
+export const PAYMENT_STATUSES = [
+  { value: "NON_PAYE", label: "Non paye" },
+  { value: "PAYE", label: "Paye" },
+  { value: "ECHOUE", label: "Echoue" },
+] as const;
+
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number]["value"];
+
+/** Doit rester aligne sur l'enum `FulfillmentMethod` de `schema.prisma`. */
+export const FULFILLMENT_METHODS = [
+  { value: "LIVRAISON", label: "Livraison" },
+  { value: "RETRAIT_BOUTIQUE", label: "Retrait en boutique" },
+] as const;
+
+export type FulfillmentMethod = (typeof FULFILLMENT_METHODS)[number]["value"];
 
 /** Le compte auteur, joint sur toutes les lectures de commande. */
 export type OrderCustomer = { id: string; email: string; fullName: string };
@@ -467,7 +526,8 @@ export type DashboardStats = {
   topProducts: { productName: string; quantity: number }[];
   recentOrders: {
     id: string;
-    shippingName: string;
+    number: string;
+    contactName: string;
     status: OrderStatus;
     total: string;
     createdAt: string;

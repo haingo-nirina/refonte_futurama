@@ -5,9 +5,11 @@ import type {
   Cart,
   Category,
   CreateOrderInput,
+  DeliveryZone,
   MarqueDetail,
   LoginInput,
   Order,
+  Store,
   Paginated,
   Post,
   PostComment,
@@ -283,6 +285,16 @@ export function addCartItem(
   });
 }
 
+// ------------------------------------------------------- Livraison / retrait
+
+export function getDeliveryZones(): Promise<DeliveryZone[]> {
+  return request<DeliveryZone[]>("/delivery-zones");
+}
+
+export function getStores(): Promise<Store[]> {
+  return request<Store[]>("/stores");
+}
+
 // ----------------------------------------------------------------- Commandes
 
 export function createOrder(input: CreateOrderInput): Promise<Order> {
@@ -332,10 +344,7 @@ export function unlikePost(id: string): Promise<Post> {
 }
 
 /** L'auteur n'est pas dans le corps : le backend le lit sur le JWT. */
-export function commentPost(
-  id: string,
-  comment: string,
-): Promise<PostComment> {
+export function commentPost(id: string, comment: string): Promise<PostComment> {
   return request<PostComment>(`/posts/${id}/comments`, {
     method: "POST",
     body: JSON.stringify({ comment }),

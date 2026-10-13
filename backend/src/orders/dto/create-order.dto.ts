@@ -1,44 +1,78 @@
+import { Transform } from 'class-transformer';
 import {
   IsIn,
   IsNotEmpty,
-  IsNumber,
-  IsOptional,
   IsString,
-  Min,
+  IsUUID,
+  Matches,
+  MaxLength,
+  ValidateIf,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { PAYMENT_METHODS } from '../../common/constants';
-import type { PaymentMethod } from '../../common/constants';
+import {
+  FULFILLMENT_METHOD,
+  FULFILLMENT_METHODS,
+  PAYMENT_METHOD,
+} from '../../common/constants';
+import type { FulfillmentMethod, PaymentMethod } from '../../common/constants';
+import {
+  MVOLA_PHONE_PATTERN,
+  normalizeMgPhone,
+} from '../../common/mvola-phone';
+import { trim } from '../../common/trim';
+
+const isDelivery = (dto: CreateOrderDto) =>
+  dto.fulfillmentMethod === FULFILLMENT_METHOD.LIVRAISON;
+const isPickup = (dto: CreateOrderDto) =>
+  dto.fulfillmentMethod === FULFILLMENT_METHOD.RETRAIT_BOUTIQUE;
 
 /**
- * Le proprietaire de la commande n'est pas dans ce DTO : il vient du JWT.
- * Seule l'adresse de livraison de CETTE commande est fournie ici — elle peut
- * differer du profil (livrer chez un proche, au bureau...) et reste figee.
+ * Ni le proprietaire ni aucun montant ne figurent ici : le compte vient du JWT,
+ * les prix et les frais de livraison sont recalcules par le serveur depuis le
+ * catalogue et la zone. Le client ne choisit que le contenu de sa commande.
  */
 export class CreateOrderDto {
-  /** Panier source : la commande est construite a partir de ce session_id. */
+  /** Panier visiteur a fusionner dans celui du compte avant de commander. */
   @IsString()
   @IsNotEmpty()
   session_id: string;
 
+  @IsIn(FULFILLMENT_METHODS)
+  fulfillmentMethod: FulfillmentMethod;
+
+  @Transform(trim)
   @IsString()
   @IsNotEmpty()
-  shippingName: string;
+  @MaxLength(120)
+  contactName: string;
 
+  @Transform(normalizeMgPhone)
   @IsString()
   @IsNotEmpty()
-  shippingPhone: string;
+  @MaxLength(20)
+  contactPhone: string;
 
+  @ValidateIf(isDelivery)
+  @IsUUID()
+  deliveryZoneId?: string;
+
+  @ValidateIf(isDelivery)
+  @Transform(trim)
   @IsString()
   @IsNotEmpty()
-  shippingAddress: string;
+  @MaxLength(500)
+  shippingAddress?: string;
 
-  @IsIn(PAYMENT_METHODS)
+  @ValidateIf(isPickup)
+  @IsUUID()
+  storeId?: string;
+
+  // CASH_ON_DELIVERY n'existe plus que sur les anciennes commandes
+  @IsIn([PAYMENT_METHOD.MVOLA])
   paymentMethod: PaymentMethod;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  shippingFee?: number;
+  @Transform(normalizeMgPhone)
+  @Matches(MVOLA_PHONE_PATTERN, {
+    message: 'Le numero MVola doit commencer par 034 ou 038 (10 chiffres)',
+  })
+  mvolaPhone: string;
 }

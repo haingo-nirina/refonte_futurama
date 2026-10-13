@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddCartItemDto } from './dto/add-cart-item.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
@@ -15,39 +16,146 @@ const CART_INCLUDE = {
   },
 } as const;
 
+type CartWithItems = Prisma.CartGetPayload<{ include: { items: true } }>;
+
+/**
+ * Quantite apres fusion : somme des deux paniers, plafonnee au stock. Jamais
+ * en dessous de ce que le compte avait deja — la fusion ajoute, elle ne retire
+ * pas ; c'est la commande qui verifie le stock au final.
+ */
+export function mergedQuantity(
+  accountQuantity: number,
+  guestQuantity: number,
+  stock: number,
+): number {
+  return Math.max(
+    accountQuantity,
+    Math.min(accountQuantity + guestQuantity, Math.max(stock, 0)),
+  );
+}
+
 @Injectable()
 export class CartService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Recupere le panier de la session, ou le cree s'il n'existe pas encore.
+   * Panier de l'appelant, cree s'il n'existe pas encore.
    *
-   * `userId` est optionnel : ajouter au panier ne demande pas de compte. Quand
-   * l'appelant est connecte, un panier encore anonyme est rattache a son
-   * compte. Un panier deja rattache a un autre compte n'est jamais revendique.
+   * - Visiteur : le panier anonyme de son `session_id`. Un panier deja rattache
+   *   a un compte n'est jamais servi a un anonyme (navigateur partage, compte
+   *   deconnecte) : il en recoit un neuf.
+   * - Connecte : le panier **du compte**, quel que soit le `session_id`. Le
+   *   panier visiteur de la session y est fusionne puis supprime ; un panier de
+   *   session rattache a un autre compte est simplement ignore.
    */
   async getCart(sessionId: string, userId?: string) {
-    const existing = await this.prisma.cart.findFirst({
-      where: { sessionId },
-      include: CART_INCLUDE,
-    });
+    if (!userId) {
+      const guest = await this.findGuestCart(sessionId);
 
-    if (existing) {
-      if (userId && !existing.userId) {
-        return this.prisma.cart.update({
-          where: { id: existing.id },
-          data: { userId },
+      return (
+        guest ??
+        this.prisma.cart.create({
+          data: { sessionId, userId: null },
           include: CART_INCLUDE,
-        });
-      }
-
-      return existing;
+        })
+      );
     }
 
-    return this.prisma.cart.create({
-      data: { sessionId, userId: userId ?? null },
+    const cartId = await this.prisma.$transaction(async (tx) => {
+      const [accountCart, guestCart] = await Promise.all([
+        tx.cart.findFirst({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          include: { items: true },
+        }),
+        tx.cart.findFirst({
+          where: { sessionId, userId: null },
+          include: { items: true },
+        }),
+      ]);
+
+      // Premier panier du compte : le panier visiteur devient le sien tel quel.
+      if (!accountCart) {
+        if (guestCart) {
+          await tx.cart.update({
+            where: { id: guestCart.id },
+            data: { userId },
+          });
+          return guestCart.id;
+        }
+
+        const created = await tx.cart.create({
+          data: { sessionId, userId },
+        });
+        return created.id;
+      }
+
+      if (guestCart) {
+        await this.mergeInto(tx, accountCart, guestCart);
+      }
+
+      return accountCart.id;
+    });
+
+    return this.findCartById(cartId);
+  }
+
+  private findGuestCart(sessionId: string) {
+    return this.prisma.cart.findFirst({
+      where: { sessionId, userId: null },
       include: CART_INCLUDE,
     });
+  }
+
+  /**
+   * Verse les lignes du panier visiteur dans celui du compte, puis supprime le
+   * panier visiteur. Un produit present des deux cotes voit ses quantites
+   * additionnees, plafonnees au stock : la fusion ne doit pas fabriquer une
+   * quantite que la commande refuserait ensuite. Une ligne sans stock
+   * disponible n'est pas reprise.
+   */
+  private async mergeInto(
+    tx: Prisma.TransactionClient,
+    accountCart: CartWithItems,
+    guestCart: CartWithItems,
+  ) {
+    const products = await tx.product.findMany({
+      where: { id: { in: guestCart.items.map((item) => item.productId) } },
+      select: { id: true, stock: true },
+    });
+    const stockById = new Map(products.map((p) => [p.id, p.stock]));
+
+    for (const guestItem of guestCart.items) {
+      const existing = accountCart.items.find(
+        (item) => item.productId === guestItem.productId,
+      );
+      const quantity = mergedQuantity(
+        existing?.quantity ?? 0,
+        guestItem.quantity,
+        stockById.get(guestItem.productId) ?? 0,
+      );
+
+      if (existing) {
+        if (quantity > existing.quantity) {
+          await tx.cartItem.update({
+            where: { id: existing.id },
+            data: { quantity, unitPrice: guestItem.unitPrice },
+          });
+        }
+      } else if (quantity > 0) {
+        await tx.cartItem.create({
+          data: {
+            cartId: accountCart.id,
+            productId: guestItem.productId,
+            quantity,
+            unitPrice: guestItem.unitPrice,
+          },
+        });
+      }
+    }
+
+    // Les lignes partent avec le panier (onDelete: Cascade).
+    await tx.cart.delete({ where: { id: guestCart.id } });
   }
 
   /**

@@ -1,12 +1,24 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { USER_ROLE } from '../common/constants';
+import {
+  FULFILLMENT_METHOD,
+  ORDER_STATUS,
+  USER_ROLE,
+} from '../common/constants';
+import { shippingFeeFor } from '../delivery-zones/shipping-fee';
+import {
+  activePromotionInclude,
+  discountedPrice,
+} from '../promotions/promotion-pricing';
+import { nextOrderNumber } from './order-number';
 import type { AuthenticatedUser } from '../auth/jwt-payload';
+import { CartService } from '../cart/cart.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { FindOrdersQueryDto } from './dto/find-orders-query.dto';
@@ -14,6 +26,7 @@ import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 const ORDER_INCLUDE = {
   items: true,
+  store: true,
   // le compte auteur : le backoffice en a besoin, et un client n'y lit que
   // ses propres coordonnees
   user: { select: { id: true, email: true, fullName: true } },
@@ -21,59 +34,108 @@ const ORDER_INCLUDE = {
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cartService: CartService,
+  ) {}
 
   /**
-   * Flux "Passer la commande" : lit le panier de la session, fige le prix et le
-   * nom de chaque produit dans les order_items, puis vide le panier.
+   * Flux "Passer la commande", entierement recalcule cote serveur :
    *
-   * `userId` vient du JWT, jamais du body : le client ne choisit pas a quel
-   * compte rattacher sa commande.
+   * - prix de chaque ligne relu sur le produit (promotion active comprise), pas
+   *   sur `CartItem.unitPrice` fige a l'ajout ;
+   * - frais de livraison lus sur la zone, gratuits au-dela de son seuil ou en
+   *   retrait boutique ;
+   * - stock verifie et reserve dans la meme transaction : un decrement
+   *   conditionnel (`stock >= quantite`) refuse la commande si un autre client
+   *   a pris les dernieres unites entre-temps, et l'erreur annule tout.
+   *
+   * `userId` vient du JWT, jamais du body.
    */
   async createFromCart(userId: string, dto: CreateOrderDto) {
-    const cart = await this.prisma.cart.findFirst({
-      where: { sessionId: dto.session_id },
-      include: { items: { include: { product: true } } },
-    });
+    // Le panier du compte, panier visiteur de la session fusionne dedans : un
+    // panier de session rattache a un autre compte n'est jamais lu ici.
+    const cart = await this.cartService.getCart(dto.session_id, userId);
 
-    if (!cart || cart.items.length === 0) {
+    if (cart.items.length === 0) {
       throw new BadRequestException(
         'Le panier est vide, impossible de creer une commande',
       );
     }
 
-    // Un panier deja rattache a un autre compte n'est pas commandable :
-    // connaitre un session_id ne doit pas suffire a vider le panier d'autrui.
-    if (cart.userId && cart.userId !== userId) {
-      throw new ForbiddenException('Ce panier appartient a un autre compte');
-    }
-
-    const subtotal = cart.items.reduce(
-      (sum, item) => sum.add(item.unitPrice.mul(item.quantity)),
-      new Prisma.Decimal(0),
-    );
-    const shippingFee = new Prisma.Decimal(dto.shippingFee ?? 0);
-    const total = subtotal.add(shippingFee);
-
     return this.prisma.$transaction(async (tx) => {
+      const products = await tx.product.findMany({
+        where: { id: { in: cart.items.map((item) => item.productId) } },
+        include: { promotions: activePromotionInclude() },
+      });
+      const productById = new Map(products.map((p) => [p.id, p]));
+
+      const lines = cart.items.map((item) => {
+        const product = productById.get(item.productId);
+        if (!product || !product.isActive) {
+          throw new BadRequestException(
+            `« ${item.product.name} » n'est plus disponible : retirez-le du panier`,
+          );
+        }
+
+        const promotion = product.promotions[0];
+        return {
+          productId: product.id,
+          // copie figee : la commande ne doit pas bouger si le produit change
+          productName: product.name,
+          quantity: item.quantity,
+          unitPrice: promotion
+            ? discountedPrice(product.price, promotion.discountPercent)
+            : product.price,
+          stock: product.stock,
+        };
+      });
+
+      const subtotal = lines.reduce(
+        (sum, line) => sum.add(line.unitPrice.mul(line.quantity)),
+        new Prisma.Decimal(0),
+      );
+
+      const fulfillment = await this.resolveFulfillment(tx, dto, subtotal);
+
+      for (const line of lines) {
+        const reserved = await tx.product.updateMany({
+          where: { id: line.productId, stock: { gte: line.quantity } },
+          data: { stock: { decrement: line.quantity } },
+        });
+        if (reserved.count === 0) {
+          throw new ConflictException(
+            `Stock insuffisant pour « ${line.productName} » : ${Math.max(line.stock, 0)} disponible(s)`,
+          );
+        }
+      }
+
       const order = await tx.order.create({
         data: {
+          number: await nextOrderNumber(tx),
           userId,
-          shippingName: dto.shippingName,
-          shippingPhone: dto.shippingPhone,
-          shippingAddress: dto.shippingAddress,
+          fulfillmentMethod: dto.fulfillmentMethod,
+          contactName: dto.contactName,
+          contactPhone: dto.contactPhone,
+          ...fulfillment.data,
           paymentMethod: dto.paymentMethod,
+          mvolaPhone: dto.mvolaPhone,
           subtotal,
-          shippingFee,
-          total,
+          shippingFee: fulfillment.shippingFee,
+          total: subtotal.add(fulfillment.shippingFee),
           items: {
-            create: cart.items.map((item) => ({
-              productId: item.productId,
-              // copie figee : la commande ne doit pas bouger si le produit change
-              productName: item.product.name,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
+            create: lines.map((line) => ({
+              productId: line.productId,
+              productName: line.productName,
+              quantity: line.quantity,
+              unitPrice: line.unitPrice,
             })),
+          },
+          statusHistory: {
+            create: {
+              toStatus: ORDER_STATUS.EN_ATTENTE_PAIEMENT,
+              changedById: userId,
+            },
           },
         },
         include: ORDER_INCLUDE,
@@ -81,13 +143,51 @@ export class OrdersService {
 
       await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
-      // Le panier invite devient celui du compte qui vient de commander.
-      if (!cart.userId) {
-        await tx.cart.update({ where: { id: cart.id }, data: { userId } });
-      }
-
       return order;
     });
+  }
+
+  /**
+   * Ce que le mode de reception ajoute a la commande, et ses frais. La zone et
+   * la boutique sont relues en base : un identifiant desactive ou invente est
+   * refuse.
+   */
+  private async resolveFulfillment(
+    tx: Prisma.TransactionClient,
+    dto: CreateOrderDto,
+    subtotal: Prisma.Decimal,
+  ) {
+    if (dto.fulfillmentMethod === FULFILLMENT_METHOD.LIVRAISON) {
+      const zone = await tx.deliveryZone.findFirst({
+        where: { id: dto.deliveryZoneId, isActive: true },
+      });
+      if (!zone) {
+        throw new BadRequestException('Zone de livraison inconnue');
+      }
+
+      return {
+        shippingFee: shippingFeeFor(zone, subtotal),
+        data: {
+          shippingAddress: dto.shippingAddress,
+          deliveryZoneId: zone.id,
+          // copies figees : modifier la zone ne doit pas changer la commande
+          deliveryZoneName: zone.name,
+          deliveryDelayDays: zone.delayDays,
+        },
+      };
+    }
+
+    const store = await tx.store.findFirst({
+      where: { id: dto.storeId, isActive: true },
+    });
+    if (!store) {
+      throw new BadRequestException('Boutique de retrait inconnue');
+    }
+
+    return {
+      shippingFee: new Prisma.Decimal(0),
+      data: { storeId: store.id },
+    };
   }
 
   /**
@@ -134,8 +234,9 @@ export class OrdersService {
 
     if (query.q) {
       where.OR = [
-        { shippingName: { contains: query.q, mode: 'insensitive' } },
-        { shippingPhone: { contains: query.q, mode: 'insensitive' } },
+        { number: { contains: query.q, mode: 'insensitive' } },
+        { contactName: { contains: query.q, mode: 'insensitive' } },
+        { contactPhone: { contains: query.q, mode: 'insensitive' } },
         { user: { email: { contains: query.q, mode: 'insensitive' } } },
       ];
     }

@@ -32,6 +32,11 @@
   --color-tint-warm-ink: oklch(0.32 0.05 25);
   --color-tint-warm-accent: oklch(0.53 0.16 25);
 
+  /* Jaune MVola : pastille du moyen de paiement et encart de validation. */
+  --color-mvola: oklch(0.87 0.17 95);
+  --color-mvola-soft: oklch(0.97 0.05 95);
+  --color-mvola-ink: oklch(0.35 0.06 85);
+
   --font-display: var(--font-archivo), system-ui, sans-serif;
   --font-sans: var(--font-dm-sans), system-ui, sans-serif;
 }

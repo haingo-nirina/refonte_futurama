@@ -3,28 +3,31 @@
  * Elles doivent rester alignees sur les commentaires de prisma/schema.prisma.
  */
 
-// Order.status
-export const ORDER_STATUS = {
-  PENDING: 'pending',
-  CONFIRMED: 'confirmed',
-  SHIPPED: 'shipped',
-  DELIVERED: 'delivered',
-  CANCELLED: 'cancelled',
-} as const;
+import {
+  FulfillmentMethod,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  PaymentTransactionStatus,
+} from '@prisma/client';
 
-export const ORDER_STATUSES = Object.values(ORDER_STATUS);
-export type OrderStatus = (typeof ORDER_STATUS)[keyof typeof ORDER_STATUS];
-
-// Order.paymentMethod
-export const PAYMENT_METHOD = {
-  CASH_ON_DELIVERY: 'cash_on_delivery',
-  MVOLA: 'mvola',
-  ORANGE_MONEY: 'orange_money',
-} as const;
-
-export const PAYMENT_METHODS = Object.values(PAYMENT_METHOD);
-export type PaymentMethod =
-  (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD];
+// Order.status, Order.paymentStatus, Order.fulfillmentMethod, Order.paymentMethod
+// et Payment.status sont des enums Prisma : leurs valeurs viennent du client
+// genere, reprises ici pour garder un seul point d'entree.
+export const ORDER_STATUS = OrderStatus;
+export const ORDER_STATUSES = Object.values(OrderStatus);
+export const PAYMENT_STATUS = PaymentStatus;
+export const PAYMENT_METHOD = PaymentMethod;
+export const FULFILLMENT_METHOD = FulfillmentMethod;
+export const FULFILLMENT_METHODS = Object.values(FulfillmentMethod);
+export const PAYMENT_TRANSACTION_STATUS = PaymentTransactionStatus;
+export type {
+  FulfillmentMethod,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  PaymentTransactionStatus,
+};
 
 // Review.moderationStatus
 export const MODERATION_STATUS = {

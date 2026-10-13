@@ -14,20 +14,21 @@ datasource db {
 // (moderation des avis, changement de statut de commande) qui n'ont
 // pour l'instant aucune protection -- a traiter en meme temps que ce module
 model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  passwordHash String        @map("password_hash")
-  fullName     String        @map("full_name")
-  phone        String?
-  address      String?
-  role         String        @default("customer")
-  carts        Cart[]
-  orders       Order[]
-  reviews      Review[]
-  postComments PostComment[]
-  postLikes    PostLike[]
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  id                 String               @id @default(uuid())
+  email              String               @unique
+  passwordHash       String               @map("password_hash")
+  fullName           String               @map("full_name")
+  phone              String?
+  address            String?
+  role               String               @default("customer")
+  carts              Cart[]
+  orders             Order[]
+  reviews            Review[]
+  postComments       PostComment[]
+  postLikes          PostLike[]
+  orderStatusChanges OrderStatusHistory[]
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -191,28 +192,52 @@ model CartItem {
 }
 
 // userId obligatoire : passer commande exige d'etre connecte.
-// shippingName/Phone/Address restent dupliques (pas juste une reference
-// a users) : l'adresse de livraison d'UNE commande peut differer du
-// profil (livrer chez un proche, au bureau...) et ne doit jamais bouger
-// retroactivement si le profil change ensuite.
-// status: pending | confirmed | shipped | delivered | cancelled
-// paymentMethod: cash_on_delivery | mvola | orange_money
+// contactName/Phone et shippingAddress restent dupliques (pas juste une
+// reference a users) : le contact et l'adresse d'UNE commande peuvent differer
+// du profil (livrer chez un proche, au bureau...) et ne doivent jamais bouger
+// retroactivement si le profil change ensuite. Meme logique pour le nom et le
+// delai de la zone, copies au moment de la commande.
+//
+// shippingAddress / deliveryZone* : renseignes en LIVRAISON, null en retrait.
+// storeId : renseigne en RETRAIT_BOUTIQUE, null en livraison.
+// Les transitions de statut autorisees sont dans src/orders/order-status.ts.
 model Order {
-  id              String      @id @default(uuid())
-  userId          String      @map("user_id")
-  user            User        @relation(fields: [userId], references: [id], onDelete: Restrict)
-  shippingName    String      @map("shipping_name")
-  shippingPhone   String      @map("shipping_phone")
-  shippingAddress String      @map("shipping_address")
-  status          String      @default("pending")
-  paymentMethod   String      @map("payment_method")
-  subtotal        Decimal     @db.Decimal(12, 2)
-  shippingFee     Decimal     @default(0) @map("shipping_fee") @db.Decimal(12, 2)
-  total           Decimal     @db.Decimal(12, 2)
-  items           OrderItem[]
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
+  id                 String               @id @default(uuid())
+  /// Numero lisible FUT-AAAA-000123, attribue via OrderCounter
+  number             String               @unique
+  userId             String               @map("user_id")
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  fulfillmentMethod  FulfillmentMethod    @map("fulfillment_method")
+  contactName        String               @map("contact_name")
+  contactPhone       String               @map("contact_phone")
+  shippingAddress    String?              @map("shipping_address")
+  deliveryZoneId     String?              @map("delivery_zone_id")
+  deliveryZone       DeliveryZone?        @relation(fields: [deliveryZoneId], references: [id], onDelete: SetNull)
+  deliveryZoneName   String?              @map("delivery_zone_name")
+  deliveryDelayDays  Int?                 @map("delivery_delay_days")
+  /// Calculee au paiement, en jours ouvres depuis paidAt
+  expectedDeliveryAt DateTime?            @map("expected_delivery_at") @db.Date
+  storeId            String?              @map("store_id")
+  store              Store?               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  status             OrderStatus          @default(EN_ATTENTE_PAIEMENT)
+  paymentStatus      PaymentStatus        @default(NON_PAYE) @map("payment_status")
+  paymentMethod      PaymentMethod        @map("payment_method")
+  mvolaPhone         String?              @map("mvola_phone")
+  subtotal           Decimal              @db.Decimal(12, 2)
+  shippingFee        Decimal              @default(0) @map("shipping_fee") @db.Decimal(12, 2)
+  total              Decimal              @db.Decimal(12, 2)
+  paidAt             DateTime?            @map("paid_at")
+  /// Code a 4 chiffres genere au passage a PRETE_A_RETIRER
+  pickupCode         String?              @map("pickup_code") @db.Char(4)
+  pickupCodeAttempts Int                  @default(0) @map("pickup_code_attempts")
+  items              OrderItem[]
+  payments           Payment[]
+  statusHistory      OrderStatusHistory[]
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
 
+  @@index([status, createdAt])
+  @@index([paidAt])
   @@map("orders")
 }
 
@@ -227,6 +252,127 @@ model OrderItem {
   unitPrice   Decimal  @map("unit_price") @db.Decimal(12, 2)
 
   @@map("order_items")
+}
+
+enum OrderStatus {
+  EN_ATTENTE_PAIEMENT
+  PAYEE
+  EN_PREPARATION
+  EXPEDIEE
+  LIVREE
+  PRETE_A_RETIRER
+  RETIREE
+  ANNULEE
+}
+
+enum PaymentStatus {
+  NON_PAYE
+  PAYE
+  ECHOUE
+}
+
+enum FulfillmentMethod {
+  LIVRAISON
+  RETRAIT_BOUTIQUE
+}
+
+// CASH_ON_DELIVERY n'est conserve que pour les commandes anterieures au
+// paiement MVola : le DTO de creation le refuse.
+enum PaymentMethod {
+  MVOLA
+  CASH_ON_DELIVERY
+}
+
+enum PaymentTransactionStatus {
+  EN_ATTENTE
+  REUSSI
+  ECHOUE
+}
+
+/// Zone de livraison : le prix facture est recalcule cote serveur depuis
+/// cette table, jamais lu dans la requete du client.
+model DeliveryZone {
+  id            String   @id @default(uuid())
+  name          String   @unique
+  price         Decimal  @db.Decimal(12, 2)
+  /// Delai en jours ouvres (lundi-vendredi, hors feries)
+  delayDays     Int      @map("delay_days")
+  /// Livraison gratuite des que le sous-total atteint ce montant
+  freeThreshold Decimal? @map("free_threshold") @db.Decimal(12, 2)
+  isActive      Boolean  @default(true) @map("is_active")
+  displayOrder  Int      @default(0) @map("display_order")
+  orders        Order[]
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("delivery_zones")
+}
+
+/// Point de retrait. Une seule boutique pour l'instant, la table en prevoit
+/// plusieurs.
+model Store {
+  id           String   @id @default(uuid())
+  name         String
+  address      String
+  phone        String
+  /// Texte multi-lignes, affiche tel quel
+  openingHours String   @map("opening_hours")
+  /// Centre de la carte ; a defaut, la carte cherche l'adresse
+  latitude     Decimal? @db.Decimal(9, 6)
+  longitude    Decimal? @db.Decimal(9, 6)
+  isActive     Boolean  @default(true) @map("is_active")
+  orders       Order[]
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("stores")
+}
+
+/// Une tentative de paiement. Plusieurs par commande possibles ; providerRef
+/// unique rend le callback idempotent.
+// provider: mvola_mock | mvola
+model Payment {
+  id            String                   @id @default(uuid())
+  orderId       String                   @map("order_id")
+  order         Order                    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  provider      String
+  providerRef   String                   @unique @map("provider_ref")
+  amount        Decimal                  @db.Decimal(12, 2)
+  phone         String
+  status        PaymentTransactionStatus @default(EN_ATTENTE)
+  rawCallback   Json?                    @map("raw_callback")
+  failureReason String?                  @map("failure_reason")
+  requestedAt   DateTime                 @default(now()) @map("requested_at")
+  completedAt   DateTime?                @map("completed_at")
+  updatedAt     DateTime                 @updatedAt @map("updated_at")
+
+  @@index([orderId])
+  @@map("payments")
+}
+
+/// changedById null = systeme (callback de paiement, annulation planifiee)
+model OrderStatusHistory {
+  id          String       @id @default(uuid())
+  orderId     String       @map("order_id")
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus  OrderStatus? @map("from_status")
+  toStatus    OrderStatus  @map("to_status")
+  changedById String?      @map("changed_by_id")
+  changedBy   User?        @relation(fields: [changedById], references: [id], onDelete: SetNull)
+  note        String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
+}
+
+/// Compteur annuel du numero de commande, incremente dans la transaction de
+/// creation : deux commandes simultanees n'obtiennent jamais le meme numero.
+model OrderCounter {
+  year      Int @id
+  lastValue Int @default(0) @map("last_value")
+
+  @@map("order_counters")
 }
 
 // =========================================================

@@ -7,10 +7,16 @@ import { getCart } from "@/lib/api";
 import { ALL_CATEGORIES_SLUG } from "@/lib/catalogue";
 import { formatPrice, toAmount } from "@/lib/format";
 import { CART_UPDATED_EVENT, getSessionId } from "@/lib/session";
-import type { Cart } from "@/lib/types";
+import type { Cart, DeliveryZone, Store } from "@/lib/types";
 import { CheckoutForm } from "./checkout-form";
 
-export function CartView() {
+export function CartView({
+  zones,
+  stores,
+}: {
+  zones: DeliveryZone[];
+  stores: Store[];
+}) {
   const [cart, setCart] = useState<Cart | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,7 +63,10 @@ export function CartView() {
     );
   }
 
-  const itemCount = cart.items.reduce((total, item) => total + item.quantity, 0);
+  const itemCount = cart.items.reduce(
+    (total, item) => total + item.quantity,
+    0,
+  );
   const subtotal = cart.items.reduce(
     (total, item) => total + toAmount(item.unitPrice) * item.quantity,
     0,
@@ -127,32 +136,18 @@ export function CartView() {
           </Link>
         </div>
 
-        <aside className="border-line bg-cream-deep rounded-[14px] border p-6">
+        <aside className="border-line bg-cream-deep rounded-[14px] border p-6 lg:sticky lg:top-6">
           <h2 className="font-display text-navy mb-5 text-lg font-bold">
-            Recapitulatif
+            Récapitulatif
           </h2>
 
-          <div className="text-muted flex justify-between py-2 text-[13.5px]">
-            <span>Sous-total</span>
-            <span className="text-ink font-medium">
-              {formatPrice(subtotal)}
-            </span>
-          </div>
-          <div className="text-muted flex justify-between py-2 text-[13.5px]">
-            <span>Livraison Antananarivo</span>
-            <span className="text-success font-medium">Offerte</span>
-          </div>
-
-          <div className="border-line mt-2 flex justify-between border-t py-4">
-            <span className="font-display text-navy text-base font-bold">
-              Total
-            </span>
-            <span className="font-display text-navy text-[22px] font-extrabold tracking-tight">
-              {formatPrice(subtotal)}
-            </span>
-          </div>
-
-          <CheckoutForm />
+          <CheckoutForm
+            items={cart.items}
+            subtotal={subtotal}
+            itemCount={itemCount}
+            zones={zones}
+            stores={stores}
+          />
         </aside>
       </div>
     </Shell>

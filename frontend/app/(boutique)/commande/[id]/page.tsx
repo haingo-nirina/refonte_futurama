@@ -4,15 +4,8 @@ import { ApiError, getOrder } from "@/lib/api";
 import { getServerToken } from "@/lib/auth-server";
 import { ALL_CATEGORIES_SLUG } from "@/lib/catalogue";
 import { formatDate, formatPrice, toAmount } from "@/lib/format";
-import { PAYMENT_METHODS, type Order } from "@/lib/types";
+import { ORDER_STATUSES, PAYMENT_METHODS, type Order } from "@/lib/types";
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: "En attente de confirmation",
-  confirmed: "Confirmee",
-  shipped: "Expediee",
-  delivered: "Livree",
-  cancelled: "Annulee",
-};
 
 /**
  * `GET /orders/:id` est protege : le token voyage dans un cookie justement
@@ -54,10 +47,10 @@ export default async function OrderConfirmationPage({
         </span>
 
         <h1 className="font-display text-navy mt-4 text-[30px] font-extrabold tracking-tight">
-          Merci {order.shippingName}&nbsp;!
+          Merci {order.contactName}&nbsp;!
         </h1>
         <p className="text-muted mt-2 text-sm">
-          Nous vous rappelons au {order.shippingPhone} pour confirmer la
+          Nous vous rappelons au {order.contactPhone} pour confirmer la
           livraison. Commande passee le {formatDate(order.createdAt)}.
         </p>
 
@@ -65,10 +58,13 @@ export default async function OrderConfirmationPage({
           <Detail label="Numero de commande" value={order.id} mono />
           <Detail
             label="Statut"
-            value={STATUS_LABELS[order.status] ?? order.status}
+            value={
+              ORDER_STATUSES.find((entry) => entry.value === order.status)
+                ?.label ?? order.status
+            }
           />
           <Detail label="Paiement" value={paymentLabel} />
-          <Detail label="Livraison" value={order.shippingAddress} />
+          <Detail label="Livraison" value={order.shippingAddress ?? "Retrait en boutique"} />
         </dl>
 
         <section className="border-line mt-8 border-t pt-6">
