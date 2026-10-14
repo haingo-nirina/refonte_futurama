@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { ImageUpload } from "@/components/admin/image-upload";
+import { TagInput } from "@/components/admin/tag-input";
 import { VideoUpload } from "@/components/admin/video-upload";
 import { ApiError } from "@/lib/api";
 import {
@@ -36,6 +37,8 @@ type FormState = {
   name: string;
   slug: string;
   reference: string;
+  colors: string[];
+  dimensions: string;
   description: string;
   price: string;
   stock: string;
@@ -51,6 +54,8 @@ function initialState(product?: AdminProduct): FormState {
     name: product?.name ?? "",
     slug: product?.slug ?? "",
     reference: product?.reference ?? "",
+    colors: product?.colors ?? [],
+    dimensions: product?.dimensions ?? "",
     description: product?.description ?? "",
     price: product?.price ?? "",
     stock: String(product?.stock ?? 0),
@@ -98,6 +103,9 @@ export function ProductForm({
       // `null` et non `undefined` : vider un champ doit le vider en base, la
       // ou un champ absent laisserait l'ancienne valeur en place.
       reference: form.reference.trim() || null,
+      // Liste complete, remplacee en bloc : `[]` vide les couleurs en base.
+      colors: form.colors,
+      dimensions: form.dimensions.trim() || null,
       description: form.description.trim() || null,
       price: Number(form.price),
       stock: Number(form.stock) || 0,
@@ -241,6 +249,25 @@ export function ProductForm({
           <input
             value={form.reference}
             onChange={(event) => set("reference", event.target.value)}
+            className="admin-input"
+          />
+        </label>
+
+        <div>
+          <span className="admin-label">Couleurs</span>
+          <TagInput
+            values={form.colors}
+            onChange={(colors) => set("colors", colors)}
+            placeholder="Noir mat, puis Entree"
+          />
+        </div>
+
+        <label className="block">
+          <span className="admin-label">Dimensions</span>
+          <input
+            value={form.dimensions}
+            onChange={(event) => set("dimensions", event.target.value)}
+            placeholder="30 x 20 x 15 cm"
             className="admin-input"
           />
         </label>

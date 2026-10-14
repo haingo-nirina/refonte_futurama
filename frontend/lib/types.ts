@@ -39,6 +39,8 @@ export type Product = {
   name: string;
   slug: string;
   reference: string | null;
+  colors: string[];
+  dimensions: string | null;
   description: string | null;
   price: string;
   stock: number;
@@ -408,6 +410,9 @@ export type ProductInput = {
   slug: string;
   /** `null` vide le champ, `undefined` laisse la valeur en place. */
   reference?: string | null;
+  /** Remplacees en bloc : `[]` vide la liste. */
+  colors?: string[];
+  dimensions?: string | null;
   description?: string | null;
   price: number;
   stock?: number;

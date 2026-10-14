@@ -1,4 +1,6 @@
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsInt,
   IsNotEmpty,
@@ -9,8 +11,9 @@ import {
   Matches,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsMediaRef } from '../../common/is-media-ref.decorator';
+import { trim } from '../../common/trim';
 
 export class CreateProductDto {
   @IsUUID()
@@ -34,6 +37,25 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   reference?: string | null;
+
+  /**
+   * Couleurs disponibles, remplacees en bloc. `[]` les vide, `undefined` les
+   * laisse en place. Chaque valeur est trimmee : une couleur vide est refusee.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @Transform(({ value }: { value: unknown }) =>
+    Array.isArray(value) ? value.map((item) => trim({ value: item })) : value,
+  )
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  colors?: string[];
+
+  /** Texte libre, unite comprise (« 30 x 20 x 15 cm »). Meme semantique `null`. */
+  @IsOptional()
+  @IsString()
+  dimensions?: string | null;
 
   @IsOptional()
   @IsString()

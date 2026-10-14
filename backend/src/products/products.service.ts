@@ -48,6 +48,8 @@ export class ProductsService {
         name: dto.name,
         slug: dto.slug,
         reference: dto.reference ?? null,
+        colors: dto.colors ?? [],
+        dimensions: dto.dimensions ?? null,
         description: dto.description ?? null,
         price: new Prisma.Decimal(dto.price),
         stock: dto.stock ?? 0,
@@ -229,6 +231,8 @@ export class ProductsService {
         name: dto.name,
         slug: dto.slug,
         reference: dto.reference,
+        colors: dto.colors,
+        dimensions: dto.dimensions,
         description: dto.description,
         price:
           dto.price === undefined ? undefined : new Prisma.Decimal(dto.price),

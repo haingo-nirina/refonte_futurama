@@ -132,13 +132,16 @@ export default async function AdminProductsPage({
         >
           <ProductBulkBar />
           <div className="border-line overflow-x-auto rounded-[14px] border bg-white">
-            <table className="w-full min-w-[980px] text-left text-[13.5px]">
+            <table className="w-full min-w-[1320px] text-left text-[13.5px]">
               <thead className="bg-cream-deep text-muted text-[12px] uppercase">
                 <tr>
                   <th className="w-10 py-3 pr-0 pl-4">
                     <ProductSelectAll />
                   </th>
                   <th className="px-4 py-3 font-semibold">Produit</th>
+                  <th className="px-4 py-3 font-semibold">Reference</th>
+                  <th className="px-4 py-3 font-semibold">Couleurs</th>
+                  <th className="px-4 py-3 font-semibold">Description</th>
                   <th className="px-4 py-3 font-semibold">Categorie</th>
                   <th className="px-4 py-3 font-semibold">Prix</th>
                   <th className="px-4 py-3 font-semibold">Stock</th>
@@ -174,17 +177,38 @@ export default async function AdminProductsPage({
                             className="size-full object-cover"
                           />
                         </span>
-                        <span className="min-w-0">
-                          <span className="group-hover:text-brand block font-semibold">
-                            {product.name}
-                          </span>
-                          {product.reference ? (
-                            <span className="text-muted block text-[12px]">
-                              {product.reference}
-                            </span>
-                          ) : null}
+                        <span className="group-hover:text-brand min-w-0 font-semibold">
+                          {product.name}
                         </span>
                       </Link>
+                    </td>
+                    <td className="text-muted px-4 py-3 text-[12.5px] whitespace-nowrap">
+                      {product.reference ?? "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {product.colors.length > 0 ? (
+                        <span className="flex max-w-[180px] flex-wrap gap-1">
+                          {product.colors.map((color) => (
+                            <span
+                              key={color}
+                              className="bg-cream-deep rounded-md px-2 py-0.5 text-[12px] whitespace-nowrap"
+                            >
+                              {color}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    <td className="text-muted px-4 py-3 text-[12.5px]">
+                      {/* Tronquee a deux lignes : le texte complet reste au survol. */}
+                      <span
+                        title={product.description ?? undefined}
+                        className="line-clamp-2 max-w-[260px]"
+                      >
+                        {product.description ?? "—"}
+                      </span>
                     </td>
                     <td className="text-muted px-4 py-3">
                       {product.category.name}

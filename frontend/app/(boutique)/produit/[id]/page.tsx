@@ -102,6 +102,27 @@ export default async function ProductPage({
             </p>
           ) : null}
 
+          {product.colors.length > 0 || product.dimensions ? (
+            <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[13px]">
+              {product.colors.length > 0 ? (
+                <>
+                  <dt className="text-muted">
+                    {product.colors.length > 1 ? "Couleurs" : "Couleur"}
+                  </dt>
+                  <dd className="text-ink font-medium">
+                    {product.colors.join(", ")}
+                  </dd>
+                </>
+              ) : null}
+              {product.dimensions ? (
+                <>
+                  <dt className="text-muted">Dimensions</dt>
+                  <dd className="text-ink font-medium">{product.dimensions}</dd>
+                </>
+              ) : null}
+            </dl>
+          ) : null}
+
           <div className="border-line bg-cream-deep mt-6 rounded-[14px] border-[1.5px] p-5">
             <span
               className={`mb-4 inline-block rounded-md px-3 py-1.5 text-[12.5px] font-semibold ${
