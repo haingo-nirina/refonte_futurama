@@ -38,6 +38,7 @@ export default async function OrderConfirmationPage({
   const paymentLabel =
     PAYMENT_METHODS.find((method) => method.value === order.paymentMethod)
       ?.label ?? order.paymentMethod;
+  const isDelivery = order.fulfillmentMethod === "LIVRAISON";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-8">
@@ -50,12 +51,14 @@ export default async function OrderConfirmationPage({
           Merci {order.contactName}&nbsp;!
         </h1>
         <p className="text-muted mt-2 text-sm">
-          Nous vous rappelons au {order.contactPhone} pour confirmer la
-          livraison. Commande passee le {formatDate(order.createdAt)}.
+          {isDelivery
+            ? `Nous vous rappelons au ${order.contactPhone} pour confirmer la livraison.`
+            : "Vous recevrez un SMS avec votre code de retrait dès que la commande sera prête."}{" "}
+          Commande passée le {formatDate(order.createdAt)}.
         </p>
 
         <dl className="border-line mt-8 grid gap-x-8 gap-y-4 border-t pt-6 sm:grid-cols-2">
-          <Detail label="Numero de commande" value={order.id} mono />
+          <Detail label="Numéro de commande" value={order.number} mono />
           <Detail
             label="Statut"
             value={
@@ -64,7 +67,23 @@ export default async function OrderConfirmationPage({
             }
           />
           <Detail label="Paiement" value={paymentLabel} />
-          <Detail label="Livraison" value={order.shippingAddress ?? "Retrait en boutique"} />
+          {isDelivery ? (
+            <Detail
+              label="Livraison"
+              value={[order.shippingAddress, order.deliveryZoneName]
+                .filter(Boolean)
+                .join(" — ")}
+            />
+          ) : (
+            <Detail
+              label="Retrait en boutique"
+              value={
+                order.store
+                  ? `${order.store.name} — ${order.store.address}`
+                  : "Boutique de retrait"
+              }
+            />
+          )}
         </dl>
 
         <section className="border-line mt-8 border-t pt-6">
@@ -96,10 +115,12 @@ export default async function OrderConfirmationPage({
             </span>
           </div>
           <div className="text-muted mt-1 flex justify-between text-[13.5px]">
-            <span>Livraison</span>
+            <span>{isDelivery ? "Livraison" : "Retrait en boutique"}</span>
             <span className="text-ink font-medium">
               {toAmount(order.shippingFee) === 0
-                ? "Offerte"
+                ? isDelivery
+                  ? "Offerte"
+                  : "Gratuit"
                 : formatPrice(order.shippingFee)}
             </span>
           </div>

@@ -27,11 +27,14 @@ export const DELIVERY_ZONES = [
 
 /** Boutique d'Analakely, seul point de retrait pour l'instant. */
 export const STORE = {
-  name: 'Futurama.mg Analakely',
-  address:
-    "42, avenue de l'Indépendance, Analakely, Antananarivo 101, Madagascar",
-  phone: '+261 32 40 656 67',
+  name: 'Futurama Tsaralalana',
+  address: '68, rue de Liège, Tsaralalana, Antananarivo',
+  phone: '032 11 310 20',
   openingHours: 'Lun – Ven : 8h30 à 12h30 – 14h à 17h\nSam : 8h30 à 12h30',
+  // Position relevée sur Google Maps (colonnes en Decimal(9, 6))
+  latitude: new Prisma.Decimal('-18.907143'),
+  longitude: new Prisma.Decimal('47.521455'),
+  pickupDelayDays: 0,
 };
 
 export async function seedDeliveryZones(prisma: PrismaService) {

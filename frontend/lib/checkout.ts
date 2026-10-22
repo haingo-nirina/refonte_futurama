@@ -122,19 +122,37 @@ export function formatMgPhone(value: string): string {
 // ------------------------------------------------------------------- Carte
 
 /**
- * Carte Google Maps sans cle d'API : l'URL `output=embed` est publique. Centree
- * sur les coordonnees quand la boutique en a, sur l'adresse sinon.
+ * Carte Google Maps sans cle d'API : l'URL `output=embed` est publique.
+ *
+ * On cherche toujours par nom + adresse, jamais par coordonnees seules : des
+ * chiffres affichent un repere anonyme, et l'itineraire les « accroche » au
+ * commerce le plus proche connu de Google (un voisin, pas la boutique). Le nom
+ * ouvre la fiche Google de la boutique elle-meme.
  */
 export function storeMapQuery(store: Store): string {
-  return store.latitude && store.longitude
-    ? `${store.latitude},${store.longitude}`
-    : `${store.name}, ${store.address}`;
+  return `${store.name}, ${store.address}`;
 }
 
+/** Les coordonnees, quand il y en a, ne servent qu'a centrer la carte. */
 export function storeMapEmbedUrl(store: Store): string {
-  return `https://maps.google.com/maps?q=${encodeURIComponent(storeMapQuery(store))}&z=16&output=embed`;
+  const center =
+    store.latitude && store.longitude
+      ? `&ll=${store.latitude},${store.longitude}`
+      : "";
+
+  return `https://maps.google.com/maps?q=${encodeURIComponent(storeMapQuery(store))}${center}&z=16&output=embed`;
 }
 
 export function storeDirectionsUrl(store: Store): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(storeMapQuery(store))}`;
+}
+
+// --------------------------------------------------------------- Retrait
+
+/** Badge d'une boutique au panier : « En stock » ou « Prêt sous N jours ». */
+export function pickupAvailability(store: Store): string {
+  const days = store.pickupDelayDays;
+  if (days <= 0) return "En stock";
+
+  return `Prêt sous ${days} jour${days > 1 ? "s" : ""}`;
 }

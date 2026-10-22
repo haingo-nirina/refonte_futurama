@@ -7,6 +7,8 @@ import type {
   Category,
   CategoryInput,
   DashboardStats,
+  DeliveryZoneDetail,
+  DeliveryZoneInput,
   MarqueDetail,
   MarqueInput,
   ModerationStatus,
@@ -22,6 +24,8 @@ import type {
   Promotion,
   PromotionInput,
   RelationType,
+  StoreDetail,
+  StoreInput,
 } from "./types";
 
 /**
@@ -237,6 +241,70 @@ export function updateMarque(
 /** Les produits de la marque ne sont pas supprimes : ils sont detaches. */
 export function deleteMarque(id: string): Promise<MarqueDetail> {
   return request<MarqueDetail>(`/marques/${id}`, { method: "DELETE" });
+}
+
+// ------------------------------------------------------ Livraison & retrait
+
+/**
+ * `GET /delivery-zones` et `GET /stores` (publics, `lib/api.ts`) ne renvoient
+ * que les actifs : le backoffice lit la liste complete via `/admin`.
+ */
+export function getAdminDeliveryZones(
+  token?: string,
+): Promise<DeliveryZoneDetail[]> {
+  return request<DeliveryZoneDetail[]>("/delivery-zones/admin", { token });
+}
+
+export function createDeliveryZone(
+  input: DeliveryZoneInput,
+): Promise<DeliveryZoneDetail> {
+  return request<DeliveryZoneDetail>("/delivery-zones", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateDeliveryZone(
+  id: string,
+  input: Partial<DeliveryZoneInput>,
+): Promise<DeliveryZoneDetail> {
+  return request<DeliveryZoneDetail>(`/delivery-zones/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Les commandes passees gardent leur copie du nom de zone. */
+export function deleteDeliveryZone(id: string): Promise<DeliveryZoneDetail> {
+  return request<DeliveryZoneDetail>(`/delivery-zones/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function getAdminStores(token?: string): Promise<StoreDetail[]> {
+  return request<StoreDetail[]>("/stores/admin", { token });
+}
+
+export function createStore(input: StoreInput): Promise<StoreDetail> {
+  return request<StoreDetail>("/stores", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateStore(
+  id: string,
+  input: Partial<StoreInput>,
+): Promise<StoreDetail> {
+  return request<StoreDetail>(`/stores/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+/** 409 si des commandes y ont ete retirees : la desactiver plutot. */
+export function deleteStore(id: string): Promise<StoreDetail> {
+  return request<StoreDetail>(`/stores/${id}`, { method: "DELETE" });
 }
 
 // --------------------------------------------------------------- Promotions

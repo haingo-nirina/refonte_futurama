@@ -5,8 +5,13 @@ import { OrderStatusForm } from "@/components/admin/order-status-form";
 import { ApiError } from "@/lib/api";
 import { getAdminOrder } from "@/lib/admin-api";
 import { getServerToken } from "@/lib/auth-server";
-import { formatDateTime, formatPrice } from "@/lib/format";
-import { PAYMENT_METHODS, type OrderStatus } from "@/lib/types";
+import { formatMgPhone } from "@/lib/checkout";
+import { formatDateTime, formatPrice, toAmount } from "@/lib/format";
+import {
+  PAYMENT_METHODS,
+  PAYMENT_STATUSES,
+  type OrderStatus,
+} from "@/lib/types";
 
 export const metadata = { title: "Detail commande" };
 
@@ -25,6 +30,10 @@ export default async function AdminOrderDetailPage({
   const paymentLabel =
     PAYMENT_METHODS.find((entry) => entry.value === order.paymentMethod)
       ?.label ?? order.paymentMethod;
+  const paymentStatusLabel =
+    PAYMENT_STATUSES.find((entry) => entry.value === order.paymentStatus)
+      ?.label ?? order.paymentStatus;
+  const isDelivery = order.fulfillmentMethod === "LIVRAISON";
 
   return (
     <div className="max-w-4xl">
@@ -38,7 +47,7 @@ export default async function AdminOrderDetailPage({
       <header className="mt-3 mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-navy text-2xl font-extrabold">
-            Commande {order.id.slice(0, 8)}
+            Commande {order.number}
           </h1>
           <p className="text-muted mt-1 text-sm">
             {formatDateTime(order.createdAt)}
@@ -88,8 +97,16 @@ export default async function AdminOrderDetailPage({
 
           <dl className="border-line mt-4 space-y-2 border-t pt-4 text-[13.5px]">
             <Row label="Sous-total" value={formatPrice(order.subtotal)} />
-            <Row label="Livraison" value={formatPrice(order.shippingFee)} />
-            <Row label="Paiement" value={paymentLabel} />
+            <Row
+              label={isDelivery ? "Livraison" : "Retrait en boutique"}
+              value={
+                toAmount(order.shippingFee) === 0
+                  ? isDelivery
+                    ? "Offerte"
+                    : "Gratuit"
+                  : formatPrice(order.shippingFee)
+              }
+            />
             <div className="flex justify-between pt-2">
               <dt className="font-display text-navy font-extrabold">Total</dt>
               <dd className="font-display text-brand text-lg font-extrabold">
@@ -110,14 +127,63 @@ export default async function AdminOrderDetailPage({
 
           <section className="admin-card">
             <h2 className="font-display text-navy mb-3 text-[15px] font-extrabold">
-              Livraison
+              Contact
             </h2>
-            {/* Adresse figee sur la commande : elle ne suit pas le profil. */}
+            {/* Contact fige sur la commande : il ne suit pas le profil. */}
             <p className="text-[13.5px] font-semibold">{order.contactName}</p>
-            <p className="text-muted text-[12.5px]">{order.contactPhone}</p>
-            <p className="mt-2 text-[13px] whitespace-pre-line">
-              {order.shippingAddress ?? "Retrait en boutique"}
+            <p className="text-muted text-[12.5px]">
+              {formatMgPhone(order.contactPhone)}
             </p>
+          </section>
+
+          <section className="admin-card">
+            <h2 className="font-display text-navy mb-3 text-[15px] font-extrabold">
+              {isDelivery ? "Me faire livrer" : "Récupérer en boutique"}
+            </h2>
+            {isDelivery ? (
+              <>
+                {/* Zone et delai copies a la commande : ils ne suivent pas la zone. */}
+                <p className="text-[13.5px] font-semibold">
+                  {order.deliveryZoneName ?? "Zone inconnue"}
+                </p>
+                {order.deliveryDelayDays !== null ? (
+                  <p className="text-muted text-[12.5px]">
+                    {order.deliveryDelayDays} jour(s) ouvré(s)
+                  </p>
+                ) : null}
+                <p className="mt-2 text-[13px] whitespace-pre-line">
+                  {order.shippingAddress}
+                </p>
+              </>
+            ) : order.store ? (
+              <>
+                <p className="text-[13.5px] font-semibold">
+                  {order.store.name}
+                </p>
+                <p className="text-muted text-[12.5px]">
+                  {order.store.address}
+                </p>
+                <p className="text-muted text-[12.5px]">{order.store.phone}</p>
+              </>
+            ) : (
+              <p className="text-muted text-[13px]">Boutique inconnue</p>
+            )}
+          </section>
+
+          <section className="admin-card">
+            <h2 className="font-display text-navy mb-3 text-[15px] font-extrabold">
+              Paiement
+            </h2>
+            <dl className="space-y-2 text-[13.5px]">
+              <Row label="Moyen" value={paymentLabel} />
+              {order.mvolaPhone ? (
+                <Row
+                  label="Numéro MVola"
+                  value={formatMgPhone(order.mvolaPhone)}
+                />
+              ) : null}
+              <Row label="État" value={paymentStatusLabel} />
+            </dl>
           </section>
 
           <section className="admin-card">

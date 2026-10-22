@@ -12,6 +12,7 @@ import {
   formatMgPhone,
   isValidMvolaPhone,
   normalizeMgPhone,
+  pickupAvailability,
   shippingFeeFor,
   storeDirectionsUrl,
   storeMapEmbedUrl,
@@ -67,13 +68,13 @@ function Checkout({
   stores,
 }: Props & { user: AuthUser | null }) {
   const router = useRouter();
-  const store = stores[0] ?? null;
 
   const [method, setMethod] = useState<FulfillmentMethod>("LIVRAISON");
   const [contactName, setContactName] = useState(user?.fullName ?? "");
   const [contactPhone, setContactPhone] = useState(user?.phone ?? "");
   const [zoneId, setZoneId] = useState(zones[0]?.id ?? "");
   const [address, setAddress] = useState(user?.address ?? "");
+  const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
   // Le numéro MVola suit le téléphone du contact tant qu'on ne l'a pas modifié.
   const [mvolaPhone, setMvolaPhone] = useState<string | null>(null);
   const [mvolaError, setMvolaError] = useState<string | null>(null);
@@ -83,11 +84,16 @@ function Checkout({
 
   const isDelivery = method === "LIVRAISON";
   const zone = zones.find((entry) => entry.id === zoneId) ?? null;
+  const store = stores.find((entry) => entry.id === storeId) ?? null;
   const shippingFee = isDelivery && zone ? shippingFeeFor(zone, subtotal) : 0;
   const total = subtotal + shippingFee;
   const payer = mvolaPhone ?? contactPhone;
   const expectedDelivery =
     isDelivery && zone ? addBusinessDays(new Date(), zone.delayDays) : null;
+  const expectedPickup =
+    !isDelivery && store && store.pickupDelayDays > 0
+      ? addBusinessDays(new Date(), store.pickupDelayDays)
+      : null;
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -174,11 +180,13 @@ function Checkout({
           icon={<StoreIcon />}
           title="Récupérer en boutique"
           subtitle={
-            store
-              ? `${storeArea(store)} · gratuit`
-              : "Indisponible pour le moment"
+            stores.length === 0
+              ? "Indisponible pour le moment"
+              : stores.length === 1
+                ? `${storeArea(stores[0])} · gratuit`
+                : `${stores.length} boutiques · gratuit`
           }
-          disabled={!store}
+          disabled={stores.length === 0}
         />
       </div>
 
@@ -253,9 +261,19 @@ function Checkout({
             </Field>
           ) : null}
         </Section>
-      ) : store ? (
-        <Section title="Lieu de retrait">
-          <StoreCard store={store} />
+      ) : stores.length > 0 ? (
+        <Section title="Choisissez votre boutique">
+          <div className="flex flex-col gap-2.5" role="radiogroup">
+            {stores.map((entry) => (
+              <StoreOption
+                key={entry.id}
+                store={entry}
+                selected={entry.id === storeId}
+                onSelect={() => setStoreId(entry.id)}
+              />
+            ))}
+          </div>
+          {store ? <StoreCard store={store} /> : null}
           <p className="bg-tint-cool text-tint-cool-ink rounded-[10px] px-3.5 py-3 text-[12.5px]">
             Vous recevrez un SMS avec votre code de retrait dès que la commande
             sera prête.
@@ -407,8 +425,15 @@ function Checkout({
               </p>
             </Summary>
           ) : (
-            <Summary title="Horaires">
-              <p className="whitespace-pre-line">{store?.openingHours}</p>
+            <Summary title="Retrait prévu">
+              <p>
+                {expectedPickup
+                  ? `À partir du ${formatDeliveryDate(expectedPickup)}`
+                  : "Dès le paiement validé"}
+              </p>
+              <p className="text-muted whitespace-pre-line">
+                {store?.openingHours}
+              </p>
             </Summary>
           )}
         </div>
@@ -512,6 +537,57 @@ function MethodCard({
       <span className={selected ? "text-brand" : "text-muted"}>{icon}</span>
       <span className="text-[13px] leading-tight font-semibold">{title}</span>
       <span className="text-muted text-[11px] leading-tight">{subtitle}</span>
+    </button>
+  );
+}
+
+/** Une ligne de « Choisissez votre boutique » : radio, nom, adresse, badge. */
+function StoreOption({
+  store,
+  selected,
+  onSelect,
+}: {
+  store: Store;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const inStock = store.pickupDelayDays <= 0;
+
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={onSelect}
+      className={`flex items-center gap-3 rounded-[10px] border-[1.5px] px-3.5 py-3 text-left transition ${
+        selected
+          ? "border-brand bg-tint-warm"
+          : "border-line-strong hover:border-muted-light bg-white"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`flex size-4 flex-none items-center justify-center rounded-full border-[1.5px] ${
+          selected ? "border-brand" : "border-line-strong"
+        }`}
+      >
+        {selected ? <span className="bg-brand size-2 rounded-full" /> : null}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="text-ink block text-[13.5px] font-semibold">
+          {store.name}
+        </span>
+        <span className="text-muted block truncate text-[11.5px]">
+          {store.address}
+        </span>
+      </span>
+      <span
+        className={`flex-none text-[11.5px] font-semibold ${
+          inStock ? "text-success" : "text-mvola-ink"
+        }`}
+      >
+        {pickupAvailability(store)}
+      </span>
     </button>
   );
 }

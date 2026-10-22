@@ -314,22 +314,24 @@ model DeliveryZone {
   @@map("delivery_zones")
 }
 
-/// Point de retrait. Une seule boutique pour l'instant, la table en prevoit
-/// plusieurs.
+/// Point de retrait. Le panier propose toutes les boutiques actives ; elles se
+/// gerent depuis le backoffice (/admin/livraison).
 model Store {
-  id           String   @id @default(uuid())
-  name         String
-  address      String
-  phone        String
+  id              String   @id @default(uuid())
+  name            String
+  address         String
+  phone           String
   /// Texte multi-lignes, affiche tel quel
-  openingHours String   @map("opening_hours")
-  /// Centre de la carte ; a defaut, la carte cherche l'adresse
-  latitude     Decimal? @db.Decimal(9, 6)
-  longitude    Decimal? @db.Decimal(9, 6)
-  isActive     Boolean  @default(true) @map("is_active")
-  orders       Order[]
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  openingHours    String   @map("opening_hours")
+  /// Centre seulement la carte : Google retrouve la boutique par nom + adresse
+  latitude        Decimal? @db.Decimal(9, 6)
+  longitude       Decimal? @db.Decimal(9, 6)
+  /// Jours ouvres avant qu'une commande soit prete au retrait : 0 = « En stock »
+  pickupDelayDays Int      @default(0) @map("pickup_delay_days")
+  isActive        Boolean  @default(true) @map("is_active")
+  orders          Order[]
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("stores")
 }

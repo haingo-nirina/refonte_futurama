@@ -170,6 +170,7 @@ export type Order = {
   /** null en retrait boutique */
   shippingAddress: string | null;
   deliveryZoneName: string | null;
+  deliveryDelayDays: number | null;
   store: Store | null;
   mvolaPhone: string | null;
   paymentMethod: PaymentMethod;
@@ -229,6 +230,43 @@ export type Store = {
   openingHours: string;
   latitude: string | null;
   longitude: string | null;
+  /** Jours ouvres avant que la commande soit prete : 0 = « En stock » */
+  pickupDelayDays: number;
+};
+
+/** `GET /delivery-zones/admin` : desactivees comprises, avec leurs commandes. */
+export type DeliveryZoneDetail = DeliveryZone & {
+  isActive: boolean;
+  displayOrder: number;
+  _count: { orders: number };
+};
+
+/** Montants en nombre a l'envoi ; `freeThreshold: null` retire le seuil. */
+export type DeliveryZoneInput = {
+  name: string;
+  price: number;
+  delayDays: number;
+  freeThreshold: number | null;
+  isActive: boolean;
+  displayOrder: number;
+};
+
+/** `GET /stores/admin` : desactivees comprises, avec leurs retraits. */
+export type StoreDetail = Store & {
+  isActive: boolean;
+  _count: { orders: number };
+};
+
+/** `latitude` / `longitude` a `null` : la carte cherche l'adresse. */
+export type StoreInput = {
+  name: string;
+  address: string;
+  phone: string;
+  openingHours: string;
+  latitude: number | null;
+  longitude: number | null;
+  pickupDelayDays: number;
+  isActive: boolean;
 };
 
 // ------------------------------------------------------------- Publications

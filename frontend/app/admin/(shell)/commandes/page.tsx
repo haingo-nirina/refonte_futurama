@@ -121,9 +121,9 @@ export default async function AdminOrdersPage({
           <table className="w-full min-w-[720px] text-left text-[13.5px]">
             <thead className="bg-cream-deep text-muted text-[12px] uppercase">
               <tr>
-                <Th>Date</Th>
+                <Th>Commande</Th>
                 <Th>Client</Th>
-                <Th>Livraison</Th>
+                <Th>Réception</Th>
                 <Th>Articles</Th>
                 <Th>Total</Th>
                 <Th>Statut</Th>
@@ -135,10 +135,13 @@ export default async function AdminOrdersPage({
                   <Td>
                     <Link
                       href={`/admin/commandes/${order.id}`}
-                      className="hover:text-brand font-semibold"
+                      className="hover:text-brand block font-semibold"
                     >
-                      {formatDateTime(order.createdAt)}
+                      {order.number}
                     </Link>
+                    <span className="text-muted text-[12px]">
+                      {formatDateTime(order.createdAt)}
+                    </span>
                   </Td>
                   <Td>
                     <span className="block font-semibold">
@@ -149,9 +152,15 @@ export default async function AdminOrdersPage({
                     </span>
                   </Td>
                   <Td>
-                    <span className="block">{order.contactName}</span>
+                    <span className="block">
+                      {order.fulfillmentMethod === "LIVRAISON"
+                        ? "Livraison"
+                        : "Retrait"}
+                    </span>
                     <span className="text-muted text-[12px]">
-                      {order.contactPhone}
+                      {order.fulfillmentMethod === "LIVRAISON"
+                        ? order.deliveryZoneName
+                        : order.store?.name}
                     </span>
                   </Td>
                   <Td>{order.items.length}</Td>
