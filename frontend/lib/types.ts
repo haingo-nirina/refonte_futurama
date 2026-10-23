@@ -175,6 +175,10 @@ export type Order = {
   mvolaPhone: string | null;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  /** Renseigne au passage a PAYEE */
+  paidAt: string | null;
+  /** Date prevue de livraison ou de mise a disposition, fixee au paiement */
+  expectedDeliveryAt: string | null;
   status: OrderStatus;
   subtotal: string;
   shippingFee: string;
@@ -521,7 +525,22 @@ export type FulfillmentMethod = (typeof FULFILLMENT_METHODS)[number]["value"];
 /** Le compte auteur, joint sur toutes les lectures de commande. */
 export type OrderCustomer = { id: string; email: string; fullName: string };
 
-export type AdminOrder = Order & { user: OrderCustomer };
+/** Une ligne de `order_status_history`. `fromStatus` est nul a la creation. */
+export type OrderStatusChange = {
+  id: string;
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  note: string | null;
+  createdAt: string;
+  /** Nul si le compte a ete supprime depuis */
+  changedBy: { id: string; fullName: string } | null;
+};
+
+/** `statusHistory` n'est joint qu'a la lecture unitaire, pas a la liste. */
+export type AdminOrder = Order & {
+  user: OrderCustomer;
+  statusHistory?: OrderStatusChange[];
+};
 
 /** Doit rester aligne sur `backend/src/common/constants.ts`. */
 export const MODERATION_STATUSES = [

@@ -71,10 +71,11 @@ export function getAdminOrder(id: string, token?: string): Promise<AdminOrder> {
 export function updateOrderStatus(
   id: string,
   status: OrderStatus,
+  note?: string,
 ): Promise<AdminOrder> {
   return request<AdminOrder>(`/orders/${id}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, note: note || undefined }),
   });
 }
 

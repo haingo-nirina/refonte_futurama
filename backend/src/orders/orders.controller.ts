@@ -61,9 +61,10 @@ export class OrdersController {
   @Patch(':id/status')
   @AdminOnly()
   updateStatus(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateOrderStatusDto,
   ) {
-    return this.ordersService.updateStatus(id, dto);
+    return this.ordersService.updateStatus(id, dto, user.userId);
   }
 }

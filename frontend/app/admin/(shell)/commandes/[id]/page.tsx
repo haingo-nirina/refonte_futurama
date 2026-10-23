@@ -6,8 +6,14 @@ import { ApiError } from "@/lib/api";
 import { getAdminOrder } from "@/lib/admin-api";
 import { getServerToken } from "@/lib/auth-server";
 import { formatMgPhone } from "@/lib/checkout";
-import { formatDateTime, formatPrice, toAmount } from "@/lib/format";
 import {
+  formatDate,
+  formatDateTime,
+  formatPrice,
+  toAmount,
+} from "@/lib/format";
+import {
+  ORDER_STATUSES,
   PAYMENT_METHODS,
   PAYMENT_STATUSES,
   type OrderStatus,
@@ -183,6 +189,15 @@ export default async function AdminOrderDetailPage({
                 />
               ) : null}
               <Row label="État" value={paymentStatusLabel} />
+              {order.paidAt ? (
+                <Row label="Payé le" value={formatDateTime(order.paidAt)} />
+              ) : null}
+              {order.expectedDeliveryAt ? (
+                <Row
+                  label={isDelivery ? "Livraison prévue" : "Prête le"}
+                  value={formatDate(order.expectedDeliveryAt)}
+                />
+              ) : null}
             </dl>
           </section>
 
@@ -193,11 +208,48 @@ export default async function AdminOrderDetailPage({
             <OrderStatusForm
               orderId={order.id}
               current={order.status as OrderStatus}
+              fulfillment={order.fulfillmentMethod}
             />
           </section>
+
+          {order.statusHistory?.length ? (
+            <section className="admin-card">
+              <h2 className="font-display text-navy mb-3 text-[15px] font-extrabold">
+                Historique
+              </h2>
+              <ol className="space-y-3">
+                {order.statusHistory.map((change) => (
+                  <li key={change.id} className="text-[13px]">
+                    <p className="font-semibold">
+                      {change.fromStatus
+                        ? `${statusLabel(change.fromStatus)} → `
+                        : "Création · "}
+                      {statusLabel(change.toStatus)}
+                    </p>
+                    <p className="text-muted text-[12px]">
+                      {formatDateTime(change.createdAt)}
+                      {" · "}
+                      {change.changedBy?.fullName ?? "Compte supprimé"}
+                    </p>
+                    {change.note ? (
+                      <p className="mt-1 text-[12.5px] whitespace-pre-line">
+                        {change.note}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
         </div>
       </div>
     </div>
+  );
+}
+
+function statusLabel(status: OrderStatus): string {
+  return (
+    ORDER_STATUSES.find((entry) => entry.value === status)?.label ?? status
   );
 }
 

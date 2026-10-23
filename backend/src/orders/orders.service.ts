@@ -6,9 +6,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { addBusinessDays } from '../common/business-days';
 import {
   FULFILLMENT_METHOD,
   ORDER_STATUS,
+  PAYMENT_STATUS,
   USER_ROLE,
 } from '../common/constants';
 import { shippingFeeFor } from '../delivery-zones/shipping-fee';
@@ -17,6 +19,7 @@ import {
   discountedPrice,
 } from '../promotions/promotion-pricing';
 import { nextOrderNumber } from './order-number';
+import { ORDER_STATUS_LABELS, canTransition } from './order-status-rules';
 import type { AuthenticatedUser } from '../auth/jwt-payload';
 import { CartService } from '../cart/cart.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -30,6 +33,18 @@ const ORDER_INCLUDE = {
   // le compte auteur : le backoffice en a besoin, et un client n'y lit que
   // ses propres coordonnees
   user: { select: { id: true, email: true, fullName: true } },
+} as const;
+
+/**
+ * Lecture backoffice : ajoute l'historique des statuts, avec l'admin auteur de
+ * chaque changement et sa note. Un client n'en voit rien.
+ */
+const ADMIN_ORDER_INCLUDE = {
+  ...ORDER_INCLUDE,
+  statusHistory: {
+    orderBy: { createdAt: 'asc' },
+    include: { changedBy: { select: { id: true, fullName: true } } },
+  },
 } as const;
 
 @Injectable()
@@ -253,11 +268,19 @@ export class OrdersService {
   }
 
   async findOne(id: string, user: AuthenticatedUser) {
-    const order = await this.getOrThrow(id);
+    const isAdmin = user.role === USER_ROLE.ADMIN;
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      include: isAdmin ? ADMIN_ORDER_INCLUDE : ORDER_INCLUDE,
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Commande ${id} introuvable`);
+    }
 
     // Connaitre l'id d'une commande ne doit pas suffire a lire le nom, le
     // telephone et l'adresse de livraison de quelqu'un d'autre.
-    if (order.userId !== user.userId && user.role !== USER_ROLE.ADMIN) {
+    if (order.userId !== user.userId && !isAdmin) {
       throw new ForbiddenException(
         'Cette commande appartient a un autre compte',
       );
@@ -266,29 +289,102 @@ export class OrdersService {
     return order;
   }
 
-  /** Lecture sans controle de proprietaire : reservee aux appels internes. */
-  private async getOrThrow(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
-      include: ORDER_INCLUDE,
+  /**
+   * Changement de statut par l'admin, en une seule transaction :
+   *
+   * - le passage doit etre autorise (`order-status-rules.ts`), 400 sinon ;
+   * - l'ecriture est conditionnee a l'ancien statut : si un autre admin l'a
+   *   change entre-temps, 409 plutot qu'un double traitement (une annulation
+   *   comptee deux fois remettrait deux fois le stock) ;
+   * - PAYEE marque aussi le paiement (`paymentStatus`, `paidAt`) et fixe la
+   *   date prevue, en attendant la confirmation automatique MVola ;
+   * - ANNULEE remet en stock les quantites reservees a la commande ;
+   * - chaque passage est trace dans `order_status_history`.
+   */
+  async updateStatus(id: string, dto: UpdateOrderStatusDto, adminId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id },
+        include: { items: true, store: true },
+      });
+
+      if (!order) {
+        throw new NotFoundException(`Commande ${id} introuvable`);
+      }
+
+      if (!canTransition(order.status, dto.status, order.fulfillmentMethod)) {
+        throw new BadRequestException(
+          `Passage impossible de « ${ORDER_STATUS_LABELS[order.status]} » a « ${ORDER_STATUS_LABELS[dto.status]} »`,
+        );
+      }
+
+      const updated = await tx.order.updateMany({
+        where: { id, status: order.status },
+        data: {
+          status: dto.status,
+          ...(dto.status === ORDER_STATUS.PAYEE ? paymentData(order) : {}),
+        },
+      });
+      if (updated.count === 0) {
+        throw new ConflictException(
+          'Le statut de cette commande vient de changer : rechargez la page',
+        );
+      }
+
+      if (dto.status === ORDER_STATUS.ANNULEE) {
+        for (const item of order.items) {
+          // produit supprime du catalogue depuis : plus de stock a crediter
+          if (item.productId === null) continue;
+
+          await tx.product.updateMany({
+            where: { id: item.productId },
+            data: { stock: { increment: item.quantity } },
+          });
+        }
+      }
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          fromStatus: order.status,
+          toStatus: dto.status,
+          changedById: adminId,
+          note: dto.note || null,
+        },
+      });
+
+      return tx.order.findUniqueOrThrow({
+        where: { id },
+        include: ADMIN_ORDER_INCLUDE,
+      });
     });
-
-    if (!order) {
-      throw new NotFoundException(`Commande ${id} introuvable`);
-    }
-
-    return order;
   }
+}
 
-  async updateStatus(id: string, dto: UpdateOrderStatusDto) {
-    await this.getOrThrow(id);
+/**
+ * Ce que le passage a PAYEE ecrit sur la commande. Un paiement deja confirme
+ * garde sa date. La date prevue part de `paidAt` : delai de la zone (copie sur
+ * la commande) en livraison, delai de preparation de la boutique en retrait.
+ */
+function paymentData(order: {
+  paidAt: Date | null;
+  fulfillmentMethod: string;
+  deliveryDelayDays: number | null;
+  store: { pickupDelayDays: number } | null;
+}): Prisma.OrderUpdateManyMutationInput {
+  const paidAt = order.paidAt ?? new Date();
+  const delay =
+    order.fulfillmentMethod === FULFILLMENT_METHOD.LIVRAISON
+      ? order.deliveryDelayDays
+      : (order.store?.pickupDelayDays ?? null);
 
-    return this.prisma.order.update({
-      where: { id },
-      data: { status: dto.status },
-      include: ORDER_INCLUDE,
-    });
-  }
+  return {
+    paymentStatus: PAYMENT_STATUS.PAYE,
+    paidAt,
+    ...(delay !== null
+      ? { expectedDeliveryAt: addBusinessDays(paidAt, delay) }
+      : {}),
+  };
 }
 
 /** Dernier instant du jour : borne haute inclusive d'un filtre "jusqu'au <jour>". */
