@@ -26,7 +26,7 @@ model User {
   reviews            Review[]
   postComments       PostComment[]
   postLikes          PostLike[]
-  liveComments       LiveComment[]
+  liveMessages       LiveMessage[]
   orderStatusChanges OrderStatusHistory[]
   createdAt          DateTime             @default(now()) @map("created_at")
   updatedAt          DateTime             @updatedAt @map("updated_at")
@@ -98,6 +98,7 @@ model Product {
   orderItems    OrderItem[]
   reviews       Review[]
   liveProducts  LiveProduct[]
+  liveMessages  LiveMessage[]
   createdAt     DateTime          @default(now()) @map("created_at")
   updatedAt     DateTime          @updatedAt @map("updated_at")
 
@@ -225,6 +226,10 @@ model Order {
   expectedDeliveryAt DateTime?            @map("expected_delivery_at") @db.Date
   storeId            String?              @map("store_id")
   store              Store?               @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  /// Live depuis lequel la commande a ete passee, pour mesurer ses ventes.
+  /// Restrict : supprimer un live qui a vendu effacerait sa mesure.
+  liveId             String?              @map("live_id")
+  live               Live?                @relation(fields: [liveId], references: [id], onDelete: Restrict)
   status             OrderStatus          @default(EN_ATTENTE_PAIEMENT)
   paymentStatus      PaymentStatus        @default(NON_PAYE) @map("payment_status")
   paymentMethod      PaymentMethod        @map("payment_method")
@@ -244,6 +249,7 @@ model Order {
 
   @@index([status, createdAt])
   @@index([paidAt])
+  @@index([liveId])
   @@map("orders")
 }
 
@@ -476,11 +482,14 @@ model PostComment {
 ///
 /// Le statut est pilote a la main depuis le backoffice : Facebook ne previent
 /// pas notre API du debut ni de la fin de la diffusion.
+///
+/// `facebookUrl` reste vide tant que le live est PROGRAMME : la video Facebook
+/// n'existe qu'une fois la diffusion lancee. « Demarrer » l'exige.
 model Live {
   id          String        @id @default(uuid())
   title       String
   description String?
-  facebookUrl String        @map("facebook_url")
+  facebookUrl String?       @map("facebook_url")
   status      LiveStatus    @default(PROGRAMME)
   /// Date annoncee au public ; startedAt / endedAt sont les dates reelles,
   /// posees par les boutons « Demarrer » / « Terminer ».
@@ -488,7 +497,8 @@ model Live {
   startedAt   DateTime?     @map("started_at")
   endedAt     DateTime?     @map("ended_at")
   products    LiveProduct[]
-  comments    LiveComment[]
+  messages    LiveMessage[]
+  orders      Order[]
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
 
@@ -515,17 +525,29 @@ model LiveProduct {
   @@map("live_products")
 }
 
-/// Commentaire poste depuis le site pendant le live (pas ceux de Facebook,
-/// que l'integration n'expose pas). Rattache a un compte, comme sur le mur.
-model LiveComment {
-  id        String   @id @default(uuid())
-  liveId    String   @map("live_id")
-  live      Live     @relation(fields: [liveId], references: [id], onDelete: Cascade)
-  userId    String   @map("user_id")
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  comment   String
-  createdAt DateTime @default(now()) @map("created_at")
+/// Question privee d'un client pendant le live : visible de son auteur et de
+/// la boutique seulement (pas de chat public). Rattachee a un compte.
+///
+/// Une seule reponse, de la boutique, portee par la ligne elle-meme : pas de
+/// fil, donc pas d'auto-relation comme sur le mur.
+/// `handledAt` vide = message en attente, c'est ce que compte le badge du
+/// backoffice. Repondre le renseigne aussi : une question repondue est traitee.
+model LiveMessage {
+  id        String    @id @default(uuid())
+  liveId    String    @map("live_id")
+  live      Live      @relation(fields: [liveId], references: [id], onDelete: Cascade)
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Produit concerne par la question, facultatif
+  productId String?   @map("product_id")
+  product   Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  message   String
+  reply     String?
+  repliedAt DateTime? @map("replied_at")
+  handledAt DateTime? @map("handled_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   @@index([liveId, createdAt])
-  @@map("live_comments")
+  @@index([userId, liveId])
+  @@map("live_messages")
 }
