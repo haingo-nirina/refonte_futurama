@@ -2,6 +2,7 @@ import { Transform } from 'class-transformer';
 import {
   IsIn,
   IsNotEmpty,
+  IsOptional,
   IsString,
   IsUUID,
   Matches,
@@ -75,4 +76,12 @@ export class CreateOrderDto {
     message: 'Le numero MVola doit commencer par 034 ou 038 (10 chiffres)',
   })
   mvolaPhone: string;
+
+  /**
+   * Live depuis lequel la commande est passee, pour en mesurer les ventes.
+   * Pure attribution : un identifiant inconnu est ignore, jamais bloquant.
+   */
+  @IsOptional()
+  @IsUUID()
+  liveId?: string;
 }

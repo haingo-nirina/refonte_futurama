@@ -6,6 +6,8 @@ import type {
   Category,
   CreateOrderInput,
   DeliveryZone,
+  FacebookLive,
+  Live,
   MarqueDetail,
   LoginInput,
   Order,
@@ -380,4 +382,29 @@ export function deletePostComment(
   return request<PostComment>(`/posts/${postId}/comments/${commentId}`, {
     method: "DELETE",
   });
+}
+
+// ------------------------------------------------------------ Live shopping
+
+/**
+ * Le live affiche par /live : en direct, sinon le prochain programme, sinon le
+ * dernier replay. `null` s'il n'y en a aucun. Lu en base, avec ses produits.
+ */
+export function getCurrentLive(): Promise<Live | null> {
+  return request<Live | null>("/lives/current");
+}
+
+/**
+ * Le live en direct, sans ses produits : de quoi afficher le bandeau du header.
+ *
+ * Le backend renvoie `Cache-Control: max-age=15` : contrairement au reste de
+ * l'API, on laisse le navigateur s'en servir, chaque onglet interrogeant
+ * cette route toutes les 30 s.
+ */
+export async function getCurrentFacebookLive(): Promise<FacebookLive | null> {
+  const { live } = await request<{ live: FacebookLive | null }>(
+    "/live/current",
+    { cache: "default" },
+  );
+  return live;
 }

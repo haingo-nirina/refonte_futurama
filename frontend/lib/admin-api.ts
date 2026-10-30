@@ -3,12 +3,15 @@ import type {
   AdminOrder,
   AdminProduct,
   AdminProductDetail,
+  AdminLive,
+  AdminLiveDetail,
   AdminReview,
   Category,
   CategoryInput,
   DashboardStats,
   DeliveryZoneDetail,
   DeliveryZoneInput,
+  LiveInput,
   MarqueDetail,
   MarqueInput,
   ModerationStatus,
@@ -442,6 +445,59 @@ export function moderateReview(
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
+}
+
+// ------------------------------------------------------------ Live shopping
+
+export function getAdminLives(token?: string): Promise<AdminLive[]> {
+  return request<AdminLive[]>("/lives/admin", { token });
+}
+
+export function getAdminLive(
+  id: string,
+  token?: string,
+): Promise<AdminLiveDetail> {
+  return request<AdminLiveDetail>(`/lives/admin/${id}`, { token });
+}
+
+export function createLive(input: LiveInput): Promise<AdminLiveDetail> {
+  return request<AdminLiveDetail>("/lives", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateLive(
+  id: string,
+  input: Partial<LiveInput>,
+): Promise<AdminLiveDetail> {
+  return request<AdminLiveDetail>(`/lives/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Refuse en 409 un live depuis lequel des commandes ont ete passees. */
+export function deleteLive(id: string): Promise<AdminLiveDetail> {
+  return request<AdminLiveDetail>(`/lives/${id}`, { method: "DELETE" });
+}
+
+/**
+ * Passe le live en direct avec le lien copie depuis Facebook. Sur un live
+ * deja en direct, remplace seulement le lien.
+ */
+export function startLive(
+  id: string,
+  facebookUrl: string,
+): Promise<AdminLiveDetail> {
+  return request<AdminLiveDetail>(`/lives/${id}/start`, {
+    method: "POST",
+    body: JSON.stringify({ facebookUrl }),
+  });
+}
+
+export function endLive(id: string): Promise<AdminLiveDetail> {
+  return request<AdminLiveDetail>(`/lives/${id}/end`, { method: "POST" });
 }
 
 // ------------------------------------------------------------------ Visuels

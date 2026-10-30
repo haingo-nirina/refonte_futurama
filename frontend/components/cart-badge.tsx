@@ -1,39 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { getCart } from "@/lib/api";
-import { CART_UPDATED_EVENT, getSessionId } from "@/lib/session";
+import { useCartCount } from "@/lib/use-cart-count";
 
-/**
- * Le nombre d'articles depend du localStorage : il ne peut etre lu qu'apres
- * l'hydratation. On repart de `null` (badge masque) pour eviter tout ecart
- * entre le HTML serveur et le premier rendu client.
- */
+/** Badge masque tant que le compte n'est pas connu (voir `useCartCount`). */
 export function CartBadge() {
-  const [count, setCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function refresh() {
-      try {
-        const cart = await getCart(getSessionId());
-        if (cancelled) return;
-        setCount(cart.items.reduce((total, item) => total + item.quantity, 0));
-      } catch {
-        if (!cancelled) setCount(null);
-      }
-    }
-
-    void refresh();
-    window.addEventListener(CART_UPDATED_EVENT, refresh);
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener(CART_UPDATED_EVENT, refresh);
-    };
-  }, []);
+  const count = useCartCount();
 
   return (
     <Link

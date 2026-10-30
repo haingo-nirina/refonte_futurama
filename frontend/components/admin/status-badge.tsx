@@ -1,6 +1,8 @@
 import {
+  LIVE_STATUSES,
   MODERATION_STATUSES,
   ORDER_STATUSES,
+  type LiveStatus,
   type ModerationStatus,
   type OrderStatus,
 } from "@/lib/types";
@@ -116,6 +118,26 @@ export function ModerationBadge({ status }: { status: ModerationStatus }) {
 
   return (
     <span className={`${BASE} ${MODERATION_TONE[status] ?? "bg-line text-muted"}`}>
+      {label}
+    </span>
+  );
+}
+
+const LIVE_TONE: Record<LiveStatus, string> = {
+  PROGRAMME: "bg-tint-cool text-tint-cool-ink",
+  EN_DIRECT: "bg-brand text-white",
+  TERMINE: "bg-line text-muted",
+};
+
+export function LiveStatusBadge({ status }: { status: LiveStatus }) {
+  const label =
+    LIVE_STATUSES.find((entry) => entry.value === status)?.label ?? status;
+
+  return (
+    <span className={`${BASE} ${LIVE_TONE[status] ?? "bg-line text-muted"}`}>
+      {status === "EN_DIRECT" ? (
+        <span className="mr-1.5 size-1.5 animate-pulse rounded-full bg-white" />
+      ) : null}
       {label}
     </span>
   );

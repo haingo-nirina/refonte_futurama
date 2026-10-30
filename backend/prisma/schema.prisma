@@ -480,11 +480,13 @@ model PostComment {
 /// que le front integre dans le lecteur Facebook (<iframe>). La meme URL sert
 /// de replay une fois le live termine.
 ///
-/// Le statut est pilote a la main depuis le backoffice : Facebook ne previent
-/// pas notre API du debut ni de la fin de la diffusion.
+/// Le statut suit la detection Facebook (module `facebook-live`, qui interroge
+/// la Graph API toutes les 30 s) : le live programme le plus proche passe en
+/// direct au lancement de la diffusion, puis en TERMINE a sa fin. « Terminer »
+/// reste possible a la main, en recours.
 ///
-/// `facebookUrl` reste vide tant que le live est PROGRAMME : la video Facebook
-/// n'existe qu'une fois la diffusion lancee. « Demarrer » l'exige.
+/// `facebookUrl` reste vide tant que le live est PROGRAMME : il est renseigne
+/// par la detection, jamais saisi.
 model Live {
   id          String        @id @default(uuid())
   title       String
@@ -492,7 +494,7 @@ model Live {
   facebookUrl String?       @map("facebook_url")
   status      LiveStatus    @default(PROGRAMME)
   /// Date annoncee au public ; startedAt / endedAt sont les dates reelles,
-  /// posees par les boutons « Demarrer » / « Terminer ».
+  /// posees par la detection Facebook (ou « Terminer »).
   scheduledAt DateTime      @map("scheduled_at")
   startedAt   DateTime?     @map("started_at")
   endedAt     DateTime?     @map("ended_at")
@@ -532,6 +534,8 @@ model LiveProduct {
 /// fil, donc pas d'auto-relation comme sur le mur.
 /// `handledAt` vide = message en attente, c'est ce que compte le badge du
 /// backoffice. Repondre le renseigne aussi : une question repondue est traitee.
+/// Plus utilise : les questions privees ont ete retirees, les clients
+/// commentent sur Facebook. Table conservee faute de migration de suppression.
 model LiveMessage {
   id        String    @id @default(uuid())
   liveId    String    @map("live_id")

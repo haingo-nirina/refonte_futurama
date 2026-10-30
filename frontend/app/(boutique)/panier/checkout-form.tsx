@@ -24,10 +24,13 @@ import type {
   CartItem,
   DeliveryZone,
   FulfillmentMethod,
+  Order,
   Store,
 } from "@/lib/types";
 
-const LOGIN_HREF = `/connexion?next=${encodeURIComponent("/panier")}`;
+function loginHref(returnTo: string): string {
+  return `/connexion?next=${encodeURIComponent(returnTo)}`;
+}
 
 const INPUT =
   "border-line-strong text-ink focus:border-brand w-full rounded-[9px] border-[1.5px] bg-white px-3.5 py-2.5 text-sm outline-none";
@@ -38,6 +41,18 @@ type Props = {
   itemCount: number;
   zones: DeliveryZone[];
   stores: Store[];
+  /**
+   * Page live d'ou part la commande : transmis tel quel au backend, qui
+   * l'ignore si le live n'a pas demarre.
+   */
+  liveId?: string;
+  /**
+   * Sans lui, la commande enregistree mene a `/commande/:id`. La page live le
+   * fournit pour afficher la confirmation sur place : la video continue.
+   */
+  onOrdered?: (order: Order) => void;
+  /** Ou revenir apres la connexion. */
+  returnTo?: string;
 };
 
 /**
@@ -66,8 +81,12 @@ function Checkout({
   itemCount,
   zones,
   stores,
+  liveId,
+  onOrdered,
+  returnTo = "/panier",
 }: Props & { user: AuthUser | null }) {
   const router = useRouter();
+  const LOGIN_HREF = loginHref(returnTo);
 
   const [method, setMethod] = useState<FulfillmentMethod>("LIVRAISON");
   const [contactName, setContactName] = useState(user?.fullName ?? "");
@@ -125,10 +144,17 @@ function Checkout({
           : { storeId: store?.id }),
         paymentMethod: "MVOLA",
         mvolaPhone: normalizeMgPhone(payer),
+        ...(liveId ? { liveId } : {}),
       });
 
       // Le backend vide le panier à la création de la commande.
       notifyCartUpdated();
+      if (onOrdered) {
+        setConfirming(false);
+        setPending(false);
+        onOrdered(order);
+        return;
+      }
       router.push(`/commande/${order.id}`);
     } catch (submitError) {
       // Token expiré pendant que la page était ouverte : on renvoie se

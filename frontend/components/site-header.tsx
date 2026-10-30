@@ -3,6 +3,7 @@ import { getCategories } from "@/lib/api";
 import type { Category } from "@/lib/types";
 import { AccountMenu } from "./account-menu";
 import { CartBadge } from "./cart-badge";
+import { LiveBanner } from "./live/live-banner";
 import { SearchForm } from "./search-form";
 
 /**
@@ -23,6 +24,7 @@ export async function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 bg-white">
+      <LiveBanner />
       <div className="bg-brand px-4 py-2 text-center text-[13px] font-medium text-white">
         Livraison offerte dans Antananarivo des 300 000 Ar — Retrait gratuit a
         Tsaralalana
@@ -65,10 +67,18 @@ export async function SiteHeader() {
           </Link>
         ))}
 
-        {/* Le mur n'est pas un rayon : il ferme la barre, apres les categories. */}
+        {/* Le live et le mur ne sont pas des rayons : ils ferment la barre,
+            apres les categories. */}
+        <Link
+          href="/live"
+          className="text-brand hover:border-brand ml-auto flex items-center gap-1.5 border-b-2 border-transparent px-4 py-4 text-[13.5px] font-bold whitespace-nowrap"
+        >
+          <span className="bg-brand size-2 rounded-full" />
+          Live
+        </Link>
         <Link
           href="/publications"
-          className="text-ink hover:border-brand hover:text-brand ml-auto border-b-2 border-transparent px-4 py-4 text-[13.5px] font-medium whitespace-nowrap"
+          className="text-ink hover:border-brand hover:text-brand border-b-2 border-transparent px-4 py-4 text-[13.5px] font-medium whitespace-nowrap"
         >
           Publications
         </Link>

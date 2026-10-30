@@ -14,6 +14,7 @@ export function ConfirmDialog({
   message,
   detail,
   confirmLabel = "Supprimer",
+  pendingLabel = "Suppression…",
   pending = false,
   error,
   onConfirm,
@@ -25,6 +26,8 @@ export function ConfirmDialog({
   /** Consequence a annoncer avant de cliquer, pas apres. */
   detail?: React.ReactNode;
   confirmLabel?: string;
+  /** Libelle du bouton pendant l'appel : toutes les confirmations ne suppriment pas. */
+  pendingLabel?: string;
   pending?: boolean;
   error?: string | null;
   onConfirm: () => void;
@@ -64,7 +67,7 @@ export function ConfirmDialog({
           disabled={pending}
           className="admin-button"
         >
-          {pending ? "Suppression…" : confirmLabel}
+          {pending ? pendingLabel : confirmLabel}
         </button>
       </div>
     </Modal>

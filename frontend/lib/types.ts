@@ -212,6 +212,8 @@ export type CreateOrderInput = {
   storeId?: string;
   paymentMethod: "MVOLA";
   mvolaPhone: string;
+  /** Commande passee depuis la page live : mesure des ventes du live. */
+  liveId?: string;
 };
 
 /** Zone de livraison (`GET /delivery-zones`) ; montants en chaine. */
@@ -598,4 +600,80 @@ export type DashboardStats = {
   salesByDay: { date: string; revenue: string; orders: number }[];
   /** 12 derniers mois, le mois en cours en dernier ; `month` au format `2026-03`. */
   salesByMonth: { month: string; revenue: string; orders: number }[];
+};
+
+/**
+ * Live en direct (`GET /live/current`) : `id` est celui du live en base, `url`
+ * le lien de la video Facebook ; `startedAt` arrive en ISO.
+ */
+export type FacebookLive = {
+  id: string;
+  title: string;
+  url: string;
+  startedAt: string | null;
+};
+
+// ------------------------------------------------------------- Live shopping
+
+export const LIVE_STATUSES = [
+  { value: "PROGRAMME", label: "À venir" },
+  { value: "EN_DIRECT", label: "En direct" },
+  { value: "TERMINE", label: "Terminé" },
+] as const;
+
+export type LiveStatus = (typeof LIVE_STATUSES)[number]["value"];
+
+type LiveBase = {
+  id: string;
+  title: string;
+  description: string | null;
+  /** Renseigne par la detection Facebook au debut du direct ; sert de replay. */
+  facebookUrl: string | null;
+  status: LiveStatus;
+  /** Date annoncee ; `startedAt` / `endedAt` sont les dates reelles. */
+  scheduledAt: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+/**
+ * `GET /lives/current` : produits actifs seulement, chacun avec sa promotion
+ * en cours — meme forme qu'une carte du catalogue.
+ */
+export type Live = LiveBase & { products: Product[] };
+
+/** `GET /lives/admin`. */
+export type AdminLive = LiveBase & {
+  _count: { products: number };
+  /** Commandes passees depuis la page live, annulees exclues. */
+  sales: { orders: number; revenue: string };
+};
+
+/** `GET /lives/admin/:id` : la selection telle quelle, desactives compris. */
+export type AdminLiveDetail = LiveBase & {
+  products: {
+    id: string;
+    productId: string;
+    displayOrder: number;
+    product: {
+      id: string;
+      name: string;
+      reference: string | null;
+      price: string;
+      stock: number;
+      isActive: boolean;
+      images: ProductImage[];
+    };
+  }[];
+};
+
+/** Le lien Facebook n'en fait pas partie : il n'est jamais saisi. */
+export type LiveInput = {
+  title: string;
+  description: string | null;
+  scheduledAt: string;
+  /** Dans l'ordre d'affichage ; remplace la selection en bloc. */
+  productIds: string[];
 };

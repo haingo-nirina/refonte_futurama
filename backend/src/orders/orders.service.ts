@@ -41,6 +41,7 @@ const ORDER_INCLUDE = {
  */
 const ADMIN_ORDER_INCLUDE = {
   ...ORDER_INCLUDE,
+  live: { select: { id: true, title: true } },
   statusHistory: {
     orderBy: { createdAt: 'asc' },
     include: { changedBy: { select: { id: true, fullName: true } } },
@@ -112,6 +113,7 @@ export class OrdersService {
       );
 
       const fulfillment = await this.resolveFulfillment(tx, dto, subtotal);
+      const liveId = await this.resolveLiveId(tx, dto.liveId);
 
       for (const line of lines) {
         const reserved = await tx.product.updateMany({
@@ -133,6 +135,7 @@ export class OrdersService {
           contactName: dto.contactName,
           contactPhone: dto.contactPhone,
           ...fulfillment.data,
+          liveId,
           paymentMethod: dto.paymentMethod,
           mvolaPhone: dto.mvolaPhone,
           subtotal,
@@ -203,6 +206,25 @@ export class OrdersService {
       shippingFee: new Prisma.Decimal(0),
       data: { storeId: store.id },
     };
+  }
+
+  /**
+   * Le live n'est retenu que s'il existe et a deja demarre : une commande
+   * passee depuis l'annonce d'un live programme n'est pas une vente du live.
+   * Rien ici ne doit faire echouer un achat, d'ou `null` plutot qu'une erreur.
+   */
+  private async resolveLiveId(
+    tx: Prisma.TransactionClient,
+    liveId: string | undefined,
+  ) {
+    if (!liveId) return null;
+
+    const live = await tx.live.findUnique({
+      where: { id: liveId },
+      select: { startedAt: true },
+    });
+
+    return live?.startedAt ? liveId : null;
   }
 
   /**

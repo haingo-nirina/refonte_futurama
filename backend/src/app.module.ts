@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
@@ -16,9 +17,12 @@ import { StatsModule } from './stats/stats.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { DeliveryZonesModule } from './delivery-zones/delivery-zones.module';
 import { StoresModule } from './stores/stores.module';
+import { LivesModule } from './lives/lives.module';
+import { FacebookLiveModule } from './facebook-live/facebook-live.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     CategoriesModule,
@@ -34,6 +38,8 @@ import { StoresModule } from './stores/stores.module';
     UploadsModule,
     DeliveryZonesModule,
     StoresModule,
+    LivesModule,
+    FacebookLiveModule,
   ],
   controllers: [AppController],
   providers: [AppService],

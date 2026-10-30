@@ -5,6 +5,7 @@
 
 import {
   FulfillmentMethod,
+  LiveStatus,
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
@@ -23,11 +24,16 @@ export const FULFILLMENT_METHODS = Object.values(FulfillmentMethod);
 export const PAYMENT_TRANSACTION_STATUS = PaymentTransactionStatus;
 export type {
   FulfillmentMethod,
+  LiveStatus,
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
   PaymentTransactionStatus,
 };
+
+// Live.status : enum Prisma. Passe en direct puis termine tout seul, au gre
+// de la detection Facebook (`LivesService.syncWithFacebook`).
+export const LIVE_STATUS = LiveStatus;
 
 // Review.moderationStatus
 export const MODERATION_STATUS = {
