@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/admin/confirm-dialog";
 import { LiveControls } from "@/components/admin/live-controls";
 import { LiveStatusBadge } from "@/components/admin/status-badge";
+import { ReplayVisibility } from "@/components/admin/replay-visibility";
 import { ApiError } from "@/lib/api";
 import { deleteLive } from "@/lib/admin-api";
 import { formatPrice } from "@/lib/format";
@@ -63,7 +64,14 @@ export function LiveList({ lives }: { lives: AdminLive[] }) {
             }`}
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <LiveStatusBadge status={live.status} />
+              <div className="flex flex-wrap items-center gap-2">
+                <LiveStatusBadge status={live.status} />
+                {live.status === "TERMINE" && !live.replayVisible ? (
+                  <span className="bg-line text-muted rounded-full px-2.5 py-1 text-[11.5px] font-bold">
+                    Masqué des replays
+                  </span>
+                ) : null}
+              </div>
               <span className="text-muted text-[12.5px] first-letter:uppercase">
                 {formatLiveDate(live.scheduledAt)}
               </span>
@@ -97,7 +105,7 @@ export function LiveList({ lives }: { lives: AdminLive[] }) {
               >
                 Modifier
               </Link>
-              {live.status !== "PROGRAMME" ? (
+              {live.status === "EN_DIRECT" ? (
                 <Link
                   href="/live"
                   target="_blank"
@@ -105,6 +113,20 @@ export function LiveList({ lives }: { lives: AdminLive[] }) {
                 >
                   Voir la page ↗
                 </Link>
+              ) : null}
+              {live.status === "TERMINE" && live.facebookUrl ? (
+                <>
+                  {live.replayVisible ? (
+                    <Link
+                      href={`/videos/${live.id}`}
+                      target="_blank"
+                      className="text-navy hover:text-brand text-[12.5px] font-bold"
+                    >
+                      Voir le replay ↗
+                    </Link>
+                  ) : null}
+                  <ReplayVisibility live={live} variant="button" />
+                </>
               ) : null}
               {/* Un live qui a vendu ne se supprime pas : le backend
                   repondrait 409, sa mesure des ventes disparaitrait. */}

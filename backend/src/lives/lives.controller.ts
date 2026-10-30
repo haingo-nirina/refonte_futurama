@@ -7,19 +7,21 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { AdminOnly } from '../auth/decorators/admin-only.decorator';
 import { CreateLiveDto } from './dto/create-live.dto';
+import { PaginateReplaysDto } from './dto/paginate-replays.dto';
 import { StartLiveDto } from './dto/start-live.dto';
 import { UpdateLiveDto } from './dto/update-live.dto';
 import { LivesService } from './lives.service';
 
 /**
- * Seule `GET /lives/current` est publique, tout le reste est reserve a
+ * `GET /lives/current` et `GET /lives/replays[/:id]` sont publiques, tout le reste est reserve a
  * l'admin. Le passage en direct se fait a la main (`POST /lives/:id/start`,
  * avec le lien copie depuis Facebook) ou par la detection (`facebook-live`).
  *
- * Les chemins fixes (`current`, `admin`) sont declares avant ceux a
+ * Les chemins fixes (`current`, `replays`, `admin`) sont declares avant ceux a
  * parametre : Nest resout les routes dans l'ordre de declaration.
  */
 @Controller('lives')
@@ -29,6 +31,16 @@ export class LivesController {
   @Get('current')
   findCurrent() {
     return this.livesService.findCurrent();
+  }
+
+  @Get('replays')
+  findReplays(@Query() query: PaginateReplaysDto) {
+    return this.livesService.findReplays(query);
+  }
+
+  @Get('replays/:id')
+  findReplay(@Param('id', ParseUUIDPipe) id: string) {
+    return this.livesService.findReplay(id);
   }
 
   @Get('admin')

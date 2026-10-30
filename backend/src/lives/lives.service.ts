@@ -12,6 +12,7 @@ import {
   withActivePromotion,
 } from '../promotions/promotion-pricing';
 import { CreateLiveDto } from './dto/create-live.dto';
+import { PaginateReplaysDto } from './dto/paginate-replays.dto';
 import { StartLiveDto } from './dto/start-live.dto';
 import { UpdateLiveDto } from './dto/update-live.dto';
 
@@ -98,6 +99,16 @@ export type OnAirLive = {
   startedAt: Date | null;
 };
 
+/**
+ * Un replay est un live termine qui a une video : la video reste sur Facebook,
+ * le lien enregistre au lancement suffit a la relire. Rien d'autre a archiver.
+ */
+const REPLAY_WHERE = {
+  status: LIVE_STATUS.TERMINE,
+  facebookUrl: { not: null },
+  replayVisible: true,
+} satisfies Prisma.LiveWhereInput;
+
 /** Ce que la detection Facebook transmet : de quoi reconnaitre et nommer le direct. */
 export type DetectedFacebookLive = { url: string; title: string };
 
@@ -172,8 +183,9 @@ export class LivesService {
         orderBy: { scheduledAt: 'asc' },
         include,
       }),
+      // un replay retire de « Nos vidéos » ne revient pas par /live
       this.prisma.live.findFirst({
-        where: { status: LIVE_STATUS.TERMINE },
+        where: { status: LIVE_STATUS.TERMINE, replayVisible: true },
         orderBy: { endedAt: 'desc' },
         include,
       }),
@@ -183,6 +195,64 @@ export class LivesService {
     if (!current) return null;
 
     const { products, ...rest } = current;
+    return {
+      ...rest,
+      products: products.map(({ product }) => withActivePromotion(product)),
+    };
+  }
+
+  /**
+   * Section « Nos vidéos » : les replays, le plus recent d'abord. Sans les
+   * produits, que seule la page du replay affiche.
+   */
+  async findReplays(query: PaginateReplaysDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 9;
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.live.findMany({
+        where: REPLAY_WHERE,
+        orderBy: { endedAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          facebookUrl: true,
+          startedAt: true,
+          endedAt: true,
+          // ceux que la page du replay affichera : les desactives n'y sont pas
+          _count: {
+            select: { products: { where: { product: { isActive: true } } } },
+          },
+        },
+      }),
+      this.prisma.live.count({ where: REPLAY_WHERE }),
+    ]);
+
+    return {
+      data,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  /**
+   * Un replay et ses produits, sous la meme forme que `findCurrent` : la page
+   * du replay reutilise la salle du live. 404 sur un live qui n'est pas (ou
+   * pas encore) un replay.
+   */
+  async findReplay(id: string) {
+    const live = await this.prisma.live.findFirst({
+      where: { id, ...REPLAY_WHERE },
+      include: { products: publicProductsArgs(new Date()) },
+    });
+
+    if (!live) {
+      throw new NotFoundException(`Vidéo ${id} introuvable`);
+    }
+
+    const { products, ...rest } = live;
     return {
       ...rest,
       products: products.map(({ product }) => withActivePromotion(product)),
@@ -253,7 +323,15 @@ export class LivesService {
    * un produit pendant la diffusion doit rester possible.
    */
   async update(id: string, dto: UpdateLiveDto) {
-    await this.findOneOrFail(id);
+    const live = await this.findOneOrFail(id);
+
+    // Avant la fin, le lien passe par `start()` : il y fait passer le live en
+    // direct, ce qu'une simple modification ne doit pas contourner.
+    if (dto.facebookUrl && live.status !== LIVE_STATUS.TERMINE) {
+      throw new BadRequestException(
+        'Le lien se renseigne en lançant le live ; il ne se corrige ici qu’une fois le live terminé',
+      );
+    }
 
     if (dto.productIds) {
       await this.assertProductsExist(dto.productIds);
@@ -268,6 +346,8 @@ export class LivesService {
         description:
           dto.description === undefined ? undefined : dto.description || null,
         scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
+        facebookUrl: dto.facebookUrl ?? undefined,
+        replayVisible: dto.replayVisible ?? undefined,
         // remplacement en bloc, dans la meme ecriture : rien ne reference ces
         // lignes, les recreer est sans consequence
         products: dto.productIds
@@ -345,7 +425,11 @@ export class LivesService {
 
       await tx.live.updateMany({
         where: { status: LIVE_STATUS.EN_DIRECT, id: { not: id } },
-        data: { status: LIVE_STATUS.TERMINE, endedAt: now },
+        data: {
+          status: LIVE_STATUS.TERMINE,
+          endedAt: now,
+          replayVisible: true,
+        },
       });
     });
     this.invalidateOnAir();
@@ -460,7 +544,12 @@ export class LivesService {
   private async markEnded(id: string): Promise<boolean> {
     const { count } = await this.prisma.live.updateMany({
       where: { id, status: LIVE_STATUS.EN_DIRECT },
-      data: { status: LIVE_STATUS.TERMINE, endedAt: new Date() },
+      // un live qui se termine entre dans les replays
+      data: {
+        status: LIVE_STATUS.TERMINE,
+        endedAt: new Date(),
+        replayVisible: true,
+      },
     });
     this.invalidateOnAir();
 

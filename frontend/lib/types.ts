@@ -627,13 +627,15 @@ type LiveBase = {
   id: string;
   title: string;
   description: string | null;
-  /** Renseigne par la detection Facebook au debut du direct ; sert de replay. */
+  /** Colle par la vendeuse au lancement du direct ; sert ensuite de replay. */
   facebookUrl: string | null;
   status: LiveStatus;
   /** Date annoncee ; `startedAt` / `endedAt` sont les dates reelles. */
   scheduledAt: string;
   startedAt: string | null;
   endedAt: string | null;
+  /** Faux : live termine retire de « Nos vidéos » sans etre supprime. */
+  replayVisible: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -643,6 +645,19 @@ type LiveBase = {
  * en cours — meme forme qu'une carte du catalogue.
  */
 export type Live = LiveBase & { products: Product[] };
+
+/**
+ * `GET /lives/replays` : un live termine qui a une video, sans ses produits —
+ * la carte de la section « Nos vidéos ».
+ */
+export type LiveReplay = Pick<
+  LiveBase,
+  "id" | "title" | "description" | "startedAt" | "endedAt"
+> & {
+  facebookUrl: string;
+  /** Produits actifs : ceux que la page du replay affichera. */
+  _count: { products: number };
+};
 
 /** `GET /lives/admin`. */
 export type AdminLive = LiveBase & {

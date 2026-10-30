@@ -7,15 +7,15 @@ import type { DeliveryZone, Live, Store } from "@/lib/types";
 import { FacebookVideo } from "./facebook-video";
 import { LiveCartDrawer } from "./live-cart-drawer";
 import { LiveProductCard } from "./live-product-card";
-import { LiveRefresher } from "./live-refresher";
 
 /**
  * La page live, pensee telephone d'abord : video, annonce, puis produits en
  * carrousel horizontal (la video reste a l'ecran pendant qu'on les parcourt).
  * Sur grand ecran, les produits passent dans une colonne.
  *
- * Le passage de l'annonce au direct, puis au replay, suit ce que la vendeuse
- * active dans le backoffice (`LiveRefresher`) : rien a recharger a la main.
+ * Sert a `/live` (annonce, direct ou dernier replay) et a `/videos/[id]`
+ * (un replay). La surveillance du direct (`LiveRefresher`) est posee par
+ * `/live` seule : un replay n'a pas a suivre le direct.
  */
 export function LiveRoom({
   live,
@@ -29,14 +29,12 @@ export function LiveRoom({
   const cartCount = useCartCount();
   const [cartOpen, setCartOpen] = useState(false);
 
-  const isLive = live.status === "EN_DIRECT";
   const isScheduled = live.status === "PROGRAMME";
 
   const closeCart = useCallback(() => setCartOpen(false), []);
 
   return (
     <div className="px-4 pt-5 pb-28 sm:px-8 lg:px-12">
-      <LiveRefresher shownUrl={isLive ? live.facebookUrl : null} />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start lg:gap-8">
         {/* ------------------------------------------------ Video / annonce */}
         <div className="lg:col-start-1">
@@ -110,7 +108,6 @@ export function LiveRoom({
             </p>
           ) : null}
         </section>
-
       </div>
 
       {/* Le bouton de l'assistant occupe le coin droit : le panier prend le

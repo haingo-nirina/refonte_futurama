@@ -68,7 +68,11 @@ describe('LivesService.syncWithFacebook', () => {
 
     expect(prisma.live.updateMany).toHaveBeenCalledWith({
       where: { id: 'live-1', status: LIVE_STATUS.EN_DIRECT },
-      data: { status: LIVE_STATUS.TERMINE, endedAt: expect.any(Date) as Date },
+      data: {
+        status: LIVE_STATUS.TERMINE,
+        endedAt: expect.any(Date) as Date,
+        replayVisible: true,
+      },
     });
   });
 
@@ -155,7 +159,11 @@ describe('LivesService.syncWithFacebook', () => {
 
     expect(prisma.live.updateMany).toHaveBeenNthCalledWith(1, {
       where: { id: 'live-old', status: LIVE_STATUS.EN_DIRECT },
-      data: { status: LIVE_STATUS.TERMINE, endedAt: expect.any(Date) as Date },
+      data: {
+        status: LIVE_STATUS.TERMINE,
+        endedAt: expect.any(Date) as Date,
+        replayVisible: true,
+      },
     });
     expect(prisma.live.updateMany).toHaveBeenCalledTimes(2);
   });
@@ -182,7 +190,11 @@ describe('LivesService.start', () => {
     });
     expect(prisma.live.updateMany).toHaveBeenNthCalledWith(2, {
       where: { status: LIVE_STATUS.EN_DIRECT, id: { not: 'live-1' } },
-      data: { status: LIVE_STATUS.TERMINE, endedAt: expect.any(Date) as Date },
+      data: {
+        status: LIVE_STATUS.TERMINE,
+        endedAt: expect.any(Date) as Date,
+        replayVisible: true,
+      },
     });
   });
 
@@ -256,5 +268,19 @@ describe('LivesService.findOnAir', () => {
     await service.end('live-1');
     await service.findOnAir();
     expect(prisma.live.findFirst).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('LivesService.update', () => {
+  it("refuse de poser un lien sur un live qui n'est pas termine", async () => {
+    const { prisma, service } = setup();
+    prisma.live.findUnique.mockResolvedValue({
+      id: 'live-1',
+      status: LIVE_STATUS.PROGRAMME,
+    });
+
+    await expect(
+      service.update('live-1', { facebookUrl: FB }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

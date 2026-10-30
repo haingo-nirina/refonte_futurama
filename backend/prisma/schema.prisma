@@ -488,21 +488,24 @@ model PostComment {
 /// `facebookUrl` reste vide tant que le live est PROGRAMME : il est renseigne
 /// par la detection, jamais saisi.
 model Live {
-  id          String        @id @default(uuid())
-  title       String
-  description String?
-  facebookUrl String?       @map("facebook_url")
-  status      LiveStatus    @default(PROGRAMME)
+  id            String        @id @default(uuid())
+  title         String
+  description   String?
+  facebookUrl   String?       @map("facebook_url")
+  status        LiveStatus    @default(PROGRAMME)
   /// Date annoncee au public ; startedAt / endedAt sont les dates reelles,
   /// posees par la detection Facebook (ou « Terminer »).
-  scheduledAt DateTime      @map("scheduled_at")
-  startedAt   DateTime?     @map("started_at")
-  endedAt     DateTime?     @map("ended_at")
-  products    LiveProduct[]
-  messages    LiveMessage[]
-  orders      Order[]
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  scheduledAt   DateTime      @map("scheduled_at")
+  startedAt     DateTime?     @map("started_at")
+  endedAt       DateTime?     @map("ended_at")
+  /// Un live termine avec un lien video est un replay, liste dans « Nos
+  /// vidéos ». Faux : retire des replays sans etre supprime.
+  replayVisible Boolean       @default(true) @map("replay_visible")
+  products      LiveProduct[]
+  messages      LiveMessage[]
+  orders        Order[]
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
 
   @@map("lives")
 }
@@ -555,3 +558,7 @@ model LiveMessage {
   @@index([userId, liveId])
   @@map("live_messages")
 }
+
+
+// yarn prisma generate          # met à jour le code Prisma d'après le schéma
+//yarn prisma migrate deploy    # applique les migrations pas encore passées sur cette base

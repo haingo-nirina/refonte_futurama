@@ -40,6 +40,16 @@ export function formatLiveDate(iso: string): string {
   });
 }
 
+/** `jeudi 30 octobre` */
+export function formatLiveDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: LIVE_TIME_ZONE,
+  });
+}
+
 /** `2026-10-30T15:00`, heure de Madagascar : format d'un `datetime-local`. */
 export function toLiveInputValue(iso: string): string {
   return new Date(new Date(iso).getTime() + MADAGASCAR_OFFSET_MS)

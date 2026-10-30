@@ -50,5 +50,14 @@ export default async function LivePage() {
     );
   }
 
-  return <LiveRoom live={live} zones={zones} stores={stores} />;
+  // Le passage de l'annonce au direct, puis au replay, suit ce que la
+  // vendeuse active dans le backoffice : rien a recharger a la main.
+  return (
+    <>
+      <LiveRefresher
+        shownUrl={live.status === "EN_DIRECT" ? live.facebookUrl : null}
+      />
+      <LiveRoom live={live} zones={zones} stores={stores} />
+    </>
+  );
 }

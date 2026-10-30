@@ -77,6 +77,12 @@ export async function SiteHeader() {
           Live
         </Link>
         <Link
+          href="/videos"
+          className="text-ink hover:border-brand hover:text-brand border-b-2 border-transparent px-4 py-4 text-[13.5px] font-medium whitespace-nowrap"
+        >
+          Vidéos
+        </Link>
+        <Link
           href="/publications"
           className="text-ink hover:border-brand hover:text-brand border-b-2 border-transparent px-4 py-4 text-[13.5px] font-medium whitespace-nowrap"
         >

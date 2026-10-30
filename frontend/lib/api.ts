@@ -8,6 +8,7 @@ import type {
   DeliveryZone,
   FacebookLive,
   Live,
+  LiveReplay,
   MarqueDetail,
   LoginInput,
   Order,
@@ -392,6 +393,18 @@ export function deletePostComment(
  */
 export function getCurrentLive(): Promise<Live | null> {
   return request<Live | null>("/lives/current");
+}
+
+/** Section « Nos vidéos » : les lives termines, le plus recent d'abord. */
+export function getLiveReplays(
+  query: { page?: number; limit?: number } = {},
+): Promise<Paginated<LiveReplay>> {
+  return request<Paginated<LiveReplay>>(`/lives/replays${toQuery(query)}`);
+}
+
+/** Un replay avec ses produits, meme forme que `getCurrentLive`. 404 sinon. */
+export function getLiveReplay(id: string): Promise<Live> {
+  return request<Live>(`/lives/replays/${id}`);
 }
 
 /**

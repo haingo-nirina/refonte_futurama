@@ -467,9 +467,13 @@ export function createLive(input: LiveInput): Promise<AdminLiveDetail> {
   });
 }
 
+/**
+ * Sur un live termine, accepte aussi le replay : correction du lien (code
+ * d'integration compris, comme au lancement) et visibilite dans « Nos vidéos ».
+ */
 export function updateLive(
   id: string,
-  input: Partial<LiveInput>,
+  input: Partial<LiveInput> & { facebookUrl?: string; replayVisible?: boolean },
 ): Promise<AdminLiveDetail> {
   return request<AdminLiveDetail>(`/lives/${id}`, {
     method: "PATCH",

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LatestProducts } from "@/components/latest-products";
 import { LatestPublications } from "@/components/publications/latest-publications";
+import { LatestVideos } from "@/components/videos/latest-videos";
 import { MostViewedProducts } from "@/components/most-viewed-products";
 import { ProductImage } from "@/components/product-image";
 import { PromotionOfMonth } from "@/components/promotion-of-month";
@@ -8,6 +9,7 @@ import {
   getCategories,
   getFeaturedPromotions,
   getLatestProducts,
+  getLiveReplays,
   getMostViewedProducts,
   getPosts,
 } from "@/lib/api";
@@ -37,6 +39,9 @@ const SHOWCASE_COUNT = 4;
  * `/publications`. */
 const PUBLICATIONS_COUNT = 2;
 
+/** Deux rangees de la grille « Nos vidéos », comme la maquette. */
+const VIDEOS_COUNT = 6;
+
 const HERO_TINTS = [
   {
     card: "bg-tint-cool",
@@ -58,15 +63,17 @@ export default async function HomePage() {
   // deja aime.
   const token = await getServerToken();
 
-  // Les cinq lectures sont independantes : les enchainer ajouterait autant
+  // Les six lectures sont independantes : les enchainer ajouterait autant
   // d'allers-retours vers Aiven a la page la plus visitee du site.
-  const [categories, promotions, latest, mostViewed, publications] =
+  const [categories, promotions, latest, mostViewed, publications, videos] =
     await Promise.all([
       getCategories(),
       getFeaturedPromotions(),
       getLatestProducts(SHOWCASE_COUNT),
       getMostViewedProducts(SHOWCASE_COUNT),
       getPosts({ page: 1, limit: PUBLICATIONS_COUNT }, token),
+      // une section secondaire : son echec ne doit pas faire tomber l'accueil
+      getLiveReplays({ page: 1, limit: VIDEOS_COUNT }).catch(() => null),
     ]);
   const topLevel = categories.filter((category) => category.parentId === null);
   const featured = topLevel.filter((category) => category.isFeatured);
@@ -151,6 +158,8 @@ export default async function HomePage() {
       />
 
       <LatestPublications posts={publications.data} />
+
+      <LatestVideos replays={videos?.data ?? []} />
     </div>
   );
 }

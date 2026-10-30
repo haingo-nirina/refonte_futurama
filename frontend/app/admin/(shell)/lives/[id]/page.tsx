@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { LiveControls } from "@/components/admin/live-controls";
 import { LiveForm } from "@/components/admin/live-form";
+import { LiveReplayPanel } from "@/components/admin/live-replay-panel";
 import { PageHeader } from "@/components/admin/page-header";
 import { LiveStatusBadge } from "@/components/admin/status-badge";
 import { ApiError } from "@/lib/api";
@@ -35,6 +36,8 @@ export default async function EditLivePage({
           <LiveControls live={live} />
         </div>
       </div>
+
+      {live.status === "TERMINE" ? <LiveReplayPanel live={live} /> : null}
 
       <LiveForm live={live} />
     </div>
