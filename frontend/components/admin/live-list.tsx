@@ -16,6 +16,9 @@ import type { AdminLive } from "@/lib/types";
 /**
  * Des cartes plutot qu'un tableau : pendant le direct, la vendeuse pilote
  * depuis son telephone, et un tableau defilerait a l'horizontale.
+ *
+ * Un clic sur la carte ouvre la regie (`/admin/lives/:id/direct` : video,
+ * commentaires, produits) ; « Modifier » reste le formulaire.
  */
 export function LiveList({ lives }: { lives: AdminLive[] }) {
   const router = useRouter();
@@ -59,7 +62,7 @@ export function LiveList({ lives }: { lives: AdminLive[] }) {
         {lives.map((live) => (
           <li
             key={live.id}
-            className={`admin-card flex flex-col gap-4 ${
+            className={`admin-card hover:border-navy/40 relative flex flex-col gap-4 transition ${
               live.status === "EN_DIRECT" ? "border-brand border-2" : ""
             }`}
           >
@@ -79,7 +82,14 @@ export function LiveList({ lives }: { lives: AdminLive[] }) {
 
             <div>
               <h2 className="font-display text-navy text-[17px] font-extrabold">
-                {live.title}
+                {/* Lien etire sur toute la carte : un clic n'importe ou ouvre
+                    la regie. Les actions passent au-dessus (`z-10`). */}
+                <Link
+                  href={`/admin/lives/${live.id}/direct`}
+                  className="after:absolute after:inset-0 after:rounded-[inherit] hover:underline"
+                >
+                  {live.title}
+                </Link>
               </h2>
               {live.description ? (
                 <p className="text-muted mt-1 line-clamp-2 text-[13px]">
@@ -97,7 +107,7 @@ export function LiveList({ lives }: { lives: AdminLive[] }) {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="relative z-10 flex flex-wrap items-center gap-3">
               <LiveControls live={live} />
               <Link
                 href={`/admin/lives/${live.id}`}

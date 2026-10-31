@@ -272,15 +272,52 @@ describe('LivesService.findOnAir', () => {
 });
 
 describe('LivesService.update', () => {
-  it("refuse de poser un lien sur un live qui n'est pas termine", async () => {
+  it('refuse de changer le lien pendant le direct', async () => {
     const { prisma, service } = setup();
     prisma.live.findUnique.mockResolvedValue({
       id: 'live-1',
-      status: LIVE_STATUS.PROGRAMME,
+      status: LIVE_STATUS.EN_DIRECT,
     });
 
     await expect(
       service.update('live-1', { facebookUrl: FB }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("prepare le lien d'un live programme sans le lancer", async () => {
+    const { prisma, service } = setup();
+    const update = jest
+      .fn<Promise<unknown>, [{ data: Record<string, unknown> }]>()
+      .mockResolvedValue({});
+    Object.assign(prisma.live, { update });
+    prisma.live.findUnique.mockResolvedValue({
+      id: 'live-1',
+      status: LIVE_STATUS.PROGRAMME,
+    });
+
+    await service.update('live-1', { facebookUrl: FB });
+
+    const { data } = update.mock.calls[0][0];
+    expect(data.facebookUrl).toBe(FB);
+    expect(data.status).toBeUndefined();
+  });
+});
+
+describe('LivesService.syncWithFacebook (lien prepare)', () => {
+  it('demarre le live programme qui porte deja le lien detecte', async () => {
+    const { prisma, service } = setup();
+    prisma.live.findFirst
+      .mockResolvedValueOnce(null) // aucun live en direct
+      .mockResolvedValueOnce(null) // lien inconnu hors lives programmes
+      .mockResolvedValueOnce({ id: 'live-2' }); // programme avec ce lien
+
+    await service.syncWithFacebook(DETECTED);
+
+    expect(prisma.live.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'live-2', status: LIVE_STATUS.PROGRAMME },
+      }),
+    );
+    expect(prisma.live.create).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,7 @@ import { useCartCount } from "@/lib/use-cart-count";
 import type { DeliveryZone, Live, Store } from "@/lib/types";
 import { FacebookVideo } from "./facebook-video";
 import { LiveCartDrawer } from "./live-cart-drawer";
+import { LiveComments } from "./live-comments";
 import { LiveProductCard } from "./live-product-card";
 
 /**
@@ -108,6 +109,11 @@ export function LiveRoom({
             </p>
           ) : null}
         </section>
+
+        {/* -------------------------------------------------- Commentaires */}
+        <div className="lg:col-start-1">
+          <LiveComments liveId={live.id} status={live.status} />
+        </div>
       </div>
 
       {/* Le bouton de l'assistant occupe le coin droit : le panier prend le

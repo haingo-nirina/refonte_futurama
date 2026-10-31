@@ -300,8 +300,8 @@ export class LivesService {
   }
 
   /**
-   * Le lien Facebook n'est pas saisi ici : il n'existe qu'une fois le direct
-   * lance, il arrive par `start()` (ou par la detection automatique).
+   * Le lien Facebook est facultatif ici : programme a l'avance sur Facebook,
+   * il est deja connu. Le live reste `PROGRAMME` jusqu'a `start()`.
    */
   async create(dto: CreateLiveDto) {
     const productIds = dto.productIds ?? [];
@@ -312,6 +312,7 @@ export class LivesService {
         title: dto.title,
         description: dto.description || null,
         scheduledAt: new Date(dto.scheduledAt),
+        facebookUrl: dto.facebookUrl || null,
         products: { create: toLiveProducts(productIds) },
       },
       include: ADMIN_LIVE_INCLUDE,
@@ -325,11 +326,14 @@ export class LivesService {
   async update(id: string, dto: UpdateLiveDto) {
     const live = await this.findOneOrFail(id);
 
-    // Avant la fin, le lien passe par `start()` : il y fait passer le live en
-    // direct, ce qu'une simple modification ne doit pas contourner.
-    if (dto.facebookUrl && live.status !== LIVE_STATUS.TERMINE) {
+    // En direct, le lien se change par `start()` (« Changer le lien »). Avant,
+    // il se prepare ici ; apres, il se corrige ici (replay).
+    if (
+      dto.facebookUrl !== undefined &&
+      live.status === LIVE_STATUS.EN_DIRECT
+    ) {
       throw new BadRequestException(
-        'Le lien se renseigne en lançant le live ; il ne se corrige ici qu’une fois le live terminé',
+        'Pendant le direct, le lien se change avec « Changer le lien »',
       );
     }
 
@@ -346,7 +350,12 @@ export class LivesService {
         description:
           dto.description === undefined ? undefined : dto.description || null,
         scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
-        facebookUrl: dto.facebookUrl ?? undefined,
+        // `null` n'efface que le lien d'un live programme : un replay sans
+        // lien cesserait d'etre un replay.
+        facebookUrl:
+          dto.facebookUrl === null && live.status === LIVE_STATUS.PROGRAMME
+            ? null
+            : (dto.facebookUrl ?? undefined),
         replayVisible: dto.replayVisible ?? undefined,
         // remplacement en bloc, dans la meme ecriture : rien ne reference ces
         // lignes, les recreer est sans consequence
@@ -495,8 +504,13 @@ export class LivesService {
 
     if (live?.facebookUrl === detected.url) return;
 
+    // Un live programme avec ce lien (saisi a l'avance) n'est pas « connu » :
+    // c'est lui qui doit demarrer.
     const known = await this.prisma.live.findFirst({
-      where: { facebookUrl: detected.url },
+      where: {
+        facebookUrl: detected.url,
+        status: { not: LIVE_STATUS.PROGRAMME },
+      },
       select: { id: true },
     });
     if (known) return;
@@ -505,17 +519,22 @@ export class LivesService {
     if (live) await this.markEnded(live.id);
 
     const now = new Date();
-    const scheduled = await this.prisma.live.findFirst({
-      where: {
-        status: LIVE_STATUS.PROGRAMME,
-        scheduledAt: {
-          gte: new Date(now.getTime() - STALE_SCHEDULED_HOURS * HOUR_MS),
-          lte: new Date(now.getTime() + EARLY_START_HOURS * HOUR_MS),
+    const scheduled =
+      (await this.prisma.live.findFirst({
+        where: { status: LIVE_STATUS.PROGRAMME, facebookUrl: detected.url },
+        select: { id: true },
+      })) ??
+      (await this.prisma.live.findFirst({
+        where: {
+          status: LIVE_STATUS.PROGRAMME,
+          scheduledAt: {
+            gte: new Date(now.getTime() - STALE_SCHEDULED_HOURS * HOUR_MS),
+            lte: new Date(now.getTime() + EARLY_START_HOURS * HOUR_MS),
+          },
         },
-      },
-      orderBy: { scheduledAt: 'asc' },
-      select: { id: true },
-    });
+        orderBy: { scheduledAt: 'asc' },
+        select: { id: true },
+      }));
 
     if (scheduled) {
       await this.prisma.live.updateMany({

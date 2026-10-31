@@ -8,6 +8,7 @@ import type {
   DeliveryZone,
   FacebookLive,
   Live,
+  LiveComment,
   LiveReplay,
   MarqueDetail,
   LoginInput,
@@ -420,4 +421,34 @@ export async function getCurrentFacebookLive(): Promise<FacebookLive | null> {
     { cache: "default" },
   );
   return live;
+}
+
+// ------------------------------------------------- Commentaires de la page live
+
+/** Public : les derniers commentaires, du plus ancien au plus recent. */
+export function getLiveComments(
+  liveId: string,
+): Promise<{ data: LiveComment[] }> {
+  return request<{ data: LiveComment[] }>(`/lives/${liveId}/comments`);
+}
+
+/** Exige un compte : l'auteur vient du JWT, jamais du corps. */
+export function commentLive(
+  liveId: string,
+  message: string,
+): Promise<LiveComment> {
+  return request<LiveComment>(`/lives/${liveId}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+}
+
+/** L'auteur retire le sien, l'admin modere : le backend tranche (403). */
+export function deleteLiveComment(
+  liveId: string,
+  commentId: string,
+): Promise<{ id: string }> {
+  return request<{ id: string }>(`/lives/${liveId}/comments/${commentId}`, {
+    method: "DELETE",
+  });
 }

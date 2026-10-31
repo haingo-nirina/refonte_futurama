@@ -473,7 +473,7 @@ export function createLive(input: LiveInput): Promise<AdminLiveDetail> {
  */
 export function updateLive(
   id: string,
-  input: Partial<LiveInput> & { facebookUrl?: string; replayVisible?: boolean },
+  input: Partial<LiveInput> & { replayVisible?: boolean },
 ): Promise<AdminLiveDetail> {
   return request<AdminLiveDetail>(`/lives/${id}`, {
     method: "PATCH",

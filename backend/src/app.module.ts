@@ -17,6 +17,7 @@ import { StatsModule } from './stats/stats.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { DeliveryZonesModule } from './delivery-zones/delivery-zones.module';
 import { StoresModule } from './stores/stores.module';
+import { LiveCommentsModule } from './live-comments/live-comments.module';
 import { LivesModule } from './lives/lives.module';
 import { FacebookLiveModule } from './facebook-live/facebook-live.module';
 
@@ -39,6 +40,7 @@ import { FacebookLiveModule } from './facebook-live/facebook-live.module';
     DeliveryZonesModule,
     StoresModule,
     LivesModule,
+    LiveCommentsModule,
     FacebookLiveModule,
   ],
   controllers: [AppController],

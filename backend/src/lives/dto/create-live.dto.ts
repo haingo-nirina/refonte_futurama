@@ -11,6 +11,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { trim } from '../../common/trim';
+import { IsFacebookVideoLink } from './facebook-video-link.decorator';
 
 export class CreateLiveDto {
   @Transform(trim)
@@ -25,6 +26,16 @@ export class CreateLiveDto {
   @IsString()
   @MaxLength(2000)
   description?: string | null;
+
+  /**
+   * Lien de la video, facultatif : connu a l'avance quand le direct a ete
+   * programme sur Facebook. Il ne fait pas passer le live en direct — c'est
+   * `start()` qui le fait, la modale « Lancer le live » le reprenant pre-rempli.
+   * En modification, `null` l'efface (live programme seulement).
+   */
+  @IsOptional()
+  @IsFacebookVideoLink()
+  facebookUrl?: string | null;
 
   /** Date annoncee au public, pas celle du demarrage reel. */
   @IsDateString()

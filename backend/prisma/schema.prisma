@@ -537,8 +537,9 @@ model LiveProduct {
 /// fil, donc pas d'auto-relation comme sur le mur.
 /// `handledAt` vide = message en attente, c'est ce que compte le badge du
 /// backoffice. Repondre le renseigne aussi : une question repondue est traitee.
-/// Plus utilise : les questions privees ont ete retirees, les clients
-/// commentent sur Facebook. Table conservee faute de migration de suppression.
+/// Commentaires publics de la page live (module `live-comments`), en direct
+/// comme en replay. Ancienne table des questions privees : `productId`,
+/// `reply`, `repliedAt` et `handledAt` ne sont plus renseignes.
 model LiveMessage {
   id        String    @id @default(uuid())
   liveId    String    @map("live_id")

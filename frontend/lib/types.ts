@@ -647,6 +647,20 @@ type LiveBase = {
 export type Live = LiveBase & { products: Product[] };
 
 /**
+ * Un commentaire du fil de la page live (`GET /lives/:id/comments`).
+ * `fromShop` : ecrit depuis un compte admin, affiche avec le badge
+ * « Futurama » — le role de l'auteur, lui, ne sort jamais du backend.
+ */
+export type LiveComment = {
+  id: string;
+  liveId: string;
+  message: string;
+  createdAt: string;
+  fromShop: boolean;
+  user: { id: string; fullName: string };
+};
+
+/**
  * `GET /lives/replays` : un live termine qui a une video, sans ses produits —
  * la carte de la section « Nos vidéos ».
  */
@@ -684,11 +698,15 @@ export type AdminLiveDetail = LiveBase & {
   }[];
 };
 
-/** Le lien Facebook n'en fait pas partie : il n'est jamais saisi. */
 export type LiveInput = {
   title: string;
   description: string | null;
   scheduledAt: string;
+  /**
+   * Code d'integration ou lien de la video, prepare avant le direct. Absent :
+   * inchange ; `null` : efface. Refuse par le backend pendant le direct.
+   */
+  facebookUrl?: string | null;
   /** Dans l'ordre d'affichage ; remplace la selection en bloc. */
   productIds: string[];
 };

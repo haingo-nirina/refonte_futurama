@@ -116,6 +116,12 @@ export function LiveControls({
         description={live.title}
       >
         <form onSubmit={(event) => void onStart(event)} className="grid gap-4">
+          {!isLive && live.facebookUrl ? (
+            <p className="bg-cream-deep rounded-[10px] px-3 py-2.5 text-[13px]">
+              Le lien enregistré à la programmation est déjà rempli : vérifiez
+              que le direct a commencé sur Facebook, puis activez.
+            </p>
+          ) : null}
           <ol className="text-muted list-decimal space-y-1 pl-5 text-[13px]">
             <li>Lancez le direct sur la page Facebook Futurama.</li>
             <li>

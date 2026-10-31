@@ -27,6 +27,8 @@ type Draft = {
   description: string;
   /** Valeur d'un `datetime-local`, en heure de Madagascar. */
   scheduledAt: string;
+  /** Code d'integration ou lien de la video, facultatif. */
+  facebookUrl: string;
   products: SelectedProduct[];
 };
 
@@ -36,6 +38,7 @@ function toDraft(live?: AdminLiveDetail): Draft {
       title: "",
       description: "",
       scheduledAt: "",
+      facebookUrl: "",
       products: [],
     };
   }
@@ -44,6 +47,7 @@ function toDraft(live?: AdminLiveDetail): Draft {
     title: live.title,
     description: live.description ?? "",
     scheduledAt: toLiveInputValue(live.scheduledAt),
+    facebookUrl: live.facebookUrl ?? "",
     products: live.products.map((item) => item.product),
   };
 }
@@ -56,12 +60,22 @@ function validate(draft: Draft): string | null {
   return null;
 }
 
-function toPayload(draft: Draft): LiveInput {
+/**
+ * Le lien ne se prepare qu'avant le direct : pendant, il passe par « Changer
+ * le lien » ; apres, par le bloc Replay. Hors de ce cas il n'est pas envoye,
+ * sans quoi le backend refuserait l'enregistrement en direct.
+ */
+function canEditLink(live?: AdminLiveDetail): boolean {
+  return !live || live.status === "PROGRAMME";
+}
+
+function toPayload(draft: Draft, withLink: boolean): LiveInput {
   return {
     title: draft.title.trim(),
     // Chaine vide -> `null` : le backend efface alors la valeur.
     description: draft.description.trim() || null,
     scheduledAt: fromLiveInputValue(draft.scheduledAt),
+    ...(withLink ? { facebookUrl: draft.facebookUrl.trim() || null } : {}),
     productIds: draft.products.map((product) => product.id),
   };
 }
@@ -114,11 +128,11 @@ export function LiveForm({ live }: { live?: AdminLiveDetail }) {
     setError(null);
     try {
       if (live) {
-        await updateLive(live.id, toPayload(draft));
+        await updateLive(live.id, toPayload(draft, canEditLink(live)));
         setSaved(true);
         router.refresh();
       } else {
-        await createLive(toPayload(draft));
+        await createLive(toPayload(draft, true));
         router.push("/admin/lives");
         router.refresh();
       }
@@ -163,6 +177,31 @@ export function LiveForm({ live }: { live?: AdminLiveDetail }) {
           />
         </label>
 
+        {canEditLink(live) ? (
+          <label className="block">
+            <span className="admin-label">
+              Lien du live Facebook (facultatif)
+            </span>
+            {/* pas de type="url" : le code d'integration est du HTML, le
+                backend en extrait le lien */}
+            <textarea
+              value={draft.facebookUrl}
+              onChange={(event) => set("facebookUrl", event.target.value)}
+              placeholder='<iframe src="https://www.facebook.com/plugins/video.php?…'
+              rows={2}
+              className="admin-input font-mono text-[12px]"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <span className="text-muted-light mt-1 block text-[11.5px]">
+              Si le live est déjà programmé sur Facebook : collez le code de «
+              Intégrer à un site » de sa publication. Il sera pré-rempli au
+              moment de « Lancer le live ». Rien ne s&apos;affiche sur le site
+              avant le lancement.
+            </span>
+          </label>
+        ) : null}
+
         <label className="block">
           <span className="admin-label">Date et heure prévues</span>
           <input
@@ -174,7 +213,7 @@ export function LiveForm({ live }: { live?: AdminLiveDetail }) {
           />
           <span className="text-muted-light mt-1 block text-[11.5px]">
             Heure de Madagascar. Le jour venu, lancez la diffusion sur la page
-            Facebook puis « Lancer le live » ici, avec le lien de la vidéo.
+            Facebook puis « Lancer le live » ici.
           </span>
         </label>
 
