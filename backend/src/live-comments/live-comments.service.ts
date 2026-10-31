@@ -1,5 +1,7 @@
 import {
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,6 +16,20 @@ import { CreateLiveCommentDto } from './dto/create-live-comment.dto';
  * leger.
  */
 const COMMENTS_LIMIT = 100;
+
+/**
+ * Chaque visiteur relit le fil toutes les 5 s pendant le direct : sans ce
+ * cache, 200 spectateurs feraient 40 lectures par seconde vers Aiven et
+ * occuperaient le pool de connexions dont les commandes ont besoin. Toute
+ * ecriture vide l'entree du live, un commentaire publie s'affiche donc aussitot.
+ */
+const READ_TTL_MS = 3_000;
+
+/**
+ * Delai minimal entre deux commentaires d'un meme compte sur un live : de quoi
+ * ecrire normalement, pas de quoi inonder le fil. L'equipe n'y est pas soumise.
+ */
+const COOLDOWN_MS = 5_000;
 
 /**
  * Le role n'est lu que pour marquer d'un badge « Futurama » un commentaire
@@ -37,11 +53,38 @@ export type LiveCommentActor = { userId: string; isAdmin?: boolean };
  */
 @Injectable()
 export class LiveCommentsService {
+  private readonly cache = new Map<
+    string,
+    { readAt: number; result: Promise<{ data: PublicComment[] }> }
+  >();
+
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Les plus recents, rendus du plus ancien au plus recent comme un fil. */
-  async findAll(liveId: string, viewer: { isAdmin?: boolean } = {}) {
-    await this.findVisibleLiveOrFail(liveId, viewer.isAdmin);
+  /**
+   * Les plus recents, rendus du plus ancien au plus recent comme un fil. Le
+   * public lit le cache ; l'admin lit la base (il voit aussi les replays
+   * retires).
+   */
+  findAll(liveId: string, viewer: { isAdmin?: boolean } = {}) {
+    if (viewer.isAdmin) return this.readComments(liveId, true);
+
+    const cached = this.cache.get(liveId);
+    if (cached && Date.now() - cached.readAt < READ_TTL_MS) {
+      return cached.result;
+    }
+
+    const result = this.readComments(liveId, false);
+    // une lecture ratee (404 compris) ne reste pas en cache
+    result.catch(() => {
+      if (this.cache.get(liveId)?.result === result) this.cache.delete(liveId);
+    });
+    this.cache.set(liveId, { readAt: Date.now(), result });
+
+    return result;
+  }
+
+  private async readComments(liveId: string, isAdmin: boolean) {
+    await this.findVisibleLiveOrFail(liveId, isAdmin);
 
     const rows = await this.prisma.liveMessage.findMany({
       where: { liveId },
@@ -61,10 +104,29 @@ export class LiveCommentsService {
     await this.findVisibleLiveOrFail(liveId, actor.isAdmin);
     const userId = actor.userId;
 
+    if (!actor.isAdmin) {
+      const recent = await this.prisma.liveMessage.findFirst({
+        where: {
+          liveId,
+          userId,
+          createdAt: { gt: new Date(Date.now() - COOLDOWN_MS) },
+        },
+        select: { id: true },
+      });
+
+      if (recent) {
+        throw new HttpException(
+          'Patientez quelques secondes avant de commenter à nouveau',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    }
+
     const row = await this.prisma.liveMessage.create({
       data: { liveId, userId, message: dto.message },
       include: AUTHOR_SELECT,
     });
+    this.cache.delete(liveId);
 
     return toPublic(row);
   }
@@ -86,30 +148,40 @@ export class LiveCommentsService {
     }
 
     await this.prisma.liveMessage.delete({ where: { id: commentId } });
+    this.cache.delete(liveId);
 
     return { id: commentId };
   }
 
   /**
-   * Un live retire des replays ne se commente plus et ne montre plus son fil :
-   * il a disparu de la boutique. Le backoffice, lui, le voit toujours.
+   * Un live termine n'est visible que s'il est un replay (une video, et pas
+   * retire de « Nos vidéos ») : sinon il a disparu de la boutique, son fil
+   * aussi. Le backoffice, lui, le voit toujours.
    */
   private async findVisibleLiveOrFail(id: string, isAdmin = false) {
     const live = await this.prisma.live.findUnique({
       where: { id },
-      select: { id: true, status: true, replayVisible: true },
+      select: {
+        id: true,
+        status: true,
+        replayVisible: true,
+        facebookUrl: true,
+      },
     });
 
-    if (
-      !live ||
-      (!isAdmin && live.status === LIVE_STATUS.TERMINE && !live.replayVisible)
-    ) {
+    const hidden =
+      live?.status === LIVE_STATUS.TERMINE &&
+      (!live.replayVisible || !live.facebookUrl);
+
+    if (!live || (!isAdmin && hidden)) {
       throw new NotFoundException(`Live ${id} introuvable`);
     }
 
     return live;
   }
 }
+
+type PublicComment = ReturnType<typeof toPublic>;
 
 function toPublic(row: CommentRow) {
   return {

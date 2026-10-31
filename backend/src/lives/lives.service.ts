@@ -183,9 +183,10 @@ export class LivesService {
         orderBy: { scheduledAt: 'asc' },
         include,
       }),
-      // un replay retire de « Nos vidéos » ne revient pas par /live
+      // un vrai replay seulement : un live termine sans video afficherait
+      // l'encart « Prochain live », et un replay retire ne revient pas par /live
       this.prisma.live.findFirst({
-        where: { status: LIVE_STATUS.TERMINE, replayVisible: true },
+        where: REPLAY_WHERE,
         orderBy: { endedAt: 'desc' },
         include,
       }),

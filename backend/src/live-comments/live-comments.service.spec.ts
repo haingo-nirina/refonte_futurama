@@ -1,4 +1,9 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+} from '@nestjs/common';
 import { LIVE_STATUS, USER_ROLE } from '../common/constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { LiveCommentsService } from './live-comments.service';
@@ -9,6 +14,7 @@ function setup() {
     liveMessage: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
       delete: jest.fn(),
     },
@@ -103,5 +109,79 @@ describe('LiveCommentsService', () => {
     await expect(
       service.remove('live-1', 'c-1', { userId: 'u-1' }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("cache le fil d'un live termine sans video (pas un replay)", async () => {
+    const { prisma, service } = setup();
+    prisma.live.findUnique.mockResolvedValue({
+      status: LIVE_STATUS.TERMINE,
+      replayVisible: true,
+      facebookUrl: null,
+    });
+
+    await expect(service.findAll('live-1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('sert le fil public depuis le cache, vide par une ecriture', async () => {
+    const { prisma, service } = setup();
+    prisma.live.findUnique.mockResolvedValue({
+      status: LIVE_STATUS.EN_DIRECT,
+      replayVisible: true,
+      facebookUrl: 'https://www.facebook.com/x/videos/1/',
+    });
+    prisma.liveMessage.findMany.mockResolvedValue([]);
+    prisma.liveMessage.findFirst.mockResolvedValue(null);
+    prisma.liveMessage.create.mockResolvedValue(row(USER_ROLE.CUSTOMER));
+
+    await service.findAll('live-1');
+    await service.findAll('live-1');
+    expect(prisma.liveMessage.findMany).toHaveBeenCalledTimes(1);
+
+    await service.create('live-1', { userId: 'u-1' }, { message: 'Bonjour' });
+    await service.findAll('live-1');
+    expect(prisma.liveMessage.findMany).toHaveBeenCalledTimes(2);
+  });
+
+  it('refuse en 429 un second commentaire trop rapproche', async () => {
+    const { prisma, service } = setup();
+    prisma.live.findUnique.mockResolvedValue({
+      status: LIVE_STATUS.EN_DIRECT,
+      replayVisible: true,
+      facebookUrl: 'https://www.facebook.com/x/videos/1/',
+    });
+    prisma.liveMessage.findFirst.mockResolvedValue({ id: 'c-0' });
+
+    const attempt = service.create(
+      'live-1',
+      { userId: 'u-1' },
+      { message: 'Encore' },
+    );
+
+    await expect(attempt).rejects.toBeInstanceOf(HttpException);
+    await expect(attempt).rejects.toMatchObject({
+      status: HttpStatus.TOO_MANY_REQUESTS,
+    });
+    expect(prisma.liveMessage.create).not.toHaveBeenCalled();
+  });
+
+  it("n'impose pas de delai a l'equipe", async () => {
+    const { prisma, service } = setup();
+    prisma.live.findUnique.mockResolvedValue({
+      status: LIVE_STATUS.EN_DIRECT,
+      replayVisible: true,
+      facebookUrl: 'https://www.facebook.com/x/videos/1/',
+    });
+    prisma.liveMessage.create.mockResolvedValue(row(USER_ROLE.ADMIN));
+
+    await service.create(
+      'live-1',
+      { userId: 'admin', isAdmin: true },
+      { message: 'Merci à tous' },
+    );
+
+    expect(prisma.liveMessage.findFirst).not.toHaveBeenCalled();
+    expect(prisma.liveMessage.create).toHaveBeenCalled();
   });
 });

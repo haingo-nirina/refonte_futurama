@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CheckoutForm } from "@/app/(boutique)/panier/checkout-form";
 import { ProductImage } from "@/components/product-image";
@@ -31,6 +32,8 @@ export function LiveCartDrawer({
   zones: DeliveryZone[];
   stores: Store[];
 }) {
+  // `/live` ou `/videos/[id]` : apres connexion, on revient sur la meme video.
+  const pathname = usePathname();
   const [cart, setCart] = useState<Cart | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
@@ -179,7 +182,7 @@ export function LiveCartDrawer({
                 stores={stores}
                 liveId={liveId}
                 onOrdered={setOrder}
-                returnTo="/live"
+                returnTo={pathname}
               />
             </div>
           )}
