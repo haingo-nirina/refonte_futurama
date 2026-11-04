@@ -2,16 +2,36 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ApiError, getPayment, startPayment } from "@/lib/api";
+import {
+  ApiError,
+  getPayment,
+  getPaymentConfig,
+  startPayment,
+} from "@/lib/api";
 import { formatMgPhone } from "@/lib/checkout";
 import { formatPrice } from "@/lib/format";
-import type { Payment } from "@/lib/types";
+import type { Payment, PaymentConfig } from "@/lib/types";
 
 /** Le client valide sur son telephone : relire souvent, sans marteler Aiven. */
 const POLL_INTERVAL_MS = 3_000;
 
+/**
+ * Une seule lecture par page : le mode ne change qu'au redemarrage du serveur.
+ * API injoignable = paiement en ligne, le bouton dira alors ce qui ne va pas.
+ */
+let configPromise: Promise<PaymentConfig> | null = null;
+function loadPaymentConfig(): Promise<PaymentConfig> {
+  configPromise ??= getPaymentConfig().catch((): PaymentConfig => ({
+    mode: "mvola",
+    merchantPhone: null,
+  }));
+  return configPromise;
+}
+
 type Props = {
   orderId: string;
+  /** Reference a indiquer avec un paiement manuel */
+  orderNumber: string;
   /** Numero qui paie, fige sur la commande */
   phone: string | null;
   total: string;
@@ -29,9 +49,14 @@ type Props = {
  * Ecran « Validez sur votre téléphone » : suit la tentative MVola jusqu'à son
  * issue (`GET /payments/:id`), et propose de réessayer après un échec. Le
  * backend fait foi — c'est lui qui passe la commande en « Payée ».
+ *
+ * En mode manuel (pas encore d'accès MVola en production), aucune demande ne
+ * part : l'écran donne le numéro de la boutique et la référence à indiquer,
+ * et l'admin passe la commande « Payée » à réception.
  */
 export function MvolaPayment({
   orderId,
+  orderNumber,
   phone,
   total,
   initialPayment = null,
@@ -41,6 +66,17 @@ export function MvolaPayment({
   const [payment, setPayment] = useState<Payment | null>(initialPayment);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [config, setConfig] = useState<PaymentConfig | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadPaymentConfig().then((loaded) => {
+      if (!cancelled) setConfig(loaded);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const paymentId = payment?.id;
   const waiting = payment?.status === "EN_ATTENTE";
@@ -122,6 +158,33 @@ export function MvolaPayment({
             pour confirmer. Cette page se met à jour toute seule.
           </p>
         </div>
+      </div>
+    );
+  }
+
+  // Mode encore inconnu : pas de bouton qui disparaîtrait une seconde après.
+  if (!config && !payment) {
+    return (
+      <div className="border-line rounded-[12px] border px-4 py-3.5 text-[13.5px]">
+        <p className="text-ink font-semibold">
+          Votre commande attend son paiement.
+        </p>
+      </div>
+    );
+  }
+
+  if (config?.mode === "manuel") {
+    return (
+      <div className="bg-mvola-soft text-mvola-ink rounded-[12px] px-4 py-3.5 text-[13.5px]">
+        <p className="font-bold">Votre commande attend son paiement</p>
+        <p className="mt-1">
+          Envoyez <strong>{formatPrice(total)}</strong> par MVola au{" "}
+          <strong>{formatMgPhone(config.merchantPhone)}</strong>, en indiquant
+          la référence <strong>{orderNumber}</strong>.
+        </p>
+        <p className="mt-1">
+          Nous validons votre commande dès réception du paiement.
+        </p>
       </div>
     );
   }

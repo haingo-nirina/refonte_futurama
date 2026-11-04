@@ -531,6 +531,14 @@ export type Payment = {
   requestedAt: string;
 };
 
+/**
+ * `GET /payments/config`. En mode `manuel`, aucune demande ne part sur le
+ * telephone : le client envoie lui-meme l'argent a `merchantPhone`.
+ */
+export type PaymentConfig =
+  | { mode: "mvola"; merchantPhone: null }
+  | { mode: "manuel"; merchantPhone: string };
+
 /** Doit rester aligne sur l'enum `FulfillmentMethod` de `schema.prisma`. */
 export const FULFILLMENT_METHODS = [
   { value: "LIVRAISON", label: "Livraison" },

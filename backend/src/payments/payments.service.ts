@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import {
+  PAYMENT_MODE,
   ORDER_STATUS,
   PAYMENT_METHOD,
   PAYMENT_STATUS,
@@ -19,6 +20,7 @@ import {
 } from '../common/constants';
 import { paymentData } from '../orders/order-payment';
 import { PrismaService } from '../prisma/prisma.service';
+import { readManualPaymentPhone } from './manual-payment';
 import {
   PAYMENT_PROVIDER,
   type PaymentOutcome,
@@ -66,8 +68,19 @@ export class PaymentsService implements OnApplicationBootstrap {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+    /** `null` en mode manuel : aucun paiement en ligne. */
+    @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider | null,
   ) {}
+
+  /**
+   * Ce que l'ecran de paiement doit afficher : la demande MVola sur le
+   * telephone, ou, en mode manuel, le numero ou envoyer l'argent.
+   */
+  getConfig() {
+    return this.provider
+      ? { mode: PAYMENT_MODE.MVOLA, merchantPhone: null }
+      : { mode: PAYMENT_MODE, merchantPhone: readManualPaymentPhone() };
+  }
 
   /**
    * Envoie la demande de paiement au telephone du client. Le montant et le
@@ -78,6 +91,13 @@ export class PaymentsService implements OnApplicationBootstrap {
    * ce qui serialise deux clics simultanes.
    */
   async start(orderId: string, userId: string) {
+    const provider = this.provider;
+    if (!provider) {
+      throw new BadRequestException(
+        "Le paiement en ligne n'est pas encore disponible : envoyez le montant par MVola au numéro de la boutique",
+      );
+    }
+
     const { payment, order } = await this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} FOR UPDATE`;
 
@@ -115,7 +135,7 @@ export class PaymentsService implements OnApplicationBootstrap {
         throw new ConflictException("Cette commande n'attend plus de paiement");
       }
 
-      if (!this.provider.checkStatus) {
+      if (!provider.checkStatus) {
         await this.expireStale(tx, { orderId });
       }
 
@@ -134,7 +154,7 @@ export class PaymentsService implements OnApplicationBootstrap {
       const payment = await tx.payment.create({
         data: {
           orderId,
-          provider: this.provider.name,
+          provider: provider.name,
           providerRef: reference,
           amount: order.total,
           phone: order.mvolaPhone,
@@ -148,7 +168,7 @@ export class PaymentsService implements OnApplicationBootstrap {
     // Appel reseau hors transaction : ne pas tenir le verrou pendant ce temps.
     let result: Awaited<ReturnType<PaymentProvider['request']>>;
     try {
-      result = await this.provider.request({
+      result = await provider.request({
         reference: payment.providerRef,
         amount: payment.amount,
         phone: payment.phone,
@@ -179,7 +199,7 @@ export class PaymentsService implements OnApplicationBootstrap {
 
     if (result.simulatedOutcome) {
       this.simulateCallback(result.providerRef, result.simulatedOutcome);
-    } else if (this.provider.checkStatus) {
+    } else if (provider.checkStatus) {
       this.watched.set(result.providerRef, Date.now());
     }
 
@@ -204,7 +224,7 @@ export class PaymentsService implements OnApplicationBootstrap {
     }
 
     const expired =
-      !this.provider.checkStatus &&
+      !this.provider?.checkStatus &&
       payment.status === PAYMENT_TRANSACTION_STATUS.EN_ATTENTE &&
       payment.requestedAt.getTime() < Date.now() - PENDING_PAYMENT_TTL_MS;
     if (!expired) return payment;
@@ -233,7 +253,7 @@ export class PaymentsService implements OnApplicationBootstrap {
       where: { providerRef: ref },
       select: { status: true, provider: true, requestedAt: true },
     });
-    if (!payment || payment.provider !== this.provider.name) {
+    if (!payment || payment.provider !== this.provider?.name) {
       throw new NotFoundException(`Paiement ${ref} inconnu`);
     }
 
@@ -248,7 +268,7 @@ export class PaymentsService implements OnApplicationBootstrap {
 
   /** Reprend au demarrage les demandes restees en cours. */
   async onApplicationBootstrap() {
-    if (!this.provider.checkStatus) return;
+    if (!this.provider?.checkStatus) return;
 
     const pending = await this.prisma.payment.findMany({
       where: {
@@ -296,7 +316,7 @@ export class PaymentsService implements OnApplicationBootstrap {
   }
 
   private async verify(ref: string) {
-    const outcome = await this.provider.checkStatus!(ref);
+    const outcome = await this.provider!.checkStatus!(ref);
     if (!outcome) return;
 
     await this.handleOutcome(ref, outcome);

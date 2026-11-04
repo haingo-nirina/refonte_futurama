@@ -92,6 +92,7 @@ export default async function OrderConfirmationPage({
           <div className="mt-6">
             <MvolaPayment
               orderId={order.id}
+              orderNumber={order.number}
               phone={order.mvolaPhone}
               total={order.total}
               initialPayment={payment}

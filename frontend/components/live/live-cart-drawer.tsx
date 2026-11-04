@@ -220,6 +220,7 @@ function OrderDone({
       </p>
       <MvolaPayment
         orderId={order.id}
+        orderNumber={order.number}
         phone={order.mvolaPhone}
         total={order.total}
         initialPayment={payment}

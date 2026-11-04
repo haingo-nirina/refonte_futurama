@@ -39,6 +39,15 @@ export class PaymentsController {
     return this.paymentsService.handleCallback(body);
   }
 
+  /**
+   * Publique : paiement MVola en ligne, ou mode manuel avec le numero de la
+   * boutique. Declaree avant `:id`, que `ParseUUIDPipe` refuserait en 400.
+   */
+  @Get('config')
+  config() {
+    return this.paymentsService.getConfig();
+  }
+
   /** Suivi d'une tentative, pour l'ecran « Validez sur votre telephone ». */
   @Get(':id')
   @UseGuards(JwtAuthGuard)

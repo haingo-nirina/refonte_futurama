@@ -16,6 +16,7 @@ import type {
   Store,
   Paginated,
   Payment,
+  PaymentConfig,
   Post,
   PostComment,
   Product,
@@ -333,6 +334,11 @@ export function startPayment(orderId: string): Promise<Payment> {
 
 export function getPayment(id: string, token?: string): Promise<Payment> {
   return request<Payment>(`/payments/${id}`, { token });
+}
+
+/** Paiement en ligne ou mode manuel : fixe pour toute la vie du serveur. */
+export function getPaymentConfig(): Promise<PaymentConfig> {
+  return request<PaymentConfig>("/payments/config");
 }
 
 // ------------------------------------------------------------- Publications

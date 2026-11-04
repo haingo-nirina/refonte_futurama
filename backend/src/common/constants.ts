@@ -39,6 +39,15 @@ export const PAYMENT_PROVIDER_NAME = {
 export type PaymentProviderName =
   (typeof PAYMENT_PROVIDER_NAME)[keyof typeof PAYMENT_PROVIDER_NAME];
 
+// Mode de paiement annonce au front (`GET /payments/config`). `manuel` :
+// PAYMENT_PROVIDER=manuel, pas de paiement en ligne — le client envoie lui-meme
+// l'argent au numero de la boutique, l'admin passe la commande « Payée ».
+// Aucune ligne `payments` n'est ecrite, d'ou son absence de PAYMENT_PROVIDER_NAME.
+export const PAYMENT_MODE = {
+  MVOLA: 'mvola',
+  MANUEL: 'manuel',
+} as const;
+
 // Live.status : enum Prisma. Passe en direct puis termine tout seul, au gre
 // de la detection Facebook (`LivesService.syncWithFacebook`).
 export const LIVE_STATUS = LiveStatus;
