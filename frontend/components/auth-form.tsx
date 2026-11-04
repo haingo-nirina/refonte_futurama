@@ -104,7 +104,7 @@ export function AuthForm({ mode, next }: { mode: Mode; next?: string }) {
 
           <Field
             name="email"
-            label="Email"
+            label="E-mail"
             type="email"
             autoComplete="email"
             placeholder="vous@exemple.mg"

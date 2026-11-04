@@ -53,6 +53,6 @@ export function AddToCartButton({
 const LABELS: Record<Status, string> = {
   idle: "Ajouter au panier",
   pending: "Ajout…",
-  done: "Ajoute ✓",
-  error: "Reessayer",
+  done: "Ajouté ✓",
+  error: "Réessayer",
 };

@@ -34,7 +34,7 @@ export default async function AdminPublicationsPage({
     <div className="max-w-4xl">
       <PageHeader
         title="Publications"
-        subtitle={`${meta.total} publication${meta.total > 1 ? "s" : ""} · la plus recente ouvre le mur de la boutique`}
+        subtitle={`${meta.total} publication${meta.total > 1 ? "s" : ""} · la plus récente ouvre le mur de la boutique`}
       />
 
       <PublicationManager posts={data} />

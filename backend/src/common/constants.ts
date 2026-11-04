@@ -31,6 +31,14 @@ export type {
   PaymentTransactionStatus,
 };
 
+// Payment.provider : qui a traite la tentative de paiement.
+export const PAYMENT_PROVIDER_NAME = {
+  MVOLA_MOCK: 'mvola_mock',
+  MVOLA: 'mvola',
+} as const;
+export type PaymentProviderName =
+  (typeof PAYMENT_PROVIDER_NAME)[keyof typeof PAYMENT_PROVIDER_NAME];
+
 // Live.status : enum Prisma. Passe en direct puis termine tout seul, au gre
 // de la detection Facebook (`LivesService.syncWithFacebook`).
 export const LIVE_STATUS = LiveStatus;

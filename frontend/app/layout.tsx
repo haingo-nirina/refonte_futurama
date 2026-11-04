@@ -15,11 +15,11 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "Futurama — importateur direct a Madagascar",
+    default: "Futurama — importateur direct à Madagascar",
     template: "%s · Futurama",
   },
   description:
-    "Jouets, electromenager, energie et robotique. Prix importateur, stock a Antananarivo.",
+    "Jouets, électroménager, énergie et robotique. Prix importateur, stock à Antananarivo.",
 };
 
 /**

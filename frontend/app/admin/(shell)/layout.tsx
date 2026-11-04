@@ -56,7 +56,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
             href="/"
             className="block text-xs text-cream/70 transition hover:text-cream"
           >
-            ← Retour a la boutique
+            ← Retour à la boutique
           </Link>
           <AdminSignOut />
         </div>

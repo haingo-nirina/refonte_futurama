@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ApiError, getOrder } from "@/lib/api";
+import { MvolaPayment } from "@/components/mvola-payment";
+import { ApiError, getOrder, getPayment } from "@/lib/api";
 import { getServerToken } from "@/lib/auth-server";
 import { ALL_CATEGORIES_SLUG } from "@/lib/catalogue";
 import { formatDate, formatPrice, toAmount } from "@/lib/format";
-import { ORDER_STATUSES, PAYMENT_METHODS, type Order } from "@/lib/types";
-
+import {
+  ORDER_STATUSES,
+  PAYMENT_METHODS,
+  type Order,
+  type Payment,
+} from "@/lib/types";
 
 /**
  * `GET /orders/:id` est protege : le token voyage dans un cookie justement
@@ -29,11 +34,37 @@ async function loadOrder(id: string): Promise<Order> {
   }
 }
 
+/**
+ * Tentative MVola envoyee par le formulaire (`?paiement=`), pour reprendre
+ * l'attente apres un rechargement. Une tentative illisible, ou d'une autre
+ * commande, est ignoree : l'ecran propose alors simplement de payer.
+ */
+async function loadPayment(
+  paymentId: string | string[] | undefined,
+  orderId: string,
+): Promise<Payment | null> {
+  if (typeof paymentId !== "string") return null;
+
+  try {
+    const payment = await getPayment(paymentId, await getServerToken());
+    return payment.orderId === orderId ? payment : null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function OrderConfirmationPage({
   params,
+  searchParams,
 }: PageProps<"/commande/[id]">) {
   const { id } = await params;
+  const { paiement } = await searchParams;
   const order = await loadOrder(id);
+  const isMvola = order.paymentMethod === "MVOLA";
+  const awaitingPayment = isMvola && order.status === "EN_ATTENTE_PAIEMENT";
+  // Une fois payee, la tentative reussie reste affichee : c'est la preuve
+  // que le client attendait.
+  const payment = isMvola ? await loadPayment(paiement, order.id) : null;
 
   const paymentLabel =
     PAYMENT_METHODS.find((method) => method.value === order.paymentMethod)
@@ -44,7 +75,7 @@ export default async function OrderConfirmationPage({
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-8">
       <div className="border-line rounded-[18px] border bg-white p-8 sm:p-10">
         <span className="bg-success-soft text-success inline-block rounded-md px-3 py-1.5 text-[12.5px] font-semibold">
-          Commande enregistree
+          Commande enregistrée
         </span>
 
         <h1 className="font-display text-navy mt-4 text-[30px] font-extrabold tracking-tight">
@@ -56,6 +87,18 @@ export default async function OrderConfirmationPage({
             : "Vous recevrez un SMS avec votre code de retrait dès que la commande sera prête."}{" "}
           Commande passée le {formatDate(order.createdAt)}.
         </p>
+
+        {awaitingPayment || payment?.status === "REUSSI" ? (
+          <div className="mt-6">
+            <MvolaPayment
+              orderId={order.id}
+              phone={order.mvolaPhone}
+              total={order.total}
+              initialPayment={payment}
+              refreshOnPaid
+            />
+          </div>
+        ) : null}
 
         <dl className="border-line mt-8 grid gap-x-8 gap-y-4 border-t pt-6 sm:grid-cols-2">
           <Detail label="Numéro de commande" value={order.number} mono />
@@ -164,4 +207,4 @@ function Detail({
   );
 }
 
-export const metadata = { title: "Commande confirmee" };
+export const metadata = { title: "Commande confirmée" };

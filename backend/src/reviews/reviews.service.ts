@@ -58,7 +58,7 @@ export class ReviewsService {
         error.code === UNIQUE_CONSTRAINT_VIOLATION
       ) {
         throw new ConflictException(
-          'Vous avez deja depose un avis sur ce produit',
+          'Vous avez déjà déposé un avis sur ce produit',
         );
       }
 
@@ -125,7 +125,7 @@ export class ReviewsService {
     }
 
     if (review.userId !== userId) {
-      throw new ForbiddenException("Cet avis n'est pas le votre");
+      throw new ForbiddenException("Cet avis n'est pas le vôtre");
     }
 
     return review;

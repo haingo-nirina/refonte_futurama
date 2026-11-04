@@ -67,10 +67,10 @@ function validate(draft: Draft): string | null {
 
   const percent = Number(draft.discountPercent);
   if (!draft.discountPercent.trim() || Number.isNaN(percent)) {
-    return "La remise doit etre un nombre.";
+    return "La remise doit être un nombre.";
   }
   if (percent < 0 || percent > 100) {
-    return "La remise doit etre comprise entre 0 et 100.";
+    return "La remise doit être comprise entre 0 et 100.";
   }
 
   if (!draft.startDate || !draft.endDate) {
@@ -79,7 +79,7 @@ function validate(draft: Draft): string | null {
   if (
     new Date(draft.endDate).getTime() <= new Date(draft.startDate).getTime()
   ) {
-    return "La date de fin doit etre posterieure a la date de debut.";
+    return "La date de fin doit être postérieure à la date de début.";
   }
 
   return null;
@@ -225,13 +225,13 @@ export function PromotionManager({ promotions }: { promotions: Promotion[] }) {
     <div>
       <div className="mb-4 flex justify-end">
         <button type="button" onClick={startCreate} className="admin-button">
-          Creer une promotion
+          Créer une promotion
         </button>
       </div>
 
       {promotions.length === 0 ? (
         <p className="admin-card text-muted text-center text-[13.5px]">
-          Aucune promotion ne correspond a ces filtres.
+          Aucune promotion ne correspond à ces filtres.
         </p>
       ) : (
         <div className="border-line overflow-x-auto rounded-[14px] border bg-white">
@@ -241,7 +241,7 @@ export function PromotionManager({ promotions }: { promotions: Promotion[] }) {
                 <th className="px-4 py-3 font-semibold">Titre</th>
                 <th className="px-4 py-3 font-semibold">Produit</th>
                 <th className="px-4 py-3 font-semibold">Remise</th>
-                <th className="px-4 py-3 font-semibold">Periode</th>
+                <th className="px-4 py-3 font-semibold">Période</th>
                 <th className="px-4 py-3 font-semibold">Statut</th>
                 <th className="px-4 py-3 text-right font-semibold">Actions</th>
               </tr>
@@ -308,7 +308,7 @@ export function PromotionManager({ promotions }: { promotions: Promotion[] }) {
                         {toggling === promotion.id
                           ? "…"
                           : promotion.isActive
-                            ? "Desactiver"
+                            ? "Désactiver"
                             : "Activer"}
                       </button>
                       <button
@@ -345,7 +345,7 @@ export function PromotionManager({ promotions }: { promotions: Promotion[] }) {
             ? "Modifier la promotion"
             : "Nouvelle promotion"
         }
-        description="Le prix reduit se calcule a partir du prix du produit : il n'est jamais saisi ni stocke."
+        description="Le prix réduit se calcule à partir du prix du produit : il n'est jamais saisi ni stocké."
       >
         <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -458,10 +458,10 @@ export function PromotionManager({ promotions }: { promotions: Promotion[] }) {
         message={
           <>
             La promotion sur <strong>{deleting?.product.name}</strong> sera
-            definitivement supprimee.
+            définitivement supprimée.
           </>
         }
-        detail="Le produit reprend son prix catalogue. Pour la retirer sans la perdre, utilisez plutot « Desactiver »."
+        detail="Le produit reprend son prix catalogue. Pour la retirer sans la perdre, utilisez plutôt « Désactiver »."
         pending={deletePending}
         error={deleteError}
         onConfirm={() => void onDelete()}

@@ -20,11 +20,11 @@ import type { Category } from "@/lib/types";
 const TRUST = [
   {
     title: "Importateur direct",
-    desc: "Pas d'intermediaire, prix d'importation.",
+    desc: "Pas d'intermédiaire, prix d'importation.",
   },
-  { title: "Stock a Tsaralalana", desc: "Retrait gratuit en boutique." },
-  { title: "Livraison Antananarivo", desc: "Offerte des 300 000 Ar." },
-  { title: "Paiement flexible", desc: "Mvola, Orange Money, a la livraison." },
+  { title: "Stock à Tsaralalana", desc: "Retrait gratuit en boutique." },
+  { title: "Livraison Antananarivo", desc: "Offerte dès 300 000 Ar." },
+  { title: "Paiement flexible", desc: "MVola, Orange Money, à la livraison." },
 ];
 
 /**
@@ -92,11 +92,11 @@ export default async function HomePage() {
               IMPORTATEUR DIRECT · MADAGASCAR
             </span>
             <h1 className="font-display mt-3.5 max-w-[15ch] text-4xl leading-[1.02] font-extrabold tracking-tight text-white lg:text-[52px]">
-              Le bonheur de vos clients, importe en direct.
+              Le bonheur de vos clients, importé en direct.
             </h1>
             <p className="mt-4 max-w-[44ch] text-base text-white/75">
-              Jouets, electromenager, robotique et voyage spatial. Stock
-              disponible a Tsaralalana, prix importateur sans intermediaire.
+              Jouets, électroménager, robotique et voyage spatial. Stock
+              disponible à Tsaralalana, prix importateur sans intermédiaire.
             </p>
             <Link
               href={`/catalogue/${ALL_CATEGORIES_SLUG}`}
@@ -189,8 +189,8 @@ function HeroCategoryCard({
         </h3>
         <p className={`mt-2 text-[13px] opacity-75 ${tint.title}`}>
           {category.children.length > 0
-            ? `${category.children.length} sous-rayon${category.children.length > 1 ? "s" : ""} a explorer`
-            : "Tout le rayon en stock a Tsaralalana"}
+            ? `${category.children.length} sous-rayon${category.children.length > 1 ? "s" : ""} à explorer`
+            : "Tout le rayon en stock à Tsaralalana"}
         </p>
       </div>
 

@@ -86,7 +86,7 @@ export class StoresService {
         error.code === FOREIGN_KEY_VIOLATION
       ) {
         throw new ConflictException(
-          'Des commandes sont rattachees a cette boutique : desactivez-la plutot',
+          'Des commandes sont rattachées à cette boutique : désactivez-la plutôt',
         );
       }
 

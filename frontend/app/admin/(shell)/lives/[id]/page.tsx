@@ -9,7 +9,7 @@ import { getAdminLive } from "@/lib/admin-api";
 import { getServerToken } from "@/lib/auth-server";
 import { formatDateTime } from "@/lib/format";
 
-export const metadata = { title: "Edition du live" };
+export const metadata = { title: "Édition du live" };
 
 export default async function EditLivePage({
   params,

@@ -2,7 +2,7 @@ import { CategoryManager } from "@/components/admin/category-manager";
 import { PageHeader } from "@/components/admin/page-header";
 import { getCategories } from "@/lib/api";
 
-export const metadata = { title: "Categories" };
+export const metadata = { title: "Catégories" };
 
 export default async function AdminCategoriesPage() {
   const categories = await getCategories();
@@ -10,8 +10,8 @@ export default async function AdminCategoriesPage() {
   return (
     <div className="max-w-3xl">
       <PageHeader
-        title="Categories"
-        subtitle="Les rayons de l'accueil sont ceux marques « mise en avant »."
+        title="Catégories"
+        subtitle="Les rayons de l'accueil sont ceux marqués « mise en avant »."
       />
       <CategoryManager categories={categories} />
     </div>

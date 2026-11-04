@@ -23,7 +23,7 @@ export default async function NewProductPage() {
         Nouveau produit
       </h1>
       <p className="text-muted mb-6 text-sm">
-        Galerie, caracteristiques et produits lies se renseignent apres la
+        Galerie, caractéristiques et produits liés se renseignent après la
         creation : ils ont besoin de l&apos;identifiant du produit.
       </p>
 

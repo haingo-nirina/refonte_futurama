@@ -191,7 +191,7 @@ export type Order = {
 export const PAYMENT_METHODS = [
   { value: "MVOLA", label: "MVola" },
   // anciennes commandes uniquement : le backend refuse ce moyen a la creation
-  { value: "CASH_ON_DELIVERY", label: "Paiement a la livraison" },
+  { value: "CASH_ON_DELIVERY", label: "Paiement à la livraison" },
 ] as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]["value"];
@@ -409,7 +409,7 @@ export type ProductRelation = {
 /** Doit rester aligne sur `backend/src/common/constants.ts`. */
 export const RELATION_TYPES = [
   { value: "similar", label: "Produit similaire" },
-  { value: "frequently_bought_together", label: "Souvent achete ensemble" },
+  { value: "frequently_bought_together", label: "Souvent acheté ensemble" },
 ] as const;
 
 export type RelationType = (typeof RELATION_TYPES)[number]["value"];
@@ -496,25 +496,40 @@ export type CategoryInput = {
 /** Doit rester aligne sur `backend/src/common/constants.ts`. */
 export const ORDER_STATUSES = [
   { value: "EN_ATTENTE_PAIEMENT", label: "En attente de paiement" },
-  { value: "PAYEE", label: "Payee" },
-  { value: "EN_PREPARATION", label: "En preparation" },
-  { value: "EXPEDIEE", label: "Expediee" },
-  { value: "LIVREE", label: "Livree" },
-  { value: "PRETE_A_RETIRER", label: "Prete a retirer" },
-  { value: "RETIREE", label: "Retiree" },
-  { value: "ANNULEE", label: "Annulee" },
+  { value: "PAYEE", label: "Payée" },
+  { value: "EN_PREPARATION", label: "En préparation" },
+  { value: "EXPEDIEE", label: "Expédiée" },
+  { value: "LIVREE", label: "Livrée" },
+  { value: "PRETE_A_RETIRER", label: "Prête à retirer" },
+  { value: "RETIREE", label: "Retirée" },
+  { value: "ANNULEE", label: "Annulée" },
 ] as const;
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number]["value"];
 
 /** Doit rester aligne sur l'enum `PaymentStatus` de `schema.prisma`. */
 export const PAYMENT_STATUSES = [
-  { value: "NON_PAYE", label: "Non paye" },
-  { value: "PAYE", label: "Paye" },
-  { value: "ECHOUE", label: "Echoue" },
+  { value: "NON_PAYE", label: "Non payé" },
+  { value: "PAYE", label: "Payé" },
+  { value: "ECHOUE", label: "Échoué" },
 ] as const;
 
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number]["value"];
+
+/** Doit rester aligne sur l'enum `PaymentTransactionStatus` de `schema.prisma`. */
+export type PaymentTransactionStatus = "EN_ATTENTE" | "REUSSI" | "ECHOUE";
+
+/** Une tentative de paiement MVola, telle que la suit l'ecran d'attente. */
+export type Payment = {
+  id: string;
+  orderId: string;
+  status: PaymentTransactionStatus;
+  /** Renseigne sur un echec : refus, delai depasse… */
+  failureReason: string | null;
+  amount: string;
+  phone: string;
+  requestedAt: string;
+};
 
 /** Doit rester aligne sur l'enum `FulfillmentMethod` de `schema.prisma`. */
 export const FULFILLMENT_METHODS = [
@@ -547,8 +562,8 @@ export type AdminOrder = Order & {
 /** Doit rester aligne sur `backend/src/common/constants.ts`. */
 export const MODERATION_STATUSES = [
   { value: "pending", label: "En attente" },
-  { value: "approved", label: "Publie" },
-  { value: "rejected", label: "Rejete" },
+  { value: "approved", label: "Publié" },
+  { value: "rejected", label: "Rejeté" },
 ] as const;
 
 export type ModerationStatus = (typeof MODERATION_STATUSES)[number]["value"];

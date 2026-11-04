@@ -38,7 +38,7 @@ export function VideoUpload({
     // Controle de confort : le backend revalide type et taille. Il evite
     // surtout d'envoyer 300 Mo pour rien.
     if (!ACCEPTED_VIDEO_TYPES.includes(file.type)) {
-      setError("Formats acceptes : MP4, WebM ou MOV.");
+      setError("Formats acceptés : MP4, WebM ou MOV.");
       return;
     }
 
@@ -56,7 +56,7 @@ export function VideoUpload({
       onChange(url);
     } catch (cause) {
       setError(
-        cause instanceof ApiError ? cause.message : "Televersement impossible",
+        cause instanceof ApiError ? cause.message : "Téléversement impossible",
       );
     } finally {
       setPending(false);
@@ -97,10 +97,10 @@ export function VideoUpload({
           className="admin-button-ghost"
         >
           {pending
-            ? "Televersement…"
+            ? "Téléversement…"
             : value
-              ? "Remplacer la video"
-              : "Choisir une video"}
+              ? "Remplacer la vidéo"
+              : "Choisir une vidéo"}
         </button>
 
         {value ? (

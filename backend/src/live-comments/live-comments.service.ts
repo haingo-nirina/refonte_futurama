@@ -144,7 +144,7 @@ export class LiveCommentsService {
     }
 
     if (!actor.isAdmin && comment.userId !== actor.userId) {
-      throw new ForbiddenException("Ce commentaire n'est pas le votre");
+      throw new ForbiddenException("Ce commentaire n'est pas le vôtre");
     }
 
     await this.prisma.liveMessage.delete({ where: { id: commentId } });

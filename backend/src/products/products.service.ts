@@ -288,7 +288,7 @@ export class ProductsService {
 
     if (primaries > 1) {
       throw new BadRequestException(
-        'Une seule image peut etre marquee comme principale',
+        'Une seule image peut être marquée comme principale',
       );
     }
 
@@ -353,7 +353,7 @@ export class ProductsService {
 
     if (dto.relations.some((relation) => relation.relatedProductId === id)) {
       throw new BadRequestException(
-        'Un produit ne peut pas etre lie a lui-meme',
+        'Un produit ne peut pas être lié à lui-même',
       );
     }
 
@@ -367,7 +367,7 @@ export class ProductsService {
       });
 
       if (found !== targetIds.length) {
-        throw new NotFoundException('Un produit lie est introuvable');
+        throw new NotFoundException('Un produit lié est introuvable');
       }
     }
 

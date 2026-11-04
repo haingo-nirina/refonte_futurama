@@ -79,7 +79,7 @@ export function ReviewForm({
       }
 
       setError(
-        cause instanceof ApiError ? cause.message : "Avis non enregistre",
+        cause instanceof ApiError ? cause.message : "Avis non enregistré",
       );
     } finally {
       setPending(false);
@@ -121,7 +121,7 @@ export function ReviewForm({
           Merci pour votre avis
         </h3>
         <p className="text-ink/80 mt-2 text-[13px]">
-          Il sera publie sur cette page apres validation par notre equipe.
+          Il sera publié sur cette page après validation par notre équipe.
         </p>
       </div>
     );
@@ -135,12 +135,12 @@ export function ReviewForm({
         <h3 className="font-display text-navy text-[15px] font-bold">
           {mine.moderationStatus === "pending"
             ? "Votre avis est en attente de validation"
-            : "Votre avis n'a pas ete publie"}
+            : "Votre avis n'a pas été publié"}
         </h3>
         <p className="text-muted mt-2 text-[13px]">
           {mine.moderationStatus === "pending"
-            ? "Il apparaitra sur cette page des que notre equipe l'aura valide."
-            : "Notre equipe ne l'a pas retenu. Vous pouvez le modifier pour le soumettre a nouveau."}
+            ? "Il apparaîtra sur cette page dès que notre équipe l'aura validé."
+            : "Notre équipe ne l'a pas retenu. Vous pouvez le modifier pour le soumettre à nouveau."}
         </p>
         <ul className="mt-2">
           <ReviewItem
@@ -159,10 +159,10 @@ export function ReviewForm({
     return (
       <div className="bg-cream-deep rounded-[14px] p-5.5">
         <h3 className="font-display text-navy text-[15px] font-bold">
-          Vous avez deja donne votre avis
+          Vous avez déjà donné votre avis
         </h3>
         <p className="text-muted mt-2 text-[13px]">
-          Retrouvez-le dans la liste : vous pouvez le modifier ou le supprimer a
+          Retrouvez-le dans la liste : vous pouvez le modifier ou le supprimer à
           tout moment. Une modification repasse par la validation.
         </p>
       </div>
@@ -184,7 +184,7 @@ export function ReviewForm({
         rows={3}
         value={comment}
         onChange={(event) => setComment(event.target.value)}
-        placeholder="Qu'avez-vous pense de ce produit ?"
+        placeholder="Qu'avez-vous pensé de ce produit ?"
         className="border-line-strong focus:border-brand resize-y rounded-[9px] border-[1.5px] bg-white px-3.5 py-2.5 text-[13.5px] outline-none"
       />
 
@@ -199,7 +199,7 @@ export function ReviewForm({
       </button>
 
       <p className="text-muted-light text-[12px]">
-        Un avis par produit et par compte, publie apres validation.
+        Un avis par produit et par compte, publié après validation.
       </p>
     </form>
   );

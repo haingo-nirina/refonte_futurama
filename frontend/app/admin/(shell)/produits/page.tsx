@@ -69,13 +69,13 @@ export default async function AdminProductsPage({
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Nom ou reference"
+            placeholder="Nom ou référence"
             className="admin-input"
           />
         </label>
 
         <label className="block">
-          <span className="admin-label">Categorie</span>
+          <span className="admin-label">Catégorie</span>
           <select
             name="categoryId"
             defaultValue={categoryId}
@@ -116,7 +116,7 @@ export default async function AdminProductsPage({
 
       {data.length === 0 ? (
         <p className="border-line text-muted rounded-[14px] border bg-white p-8 text-center text-sm">
-          Aucun produit ne correspond a ces filtres.
+          Aucun produit ne correspond à ces filtres.
         </p>
       ) : (
         <ProductSelectionProvider
@@ -139,15 +139,15 @@ export default async function AdminProductsPage({
                     <ProductSelectAll />
                   </th>
                   <th className="px-4 py-3 font-semibold">Produit</th>
-                  <th className="px-4 py-3 font-semibold">Reference</th>
+                  <th className="px-4 py-3 font-semibold">Référence</th>
                   <th className="px-4 py-3 font-semibold">Couleurs</th>
                   <th className="px-4 py-3 font-semibold">Description</th>
-                  <th className="px-4 py-3 font-semibold">Categorie</th>
+                  <th className="px-4 py-3 font-semibold">Catégorie</th>
                   <th className="px-4 py-3 font-semibold">Prix</th>
                   <th className="px-4 py-3 font-semibold">Stock</th>
                   <th className="px-4 py-3 font-semibold">Etat</th>
-                  <th className="px-4 py-3 font-semibold">Cree le</th>
-                  <th className="px-4 py-3 font-semibold">Modifie le</th>
+                  <th className="px-4 py-3 font-semibold">Créé le</th>
+                  <th className="px-4 py-3 font-semibold">Modifié le</th>
                   <th className="px-4 py-3 text-right font-semibold">
                     Actions
                   </th>

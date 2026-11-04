@@ -66,10 +66,10 @@ export const PARAM = {
  * ordre naturel, et ne retrie rien.
  */
 export const CATALOGUE_SORTS = [
-  { value: "nouveautes", label: "Nouveautes" },
-  { value: "populaires", label: "Les plus consultes" },
+  { value: "nouveautes", label: "Nouveautés" },
+  { value: "populaires", label: "Les plus consultés" },
   { value: "prix-asc", label: "Prix croissant" },
-  { value: "prix-desc", label: "Prix decroissant" },
+  { value: "prix-desc", label: "Prix décroissant" },
   { value: "nom", label: "Nom (A-Z)" },
 ] as const;
 
@@ -79,10 +79,10 @@ const DEFAULT_SORT: CatalogueSort = "nouveautes";
 
 /** Tranches de prix de la maquette, en ariary. `max` absent = « et plus ». */
 export const PRICE_BRACKETS = [
-  { value: "0-50000", label: "Jusqu'a 50 000 Ar", min: 0, max: 50_000 },
-  { value: "50000-100000", label: "De 50 000 a 100 000 Ar", min: 50_000, max: 100_000 },
-  { value: "100000-250000", label: "De 100 000 a 250 000 Ar", min: 100_000, max: 250_000 },
-  { value: "250000-500000", label: "De 250 000 a 500 000 Ar", min: 250_000, max: 500_000 },
+  { value: "0-50000", label: "Jusqu'à 50 000 Ar", min: 0, max: 50_000 },
+  { value: "50000-100000", label: "De 50 000 à 100 000 Ar", min: 50_000, max: 100_000 },
+  { value: "100000-250000", label: "De 100 000 à 250 000 Ar", min: 100_000, max: 250_000 },
+  { value: "250000-500000", label: "De 250 000 à 500 000 Ar", min: 250_000, max: 500_000 },
   { value: "500000-", label: "500 000 Ar et plus", min: 500_000, max: undefined },
 ] as const;
 

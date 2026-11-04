@@ -64,7 +64,7 @@ export default async function AdminReviewsPage({
     <div className="max-w-4xl">
       <PageHeader
         title="Avis"
-        subtitle={`${meta.total} avis · un avis n'est publie sur la fiche produit qu'apres validation`}
+        subtitle={`${meta.total} avis · un avis n'est publié sur la fiche produit qu'après validation`}
       />
 
       <nav className="mb-6 flex flex-wrap gap-2" aria-label="Statut des avis">

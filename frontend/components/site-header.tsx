@@ -26,7 +26,7 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-50 bg-white">
       <LiveBanner />
       <div className="bg-brand px-4 py-2 text-center text-[13px] font-medium text-white">
-        Livraison offerte dans Antananarivo des 300 000 Ar — Retrait gratuit a
+        Livraison offerte dans Antananarivo dès 300 000 Ar — Retrait gratuit à
         Tsaralalana
       </div>
 
@@ -45,7 +45,7 @@ export async function SiteHeader() {
         <div className="ml-auto flex items-center gap-6">
           <div className="hidden flex-col gap-0.5 lg:flex">
             <span className="text-muted text-[11px]">
-              Commande par telephone
+              Commande par téléphone
             </span>
             <span className="font-display text-navy text-[15px] font-bold">
               +261 32 69 521 24

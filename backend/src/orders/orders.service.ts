@@ -6,11 +6,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { addBusinessDays } from '../common/business-days';
 import {
   FULFILLMENT_METHOD,
   ORDER_STATUS,
-  PAYMENT_STATUS,
   USER_ROLE,
 } from '../common/constants';
 import { shippingFeeFor } from '../delivery-zones/shipping-fee';
@@ -19,6 +17,7 @@ import {
   discountedPrice,
 } from '../promotions/promotion-pricing';
 import { nextOrderNumber } from './order-number';
+import { paymentData } from './order-payment';
 import { ORDER_STATUS_LABELS, canTransition } from './order-status-rules';
 import type { AuthenticatedUser } from '../auth/jwt-payload';
 import { CartService } from '../cart/cart.service';
@@ -75,7 +74,7 @@ export class OrdersService {
 
     if (cart.items.length === 0) {
       throw new BadRequestException(
-        'Le panier est vide, impossible de creer une commande',
+        'Le panier est vide, impossible de créer une commande',
       );
     }
 
@@ -304,7 +303,7 @@ export class OrdersService {
     // telephone et l'adresse de livraison de quelqu'un d'autre.
     if (order.userId !== user.userId && !isAdmin) {
       throw new ForbiddenException(
-        'Cette commande appartient a un autre compte',
+        'Cette commande appartient à un autre compte',
       );
     }
 
@@ -336,7 +335,7 @@ export class OrdersService {
 
       if (!canTransition(order.status, dto.status, order.fulfillmentMethod)) {
         throw new BadRequestException(
-          `Passage impossible de « ${ORDER_STATUS_LABELS[order.status]} » a « ${ORDER_STATUS_LABELS[dto.status]} »`,
+          `Passage impossible de « ${ORDER_STATUS_LABELS[order.status]} » à « ${ORDER_STATUS_LABELS[dto.status]} »`,
         );
       }
 
@@ -381,32 +380,6 @@ export class OrdersService {
       });
     });
   }
-}
-
-/**
- * Ce que le passage a PAYEE ecrit sur la commande. Un paiement deja confirme
- * garde sa date. La date prevue part de `paidAt` : delai de la zone (copie sur
- * la commande) en livraison, delai de preparation de la boutique en retrait.
- */
-function paymentData(order: {
-  paidAt: Date | null;
-  fulfillmentMethod: string;
-  deliveryDelayDays: number | null;
-  store: { pickupDelayDays: number } | null;
-}): Prisma.OrderUpdateManyMutationInput {
-  const paidAt = order.paidAt ?? new Date();
-  const delay =
-    order.fulfillmentMethod === FULFILLMENT_METHOD.LIVRAISON
-      ? order.deliveryDelayDays
-      : (order.store?.pickupDelayDays ?? null);
-
-  return {
-    paymentStatus: PAYMENT_STATUS.PAYE,
-    paidAt,
-    ...(delay !== null
-      ? { expectedDeliveryAt: addBusinessDays(paidAt, delay) }
-      : {}),
-  };
 }
 
 /** Dernier instant du jour : borne haute inclusive d'un filtre "jusqu'au <jour>". */

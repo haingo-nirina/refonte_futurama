@@ -34,7 +34,7 @@ export function ReviewModeration({
       router.refresh();
     } catch (cause) {
       setError(
-        cause instanceof ApiError ? cause.message : "Moderation impossible",
+        cause instanceof ApiError ? cause.message : "Modération impossible",
       );
     } finally {
       setPending(null);

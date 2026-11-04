@@ -58,7 +58,7 @@ export function ProductCard({ product }: { product: Product }) {
         className={`text-[10.5px] leading-[1.3] ${product.stock > 0 ? "text-success" : "text-muted-light"}`}
       >
         {product.stock > 0
-          ? `En stock · ${product.stock} piece${product.stock > 1 ? "s" : ""}`
+          ? `En stock · ${product.stock} pièce${product.stock > 1 ? "s" : ""}`
           : "Rupture de stock"}
       </span>
 

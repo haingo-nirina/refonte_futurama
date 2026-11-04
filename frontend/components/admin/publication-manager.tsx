@@ -223,7 +223,7 @@ export function PublicationManager({ posts }: { posts: Post[] }) {
                   <p className="text-muted-light mt-1.5 text-[12px]">
                     {post.publishedAt
                       ? formatDateTime(post.publishedAt)
-                      : `Redigee le ${formatDateTime(post.createdAt)}`}{" "}
+                      : `Rédigée le ${formatDateTime(post.createdAt)}`}{" "}
                     · {post.likesCount} j&apos;aime ·{" "}
                     <button
                       type="button"
@@ -277,7 +277,7 @@ export function PublicationManager({ posts }: { posts: Post[] }) {
             ? `Modifier « ${editing.post.title} »`
             : "Nouvelle publication"
         }
-        description="Elle parait sur le mur de la boutique, la plus recente en haut."
+        description="Elle paraît sur le mur de la boutique, la plus récente en haut."
       >
         <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2">
           <label className="block">
@@ -304,11 +304,11 @@ export function PublicationManager({ posts }: { posts: Post[] }) {
           </label>
 
           <label className="block">
-            <span className="admin-label">Slug *</span>
+            <span className="admin-label">Identifiant d&apos;URL *</span>
             <input
               required
               pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-              title="minuscules, mots separes par des tirets"
+              title="minuscules, mots séparés par des tirets"
               value={draft.slug}
               onChange={(event) =>
                 setDraft({ ...draft, slug: event.target.value })
@@ -367,8 +367,8 @@ export function PublicationManager({ posts }: { posts: Post[] }) {
                 className="admin-input"
               />
               <span className="text-muted-light mt-1 block text-[12px]">
-                Une date a venir programme la parution : la publication reste
-                invisible jusque-la.
+                Une date à venir programme la parution : la publication reste
+                invisible jusque-là.
               </span>
             </label>
           ) : (
@@ -417,8 +417,8 @@ export function PublicationManager({ posts }: { posts: Post[] }) {
         }
         detail={
           deleting && (deleting._count.comments > 0 || deleting.likesCount > 0)
-            ? `Ses ${deleting._count.comments} commentaire(s) et ${deleting.likesCount} « j'aime » sont supprimes avec elle.`
-            : "Pour la retirer sans la perdre, repassez-la plutot en brouillon."
+            ? `Ses ${deleting._count.comments} commentaire(s) et ${deleting.likesCount} « j'aime » sont supprimés avec elle.`
+            : "Pour la retirer sans la perdre, repassez-la plutôt en brouillon."
         }
         pending={deletePending}
         error={deleteError}

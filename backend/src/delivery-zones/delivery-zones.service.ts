@@ -107,7 +107,7 @@ export class DeliveryZonesService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === UNIQUE_CONSTRAINT_VIOLATION
       ) {
-        throw new ConflictException('Une zone porte deja ce nom');
+        throw new ConflictException('Une zone porte déjà ce nom');
       }
 
       throw error;

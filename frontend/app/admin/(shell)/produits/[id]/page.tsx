@@ -20,7 +20,7 @@ import { getAdminProduct, getAdminProducts } from "@/lib/admin-api";
 import { getServerToken } from "@/lib/auth-server";
 import { formatDate, formatPrice } from "@/lib/format";
 
-export const metadata = { title: "Edition produit" };
+export const metadata = { title: "Édition produit" };
 
 /** Plafond du DTO backend : de quoi alimenter le selecteur de produits lies. */
 const RELATION_CHOICES_LIMIT = 100;
@@ -91,7 +91,7 @@ export default async function EditProductPage({
               href="/admin/promotions"
               className="text-brand text-[12.5px] font-bold hover:underline"
             >
-              Gerer les promotions →
+              Gérer les promotions →
             </Link>
           </div>
 

@@ -15,6 +15,7 @@ import type {
   Order,
   Store,
   Paginated,
+  Payment,
   Post,
   PostComment,
   Product,
@@ -315,6 +316,23 @@ export function getOrder(id: string, token?: string): Promise<Order> {
 /** Historique du compte appelant ; la totalite du site pour un admin. */
 export function getMyOrders(token?: string): Promise<Order[]> {
   return request<Order[]>("/orders", { token });
+}
+
+// ------------------------------------------------------------------ Paiement
+
+/**
+ * Envoie la demande MVola au telephone du client. Seule la commande part :
+ * montant et numero sont relus sur elle par le backend.
+ */
+export function startPayment(orderId: string): Promise<Payment> {
+  return request<Payment>("/payments", {
+    method: "POST",
+    body: JSON.stringify({ orderId }),
+  });
+}
+
+export function getPayment(id: string, token?: string): Promise<Payment> {
+  return request<Payment>(`/payments/${id}`, { token });
 }
 
 // ------------------------------------------------------------- Publications

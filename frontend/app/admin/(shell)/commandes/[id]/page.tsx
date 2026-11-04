@@ -19,7 +19,7 @@ import {
   type OrderStatus,
 } from "@/lib/types";
 
-export const metadata = { title: "Detail commande" };
+export const metadata = { title: "Détail commande" };
 
 export default async function AdminOrderDetailPage({
   params,
@@ -69,7 +69,7 @@ export default async function AdminOrderDetailPage({
           </h2>
 
           {/*
-            Nom et prix unitaire sont figes dans order_items au moment de la
+            Nom et prix unitaire sont figés dans order_items au moment de la
             commande : ils ne suivent pas les modifications ulterieures du
             produit. `productId` peut etre nul si le produit a ete supprime.
           */}
@@ -91,7 +91,7 @@ export default async function AdminOrderDetailPage({
                   )}
                   <p className="text-muted text-[12px]">
                     {item.quantity} × {formatPrice(item.unitPrice)}
-                    {item.productId ? null : " · produit supprime du catalogue"}
+                    {item.productId ? null : " · produit supprimé du catalogue"}
                   </p>
                 </div>
                 <span className="font-display text-navy shrink-0 font-extrabold">

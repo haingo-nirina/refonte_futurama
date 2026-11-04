@@ -121,12 +121,12 @@ export function ReviewItem({
             rows={3}
             value={comment}
             onChange={(event) => setComment(event.target.value)}
-            placeholder="Qu'avez-vous pense de ce produit ?"
+            placeholder="Qu'avez-vous pensé de ce produit ?"
             className="border-line-strong focus:border-brand resize-y rounded-[9px] border-[1.5px] bg-white px-3.5 py-2.5 text-[13.5px] outline-none"
           />
 
           <p className="text-muted-light text-[12px]">
-            Votre avis modifie sera publie apres validation.
+            Votre avis modifié sera publié après validation.
           </p>
 
           <div className="flex flex-wrap items-center gap-3">

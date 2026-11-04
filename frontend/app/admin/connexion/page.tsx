@@ -49,7 +49,7 @@ export default async function AdminLoginPage({
             Connexion
           </h1>
           <p className="text-muted mt-1.5 mb-6 text-sm">
-            Espace reserve a la gestion de la boutique.
+            Espace réservé à la gestion de la boutique.
           </p>
 
           <AdminLoginForm next={typeof next === "string" ? next : undefined} />

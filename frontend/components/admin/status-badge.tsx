@@ -82,9 +82,9 @@ const PROMOTION_TONE: Record<PromotionState, string> = {
 
 const PROMOTION_LABEL: Record<PromotionState, string> = {
   running: "Active",
-  upcoming: "A venir",
+  upcoming: "À venir",
   ended: "Terminee",
-  disabled: "Desactivee",
+  disabled: "Désactivée",
 };
 
 export function PromotionStatusBadge({ state }: { state: PromotionState }) {

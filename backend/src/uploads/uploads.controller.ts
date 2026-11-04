@@ -36,7 +36,7 @@ export class UploadsController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     if (!file) {
-      throw new BadRequestException('Aucun fichier recu');
+      throw new BadRequestException('Aucun fichier reçu');
     }
 
     return this.uploadsService.saveImage(file, query.kind);
@@ -53,7 +53,7 @@ export class UploadsController {
   )
   uploadVideo(@UploadedFile() file?: Express.Multer.File) {
     if (!file) {
-      throw new BadRequestException('Aucun fichier recu');
+      throw new BadRequestException('Aucun fichier reçu');
     }
 
     return this.uploadsService.saveVideo(file);

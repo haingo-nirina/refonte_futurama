@@ -35,7 +35,7 @@ export function MostViewedProducts({
             TENDANCE
           </span>
           <h2 className="font-display text-navy mt-2 text-[32px] font-extrabold tracking-tight">
-            Le plus consulte
+            Le plus consulté
           </h2>
         </div>
         <Link href={href} className="text-brand text-[13.5px] font-bold">

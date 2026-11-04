@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Modal } from "@/components/admin/modal";
-import { ApiError, createOrder } from "@/lib/api";
+import { ApiError, createOrder, startPayment } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import {
   addBusinessDays,
@@ -25,6 +25,7 @@ import type {
   DeliveryZone,
   FulfillmentMethod,
   Order,
+  Payment,
   Store,
 } from "@/lib/types";
 
@@ -49,8 +50,10 @@ type Props = {
   /**
    * Sans lui, la commande enregistree mene a `/commande/:id`. La page live le
    * fournit pour afficher la confirmation sur place : la video continue.
+   * `payment` : la demande MVola envoyee dans la foulee, `null` si elle a
+   * echoue (l'ecran de confirmation propose alors de la relancer).
    */
-  onOrdered?: (order: Order) => void;
+  onOrdered?: (order: Order, payment: Payment | null) => void;
   /** Ou revenir apres la connexion. */
   returnTo?: string;
 };
@@ -149,13 +152,20 @@ function Checkout({
 
       // Le backend vide le panier à la création de la commande.
       notifyCartUpdated();
+
+      // La commande existe désormais : un échec de la demande MVola ne doit
+      // pas la faire passer pour ratée. L'écran suivant propose de relancer.
+      const payment = await startPayment(order.id).catch(() => null);
+
       if (onOrdered) {
         setConfirming(false);
         setPending(false);
-        onOrdered(order);
+        onOrdered(order, payment);
         return;
       }
-      router.push(`/commande/${order.id}`);
+      router.push(
+        `/commande/${order.id}${payment ? `?paiement=${payment.id}` : ""}`,
+      );
     } catch (submitError) {
       // Token expiré pendant que la page était ouverte : on renvoie se
       // reconnecter plutôt que d'afficher un « Unauthorized » brut.

@@ -44,7 +44,7 @@ function ProductLine({
   const reference =
     product.reference === undefined
       ? null
-      : (product.reference ?? "sans reference");
+      : (product.reference ?? "sans référence");
 
   return (
     <>
@@ -255,7 +255,7 @@ export function ProductPicker({
           setLimit(PAGE_SIZE);
         }}
         onKeyDown={onKeyDown}
-        placeholder="Chercher un produit par nom ou reference"
+        placeholder="Chercher un produit par nom ou référence"
         disabled={disabled}
         role="combobox"
         aria-expanded={items.length > 0}

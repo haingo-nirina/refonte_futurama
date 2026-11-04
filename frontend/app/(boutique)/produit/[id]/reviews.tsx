@@ -101,8 +101,8 @@ export function ProductReviews({
 
         {total === 0 ? (
           <p className="border-line text-muted rounded-[14px] border border-dashed p-8 text-center text-[13.5px]">
-            Aucun avis publie sur ce produit pour le moment. Soyez le premier a
-            donner le votre.
+            Aucun avis publié sur ce produit pour le moment. Soyez le premier à
+            donner le vôtre.
           </p>
         ) : (
           <div>

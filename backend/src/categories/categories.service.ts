@@ -68,7 +68,7 @@ export class CategoriesService {
     if (parentId) {
       if (parentId === id) {
         throw new BadRequestException(
-          'Une categorie ne peut pas etre son propre parent',
+          'Une catégorie ne peut pas être son propre parent',
         );
       }
 
@@ -100,7 +100,7 @@ export class CategoriesService {
 
     if (products > 0) {
       throw new BadRequestException(
-        `Categorie ${id} encore rattachee a ${products} produit(s)`,
+        `Catégorie ${id} encore rattachée à ${products} produit(s)`,
       );
     }
 
@@ -130,7 +130,7 @@ export class CategoriesService {
         .join(', ');
 
       throw new BadRequestException(
-        `Categories encore rattachees a des produits : ${list}. Deplacez ou supprimez ces produits d'abord.`,
+        `Catégories encore rattachées à des produits : ${list}. Déplacez ou supprimez ces produits d'abord.`,
       );
     }
 

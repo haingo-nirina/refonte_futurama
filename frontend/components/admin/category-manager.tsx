@@ -226,7 +226,7 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
           onClick={() => startCreate()}
           className="admin-button ml-auto"
         >
-          Nouvelle categorie
+          Nouvelle catégorie
         </button>
       </div>
 
@@ -234,15 +234,15 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
         <div className="border-line bg-cream-deep mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[14px] border px-4 py-3 text-[13.5px]">
           <span className="font-semibold">
             {allSelected
-              ? `Les ${categories.length} categories sont selectionnees.`
-              : `${selected.length} categorie(s) selectionnee(s).`}
+              ? `Les ${categories.length} catégories sont sélectionnées.`
+              : `${selected.length} catégorie(s) sélectionnée(s).`}
           </span>
           <button
             type="button"
             onClick={() => setChecked(new Set())}
             className="text-muted hover:text-ink font-bold"
           >
-            Tout deselectionner
+            Tout désélectionner
           </button>
           <button
             type="button"
@@ -299,9 +299,9 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
         title={
           editing?.mode === "edit"
             ? `Modifier « ${editing.category.name} »`
-            : "Nouvelle categorie"
+            : "Nouvelle catégorie"
         }
-        description="Les rayons de l'accueil sont ceux marques « mise en avant »."
+        description="Les rayons de l'accueil sont ceux marqués « mise en avant »."
       >
         <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2">
           <label className="block">
@@ -328,11 +328,11 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
           </label>
 
           <label className="block">
-            <span className="admin-label">Slug *</span>
+            <span className="admin-label">Identifiant d&apos;URL *</span>
             <input
               required
               pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-              title="minuscules, mots separes par des tirets"
+              title="minuscules, mots séparés par des tirets"
               value={draft.slug}
               onChange={(event) =>
                 setDraft({ ...draft, slug: event.target.value })
@@ -416,7 +416,7 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
                 ? "Enregistrement…"
                 : editing?.mode === "edit"
                   ? "Enregistrer"
-                  : "Creer la categorie"}
+                  : "Créer la catégorie"}
             </button>
           </div>
         </form>
@@ -424,7 +424,7 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
 
       <ConfirmDialog
         open={deleting !== null}
-        title="Supprimer cette categorie ?"
+        title="Supprimer cette catégorie ?"
         message={
           <>
             <strong>{deleting?.name}</strong> disparaitra de la navigation de la
@@ -433,8 +433,8 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
         }
         detail={
           childrenCount > 0
-            ? `Ses ${childrenCount} sous-rayon(s) seront detaches et deviendront des rayons principaux. Une categorie encore rattachee a des produits ne peut pas etre supprimee.`
-            : "Une categorie encore rattachee a des produits ne peut pas etre supprimee : deplacez-les d'abord."
+            ? `Ses ${childrenCount} sous-rayon(s) seront détachés et deviendront des rayons principaux. Une catégorie encore rattachée à des produits ne peut pas être supprimée.`
+            : "Une catégorie encore rattachée à des produits ne peut pas être supprimée : déplacez-les d'abord."
         }
         pending={deletePending}
         error={deleteError}
@@ -444,12 +444,12 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
 
       <ConfirmDialog
         open={bulkConfirming}
-        title={`Supprimer ${selected.length} categorie(s) ?`}
+        title={`Supprimer ${selected.length} catégorie(s) ?`}
         message={
           allSelected ? (
             <>
-              <strong>Toutes les categories</strong> ({categories.length})
-              disparaitront de la navigation de la boutique.
+              <strong>Toutes les catégories</strong> ({categories.length})
+              disparaîtront de la navigation de la boutique.
             </>
           ) : (
             <>
@@ -461,14 +461,14 @@ export function CategoryManager({ categories }: { categories: Category[] }) {
         detail={
           <>
             {orphaned > 0
-              ? `${orphaned} sous-rayon(s) non selectionne(s) seront detaches et deviendront des rayons principaux. `
+              ? `${orphaned} sous-rayon(s) non sélectionné(s) seront détachés et deviendront des rayons principaux. `
               : null}
-            Si une seule categorie est encore rattachee a des produits, rien
+            Si une seule catégorie est encore rattachée à des produits, rien
             n&apos;est supprime : deplacez ou supprimez d&apos;abord ces
             produits.
           </>
         }
-        confirmLabel={`Supprimer ${selected.length} categorie(s)`}
+        confirmLabel={`Supprimer ${selected.length} catégorie(s)`}
         pending={bulkPending}
         error={bulkError}
         onConfirm={() => void onBulkDelete()}
@@ -503,7 +503,7 @@ function SelectAllCheckbox({
         onChange={onChange}
         className="size-4 cursor-pointer"
       />
-      Tout selectionner
+      Tout sélectionner
     </label>
   );
 }
@@ -529,7 +529,7 @@ function CategoryRow({
         type="checkbox"
         checked={checked}
         onChange={onToggle}
-        aria-label={`Selectionner ${category.name}`}
+        aria-label={`Sélectionner ${category.name}`}
         className="size-4 shrink-0 cursor-pointer"
       />
       <div className="min-w-0 flex-1">

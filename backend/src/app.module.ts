@@ -20,6 +20,7 @@ import { StoresModule } from './stores/stores.module';
 import { LiveCommentsModule } from './live-comments/live-comments.module';
 import { LivesModule } from './lives/lives.module';
 import { FacebookLiveModule } from './facebook-live/facebook-live.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { FacebookLiveModule } from './facebook-live/facebook-live.module';
     LivesModule,
     LiveCommentsModule,
     FacebookLiveModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -62,10 +62,10 @@ export function ProductRowActions({ product }: { product: AdminProduct }) {
         message={
           <>
             <strong>{product.name}</strong> sera retire du catalogue, avec sa
-            galerie, ses caracteristiques, ses avis et ses produits lies.
+            galerie, ses caractéristiques, ses avis et ses produits liés.
           </>
         }
-        detail="Les commandes deja passees ne bougent pas : elles gardent le nom et le prix figes au moment de l'achat. Pour retirer le produit de la vente sans rien perdre, decochez plutot « En ligne » dans la fiche."
+        detail="Les commandes déjà passées ne bougent pas : elles gardent le nom et le prix figés au moment de l'achat. Pour retirer le produit de la vente sans rien perdre, decochez plutôt « En ligne » dans la fiche."
         pending={pending}
         error={error}
         onConfirm={() => void onDelete()}

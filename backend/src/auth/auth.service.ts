@@ -44,7 +44,7 @@ export class AuthService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === UNIQUE_CONSTRAINT_VIOLATION
       ) {
-        throw new ConflictException('Cet email est deja utilise');
+        throw new ConflictException('Cet e-mail est déjà utilisé');
       }
 
       throw error;
@@ -59,7 +59,7 @@ export class AuthService {
     // Meme message et meme code dans les deux cas : ne pas reveler quels
     // emails existent en base.
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
-      throw new UnauthorizedException('Email ou mot de passe incorrect');
+      throw new UnauthorizedException('E-mail ou mot de passe incorrect');
     }
 
     return this.sign(user);

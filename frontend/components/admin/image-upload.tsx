@@ -45,7 +45,7 @@ export function ImageUpload({
     setError(null);
 
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
-      setError("Formats acceptes : JPEG, PNG, WebP, AVIF.");
+      setError("Formats acceptés : JPEG, PNG, WebP, AVIF.");
       return;
     }
 
@@ -63,7 +63,7 @@ export function ImageUpload({
       onChange(url);
     } catch (cause) {
       setError(
-        cause instanceof ApiError ? cause.message : "Televersement impossible",
+        cause instanceof ApiError ? cause.message : "Téléversement impossible",
       );
     } finally {
       setPending(false);
@@ -92,7 +92,7 @@ export function ImageUpload({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={pending}
-          title={value ? "Remplacer la photo" : "Televerser une photo"}
+          title={value ? "Remplacer la photo" : "Téléverser une photo"}
           className="border-line-strong hover:border-brand size-[52px] shrink-0 overflow-hidden rounded-[10px] border bg-white transition disabled:opacity-50"
         >
           {pending ? (
@@ -142,7 +142,7 @@ export function ImageUpload({
             className="admin-button-ghost"
           >
             {pending
-              ? "Televersement…"
+              ? "Téléversement…"
               : value
                 ? "Remplacer la photo"
                 : "Choisir une photo"}

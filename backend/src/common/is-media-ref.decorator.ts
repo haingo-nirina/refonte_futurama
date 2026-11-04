@@ -11,5 +11,5 @@ const MEDIA_REF = /^(https?:\/\/[^\s]+|\/[^\s?#]*)$/;
 export const IsMediaRef = () =>
   Matches(MEDIA_REF, {
     message:
-      '$property doit etre une URL http(s) ou un chemin absolu commencant par /',
+      '$property doit être une URL http(s) ou un chemin absolu commençant par /',
   });

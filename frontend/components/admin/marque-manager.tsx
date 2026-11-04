@@ -221,11 +221,11 @@ export function MarqueManager({ marques }: { marques: MarqueDetail[] }) {
           </label>
 
           <label className="block">
-            <span className="admin-label">Slug *</span>
+            <span className="admin-label">Identifiant d&apos;URL *</span>
             <input
               required
               pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-              title="minuscules, mots separes par des tirets"
+              title="minuscules, mots séparés par des tirets"
               value={draft.slug}
               onChange={(event) =>
                 setDraft({ ...draft, slug: event.target.value })
@@ -262,7 +262,7 @@ export function MarqueManager({ marques }: { marques: MarqueDetail[] }) {
                 ? "Enregistrement…"
                 : editing?.mode === "edit"
                   ? "Enregistrer"
-                  : "Creer la marque"}
+                  : "Créer la marque"}
             </button>
           </div>
         </form>
@@ -279,8 +279,8 @@ export function MarqueManager({ marques }: { marques: MarqueDetail[] }) {
         }
         detail={
           deleting && deleting._count.products > 0
-            ? `Ses ${deleting._count.products} produit(s) ne sont pas supprimes : ils sont simplement detaches de la marque.`
-            : "Aucun produit n'est rattache a cette marque."
+            ? `Ses ${deleting._count.products} produit(s) ne sont pas supprimés : ils sont simplement détachés de la marque.`
+            : "Aucun produit n'est rattaché à cette marque."
         }
         pending={deletePending}
         error={deleteError}

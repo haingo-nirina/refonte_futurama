@@ -58,7 +58,7 @@ export function OrderStatusForm({
       router.refresh();
     } catch (cause) {
       setError(
-        cause instanceof ApiError ? cause.message : "Mise a jour impossible",
+        cause instanceof ApiError ? cause.message : "Mise à jour impossible",
       );
     } finally {
       setPending(false);
@@ -117,12 +117,12 @@ export function OrderStatusForm({
         disabled={pending || !status}
         className="admin-button w-full"
       >
-        {pending ? "Enregistrement…" : "Mettre a jour"}
+        {pending ? "Enregistrement…" : "Mettre à jour"}
       </button>
 
       {error ? <p className="text-brand text-[12.5px]">{error}</p> : null}
       {saved && !error ? (
-        <p className="text-success text-[12.5px]">Statut mis a jour.</p>
+        <p className="text-success text-[12.5px]">Statut mis à jour.</p>
       ) : null}
     </form>
   );

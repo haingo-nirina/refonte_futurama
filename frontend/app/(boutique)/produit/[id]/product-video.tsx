@@ -28,7 +28,7 @@ export function ProductVideo({ url, name }: { url: string; name: string }) {
             preload="metadata"
             className="block aspect-video w-full bg-[#0b0f1a]"
           >
-            Votre navigateur ne supporte pas la video.
+            Votre navigateur ne supporte pas la vidéo.
           </video>
         </div>
       ) : (
@@ -38,7 +38,7 @@ export function ProductVideo({ url, name }: { url: string; name: string }) {
           rel="noopener noreferrer"
           className="text-brand text-[13.5px] font-bold hover:underline"
         >
-          Voir la video →
+          Voir la vidéo →
         </a>
       )}
     </section>

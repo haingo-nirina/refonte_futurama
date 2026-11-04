@@ -4,13 +4,13 @@ import type { FulfillmentMethod, OrderStatus } from '../common/constants';
 /** Libelles des messages d'erreur, ceux que le backoffice affiche. */
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   [ORDER_STATUS.EN_ATTENTE_PAIEMENT]: 'En attente de paiement',
-  [ORDER_STATUS.PAYEE]: 'Payee',
-  [ORDER_STATUS.EN_PREPARATION]: 'En preparation',
-  [ORDER_STATUS.EXPEDIEE]: 'Expediee',
-  [ORDER_STATUS.LIVREE]: 'Livree',
-  [ORDER_STATUS.PRETE_A_RETIRER]: 'Prete a retirer',
-  [ORDER_STATUS.RETIREE]: 'Retiree',
-  [ORDER_STATUS.ANNULEE]: 'Annulee',
+  [ORDER_STATUS.PAYEE]: 'Payée',
+  [ORDER_STATUS.EN_PREPARATION]: 'En préparation',
+  [ORDER_STATUS.EXPEDIEE]: 'Expédiée',
+  [ORDER_STATUS.LIVREE]: 'Livrée',
+  [ORDER_STATUS.PRETE_A_RETIRER]: 'Prête à retirer',
+  [ORDER_STATUS.RETIREE]: 'Retirée',
+  [ORDER_STATUS.ANNULEE]: 'Annulée',
 };
 
 /**

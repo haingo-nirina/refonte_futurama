@@ -82,7 +82,7 @@ export function PostCommentsModal({
       router.refresh();
     } catch (cause) {
       setError(
-        cause instanceof ApiError ? cause.message : "Reponse non envoyee",
+        cause instanceof ApiError ? cause.message : "Réponse non envoyée",
       );
     } finally {
       setPending(false);
@@ -155,7 +155,7 @@ export function PostCommentsModal({
                     autoFocus
                     value={draft}
                     onChange={(event) => setDraft(event.target.value)}
-                    placeholder="Repondre au nom de la boutique…"
+                    placeholder="Répondre au nom de la boutique…"
                     disabled={pending}
                     className="admin-input"
                   />
@@ -164,7 +164,7 @@ export function PostCommentsModal({
                     disabled={pending || draft.trim() === ""}
                     className="admin-button shrink-0"
                   >
-                    {pending ? "Envoi…" : "Repondre"}
+                    {pending ? "Envoi…" : "Répondre"}
                   </button>
                   <button
                     type="button"

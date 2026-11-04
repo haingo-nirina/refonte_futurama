@@ -111,7 +111,7 @@ export function FiltersPanel({
 
             {facets.premium > 0 ? (
               <section>
-                <GroupTitle>Selection premium</GroupTitle>
+                <GroupTitle>Sélection premium</GroupTitle>
                 <CheckRow
                   name={PARAM.premium}
                   value="1"
@@ -156,7 +156,7 @@ export function FiltersPanel({
               href={resetHref}
               className="text-brand mt-7 inline-block text-[12px] font-medium"
             >
-              Tout decocher
+              Tout décocher
             </Link>
           ) : null}
         </div>

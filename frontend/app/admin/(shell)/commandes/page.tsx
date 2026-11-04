@@ -62,7 +62,7 @@ export default async function AdminOrdersPage({
             type="search"
             name="q"
             defaultValue={q}
-            placeholder="Nom, telephone, email"
+            placeholder="Nom, téléphone, e-mail"
             className="admin-input"
           />
         </Field>
@@ -114,7 +114,7 @@ export default async function AdminOrdersPage({
 
       {data.length === 0 ? (
         <p className="border-line text-muted rounded-[14px] border bg-white p-8 text-center text-sm">
-          Aucune commande ne correspond a ces filtres.
+          Aucune commande ne correspond à ces filtres.
         </p>
       ) : (
         <div className="border-line overflow-x-auto rounded-[14px] border bg-white">

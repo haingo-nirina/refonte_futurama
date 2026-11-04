@@ -33,7 +33,7 @@ export const IsAfter = (property: string, options?: ValidationOptions) =>
         },
         defaultMessage(args: ValidationArguments) {
           const [otherName] = args.constraints as [string];
-          return `$property doit etre strictement posterieure a ${otherName}`;
+          return `$property doit être strictement postérieure à ${otherName}`;
         },
       },
     });

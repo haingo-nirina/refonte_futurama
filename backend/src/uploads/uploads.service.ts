@@ -56,7 +56,7 @@ export class UploadsService {
 
     if (!extension) {
       throw new BadRequestException(
-        `Format non supporte (${file.mimetype}). Attendu : ${expected}.`,
+        `Format non supporté (${file.mimetype}). Attendu : ${expected}.`,
       );
     }
 

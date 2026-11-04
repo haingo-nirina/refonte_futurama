@@ -47,7 +47,7 @@ export function AddToCart({
       <div className="border-line-strong mb-4 flex w-fit items-center overflow-hidden rounded-[10px] border-[1.5px] bg-white">
         <button
           type="button"
-          aria-label="Diminuer la quantite"
+          aria-label="Diminuer la quantité"
           disabled={quantity <= 1 || outOfStock}
           onClick={() => setQuantity((value) => Math.max(1, value - 1))}
           className="text-ink h-11 w-11 text-lg disabled:opacity-30"
@@ -59,7 +59,7 @@ export function AddToCart({
         </span>
         <button
           type="button"
-          aria-label="Augmenter la quantite"
+          aria-label="Augmenter la quantité"
           disabled={quantity >= stock}
           onClick={() => setQuantity((value) => Math.min(stock, value + 1))}
           className="text-ink h-11 w-11 text-lg disabled:opacity-30"
@@ -95,7 +95,7 @@ export function AddToCart({
 
       {status.kind === "done" ? (
         <p className="text-success mt-3 text-[13px] font-medium">
-          Ajoute au panier.
+          Ajouté au panier.
         </p>
       ) : null}
 

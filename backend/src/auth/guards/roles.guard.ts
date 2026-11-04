@@ -33,7 +33,7 @@ export class RolesGuard implements CanActivate {
       .getRequest<Request & { user?: AuthenticatedUser }>();
 
     if (!user || !required.includes(user.role)) {
-      throw new ForbiddenException('Acces reserve aux administrateurs');
+      throw new ForbiddenException('Accès réservé aux administrateurs');
     }
 
     return true;

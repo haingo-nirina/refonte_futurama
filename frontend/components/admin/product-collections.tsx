@@ -48,7 +48,7 @@ export function ImagesEditor({
   return (
     <Section
       title="Galerie"
-      hint="Cliquez une vignette pour televerser une photo. La premiere image, ou celle marquee principale, est celle que voit le client sur le catalogue."
+      hint="Cliquez une vignette pour téléverser une photo. La première image, ou celle marquée principale, est celle que voit le client sur le catalogue."
       onSave={save}
       pending={pending}
       error={error}
@@ -72,7 +72,7 @@ export function ImagesEditor({
               du seed) ou une URL externe, sans passer par un televersement. */}
           <input
             value={row.imageUrl}
-            placeholder="Cliquez la vignette pour televerser, ou collez une URL"
+            placeholder="Cliquez la vignette pour téléverser, ou collez une URL"
             onChange={(event) =>
               setRows(
                 rows.with(index, { ...row, imageUrl: event.target.value }),
@@ -125,7 +125,7 @@ export function SpecsEditor({
   return (
     <Section
       title="Caracteristiques"
-      hint="Affichees dans l'ordre de cette liste sur la fiche produit."
+      hint="Affichées dans l'ordre de cette liste sur la fiche produit."
       onSave={save}
       pending={pending}
       error={error}
@@ -187,8 +187,8 @@ export function RelationsEditor({
 
   return (
     <Section
-      title="Produits lies"
-      hint="« Similaire » est pose dans les deux sens ; « souvent achete ensemble » reste a sens unique."
+      title="Produits liés"
+      hint="« Similaire » est posé dans les deux sens ; « souvent acheté ensemble » reste à sens unique."
       onSave={save}
       pending={pending}
       error={error}

@@ -14,8 +14,8 @@ export function SiteFooter() {
         <div>
           <span className="font-display text-xl font-extrabold">FUTURAMA</span>
           <p className="mt-3 max-w-[32ch] text-[13px] leading-relaxed text-white/70">
-            Importateur direct a Madagascar depuis plus de 20 ans. Jouets,
-            electromenager, energie et robotique.
+            Importateur direct à Madagascar depuis plus de 20 ans. Jouets,
+            électroménager, énergie et robotique.
           </p>
         </div>
 

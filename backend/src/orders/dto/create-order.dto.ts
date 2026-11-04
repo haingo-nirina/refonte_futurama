@@ -73,7 +73,7 @@ export class CreateOrderDto {
 
   @Transform(normalizeMgPhone)
   @Matches(MVOLA_PHONE_PATTERN, {
-    message: 'Le numero MVola doit commencer par 034 ou 038 (10 chiffres)',
+    message: 'Le numéro MVola doit commencer par 034 ou 038 (10 chiffres)',
   })
   mvolaPhone: string;
 

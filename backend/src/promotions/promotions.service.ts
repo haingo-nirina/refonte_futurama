@@ -114,7 +114,7 @@ export class PromotionsService {
 
     if (endDate.getTime() <= startDate.getTime()) {
       throw new ConflictException(
-        'endDate doit etre strictement posterieure a startDate',
+        'La date de fin doit être strictement postérieure à la date de début',
       );
     }
 
@@ -275,7 +275,7 @@ export class PromotionsService {
 
     if (conflict) {
       throw new ConflictException(
-        `Ce produit a deja une promotion active du ${conflict.startDate.toISOString()} au ${conflict.endDate.toISOString()}`,
+        `Ce produit a déjà une promotion active du ${conflict.startDate.toISOString()} au ${conflict.endDate.toISOString()}`,
       );
     }
   }

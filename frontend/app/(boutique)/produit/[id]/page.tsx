@@ -9,10 +9,10 @@ import { ProductVideo } from "./product-video";
 import { ProductReviews } from "./reviews";
 
 const REASSURANCE = [
-  { title: "Livraison Antananarivo", desc: "Offerte des 300 000 Ar." },
+  { title: "Livraison Antananarivo", desc: "Offerte dès 300 000 Ar." },
   { title: "Retrait boutique", desc: "Tsaralalana, sans frais." },
   { title: "Retours 7 jours", desc: "Produit non ouvert." },
-  { title: "Paiement securise", desc: "Mvola, Orange Money, a la livraison." },
+  { title: "Paiement sécurisé", desc: "MVola, Orange Money, à la livraison." },
 ];
 
 async function loadProduct(id: string): Promise<ProductDetail> {
@@ -132,7 +132,7 @@ export default async function ProductPage({
               }`}
             >
               {product.stock > 0
-                ? `En stock · ${product.stock} piece${product.stock > 1 ? "s" : ""}`
+                ? `En stock · ${product.stock} pièce${product.stock > 1 ? "s" : ""}`
                 : "Rupture de stock"}
             </span>
 
@@ -144,7 +144,7 @@ export default async function ProductPage({
                 <strong className="text-navy">Futurama.mg</strong>
               </span>
               <span>Retours gratuits sous 7 jours</span>
-              <span>Paiement Mvola, Orange Money ou a la livraison</span>
+              <span>Paiement MVola, Orange Money ou à la livraison</span>
             </div>
           </div>
 

@@ -29,7 +29,8 @@ export class CreateProductDto {
 
   @IsString()
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
-    message: 'slug doit etre en minuscules, mots separes par des tirets',
+    message:
+      "L'identifiant d'URL doit être en minuscules, mots séparés par des tirets",
   })
   slug: string;
 

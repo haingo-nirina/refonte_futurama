@@ -3,12 +3,13 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CheckoutForm } from "@/app/(boutique)/panier/checkout-form";
+import { MvolaPayment } from "@/components/mvola-payment";
 import { ProductImage } from "@/components/product-image";
 import { getCart } from "@/lib/api";
 import { formatMgPhone } from "@/lib/checkout";
 import { formatPrice, toAmount } from "@/lib/format";
 import { CART_UPDATED_EVENT, getSessionId } from "@/lib/session";
-import type { Cart, DeliveryZone, Order, Store } from "@/lib/types";
+import type { Cart, DeliveryZone, Order, Payment, Store } from "@/lib/types";
 
 /**
  * Le panier et la commande de la boutique, ouverts par-dessus la page live :
@@ -37,6 +38,7 @@ export function LiveCartDrawer({
   const [cart, setCart] = useState<Cart | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
+  const [payment, setPayment] = useState<Payment | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -89,6 +91,7 @@ export function LiveCartDrawer({
   function close() {
     // Une confirmation deja lue ne doit pas reapparaitre a la prochaine ouverture.
     setOrder(null);
+    setPayment(null);
     onClose();
   }
 
@@ -139,7 +142,7 @@ export function LiveCartDrawer({
 
         <div className="overflow-y-auto px-5 py-4">
           {order ? (
-            <OrderDone order={order} onClose={close} />
+            <OrderDone order={order} payment={payment} onClose={close} />
           ) : error ? (
             <p className="text-brand text-sm">{error}</p>
           ) : !cart ? (
@@ -181,7 +184,10 @@ export function LiveCartDrawer({
                 zones={zones}
                 stores={stores}
                 liveId={liveId}
-                onOrdered={setOrder}
+                onOrdered={(placed, sent) => {
+                  setOrder(placed);
+                  setPayment(sent);
+                }}
                 returnTo={pathname}
               />
             </div>
@@ -192,7 +198,15 @@ export function LiveCartDrawer({
   );
 }
 
-function OrderDone({ order, onClose }: { order: Order; onClose: () => void }) {
+function OrderDone({
+  order,
+  payment,
+  onClose,
+}: {
+  order: Order;
+  payment: Payment | null;
+  onClose: () => void;
+}) {
   const isDelivery = order.fulfillmentMethod === "LIVRAISON";
 
   return (
@@ -202,10 +216,14 @@ function OrderDone({ order, onClose }: { order: Order; onClose: () => void }) {
       </span>
       <p className="text-[14px]">
         Votre commande <strong>{order.number}</strong> de{" "}
-        <strong>{formatPrice(order.total)}</strong> est enregistrée. Paiement
-        par MVola
-        {order.mvolaPhone ? ` depuis le ${formatMgPhone(order.mvolaPhone)}` : ""}.
+        <strong>{formatPrice(order.total)}</strong> est enregistrée.
       </p>
+      <MvolaPayment
+        orderId={order.id}
+        phone={order.mvolaPhone}
+        total={order.total}
+        initialPayment={payment}
+      />
       <p className="text-muted text-[13px]">
         {isDelivery
           ? `Nous vous rappelons au ${formatMgPhone(order.contactPhone)} pour confirmer la livraison.`

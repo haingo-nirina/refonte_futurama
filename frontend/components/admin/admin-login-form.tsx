@@ -40,7 +40,7 @@ export function AdminLoginForm({ next }: { next?: string }) {
       // Identifiants valides mais compte client : ouvrir la session ici
       // enverrait droit sur le 404 du garde. Mieux vaut le dire.
       if (session.user.role !== "admin") {
-        setError("Ce compte n'a pas acces au backoffice.");
+        setError("Ce compte n'a pas accès au backoffice.");
         setPending(false);
 
         return;
@@ -56,7 +56,7 @@ export function AdminLoginForm({ next }: { next?: string }) {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : "La connexion a echoue",
+          : "La connexion a échoué",
       );
       setPending(false);
     }
@@ -65,7 +65,7 @@ export function AdminLoginForm({ next }: { next?: string }) {
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1.5">
-        <span className="admin-label">Email</span>
+        <span className="admin-label">E-mail</span>
         <input
           name="email"
           type="email"

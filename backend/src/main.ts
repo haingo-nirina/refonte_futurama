@@ -6,6 +6,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
+import { frenchValidationException } from './common/validation-messages';
 import { UPLOADS_PREFIX, UPLOADS_ROOT } from './uploads/uploads.constants';
 
 async function bootstrap() {
@@ -17,11 +18,13 @@ async function bootstrap() {
   app.useStaticAssets(UPLOADS_ROOT, { prefix: UPLOADS_PREFIX });
 
   // Sans ce pipe global, les decorateurs class-validator des DTO sont inertes.
+  // Les messages par defaut de class-validator sont en anglais : traduits.
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      exceptionFactory: frenchValidationException,
     }),
   );
 

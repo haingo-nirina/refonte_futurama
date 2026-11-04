@@ -32,7 +32,7 @@ export function PromotionOfMonth({
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <span className="text-brand font-mono text-[10.5px] tracking-[0.18em]">
-            OFFRES LIMITEES
+            OFFRES LIMITÉES
           </span>
           <h2 className="font-display text-navy mt-2 text-[32px] font-extrabold tracking-tight">
             {title ?? "Promotion du mois"}

@@ -45,7 +45,7 @@ export function PostCommentForm({ postId }: { postId: string }) {
       }
 
       setError(
-        cause instanceof ApiError ? cause.message : "Commentaire non envoye",
+        cause instanceof ApiError ? cause.message : "Commentaire non envoyé",
       );
     } finally {
       setPending(false);
@@ -77,7 +77,7 @@ export function PostCommentForm({ postId }: { postId: string }) {
         <input
           value={comment}
           onChange={(event) => setComment(event.target.value)}
-          placeholder="Ecrire un commentaire…"
+          placeholder="Écrire un commentaire…"
           disabled={pending}
           className="border-line-strong focus:border-brand flex-1 rounded-full border-[1.5px] px-3.5 py-2.5 text-[12.5px] outline-none"
         />

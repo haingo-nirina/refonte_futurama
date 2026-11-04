@@ -116,7 +116,7 @@ export default async function CataloguePage({
         <div>
           {products.length === 0 ? (
             <p className="text-muted border-line rounded-[14px] border bg-white px-6 py-16 text-center text-sm">
-              Aucun produit ne correspond a ces filtres.
+              Aucun produit ne correspond à ces filtres.
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">

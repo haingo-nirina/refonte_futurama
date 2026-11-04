@@ -5,7 +5,7 @@ import { getServerToken } from "@/lib/auth-server";
 
 export const metadata = {
   title: "Nos publications · Futurama",
-  description: "Les nouvelles de la boutique Futurama, a Tsaralalana.",
+  description: "Les nouvelles de la boutique Futurama, à Tsaralalana.",
 };
 
 /** Publications par page, comme la maquette. */
@@ -46,7 +46,7 @@ export default async function PublicationsPage({
 
       {posts.length === 0 ? (
         <p className="border-line text-muted mx-auto max-w-[880px] rounded-[14px] border border-dashed p-10 text-center text-[13.5px]">
-          Aucune publication pour le moment. Revenez bientot.
+          Aucune publication pour le moment. Revenez bientôt.
         </p>
       ) : (
         <div className="mx-auto flex max-w-[880px] flex-col gap-4.5">

@@ -101,7 +101,9 @@ export class MarquesService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === UNIQUE_CONSTRAINT_VIOLATION
       ) {
-        throw new ConflictException('Ce slug est deja utilise par une marque');
+        throw new ConflictException(
+          "Cet identifiant d'URL est déjà utilisé par une marque",
+        );
       }
 
       throw error;

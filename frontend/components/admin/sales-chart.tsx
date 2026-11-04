@@ -191,7 +191,7 @@ export function SalesChart({
 
       <details className="mt-4 text-[13px]">
         <summary className="text-brand cursor-pointer font-bold">
-          Voir les donnees
+          Voir les données
         </summary>
         <div className="mt-3 max-h-64 overflow-y-auto">
           <table className="w-full tabular-nums">

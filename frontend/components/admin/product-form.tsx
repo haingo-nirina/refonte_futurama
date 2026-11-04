@@ -198,11 +198,11 @@ export function ProductForm({
         </label>
 
         <label className="block">
-          <span className="admin-label">Slug *</span>
+          <span className="admin-label">Identifiant d&apos;URL *</span>
           <input
             required
             pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-            title="minuscules, mots separes par des tirets"
+            title="minuscules, mots séparés par des tirets"
             value={form.slug}
             onChange={(event) => set("slug", event.target.value)}
             className="admin-input"
@@ -210,7 +210,7 @@ export function ProductForm({
         </label>
 
         <label className="block">
-          <span className="admin-label">Categorie *</span>
+          <span className="admin-label">Catégorie *</span>
           <select
             required
             value={form.categoryId}
@@ -245,7 +245,7 @@ export function ProductForm({
         </label>
 
         <label className="block">
-          <span className="admin-label">Reference</span>
+          <span className="admin-label">Référence</span>
           <input
             value={form.reference}
             onChange={(event) => set("reference", event.target.value)}
@@ -258,7 +258,7 @@ export function ProductForm({
           <TagInput
             values={form.colors}
             onChange={(colors) => set("colors", colors)}
-            placeholder="Noir mat, puis Entree"
+            placeholder="Noir mat, puis Entrée"
           />
         </div>
 
@@ -297,7 +297,7 @@ export function ProductForm({
         </label>
 
         <div className="sm:col-span-2">
-          <span className="admin-label">Video de demonstration</span>
+          <span className="admin-label">Vidéo de démonstration</span>
           <VideoUpload
             value={form.videoUrl}
             onChange={(url) => set("videoUrl", url)}
@@ -353,7 +353,7 @@ export function ProductForm({
 
       {error ? <p className="text-brand text-[13px]">{error}</p> : null}
       {saved && !error ? (
-        <p className="text-success text-[13px]">Produit enregistre.</p>
+        <p className="text-success text-[13px]">Produit enregistré.</p>
       ) : null}
 
       <div className="border-line flex flex-wrap items-center gap-3 border-t pt-4">
@@ -362,7 +362,7 @@ export function ProductForm({
             ? "Enregistrement…"
             : product
               ? "Enregistrer"
-              : "Creer le produit"}
+              : "Créer le produit"}
         </button>
 
         <Link href="/admin/produits" className="admin-button-ghost">
@@ -388,10 +388,10 @@ export function ProductForm({
           message={
             <>
               <strong>{product.name}</strong> sera retire du catalogue, avec sa
-              galerie, ses caracteristiques, ses avis et ses produits lies.
+              galerie, ses caractéristiques, ses avis et ses produits liés.
             </>
           }
-          detail="Les commandes deja passees ne bougent pas : elles gardent le nom et le prix figes au moment de l'achat. Pour retirer le produit de la vente sans rien perdre, decochez plutot « En ligne »."
+          detail="Les commandes déjà passées ne bougent pas : elles gardent le nom et le prix figés au moment de l'achat. Pour retirer le produit de la vente sans rien perdre, decochez plutôt « En ligne »."
           pending={pending}
           error={error}
           onConfirm={() => void onDelete()}

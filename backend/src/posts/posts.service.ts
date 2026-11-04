@@ -247,7 +247,7 @@ export class PostsService {
 
     if (parent.parentId !== null) {
       throw new BadRequestException(
-        "On ne repond pas a une reponse : repondez au commentaire d'origine",
+        "On ne répond pas à une réponse : répondez au commentaire d'origine",
       );
     }
 
@@ -274,7 +274,7 @@ export class PostsService {
     // Pas d'exception pour l'admin : reecrire le texte d'un client sous sa
     // signature n'est pas de la moderation.
     if (comment.userId !== actor.userId) {
-      throw new ForbiddenException("Ce commentaire n'est pas le votre");
+      throw new ForbiddenException("Ce commentaire n'est pas le vôtre");
     }
 
     return this.prisma.postComment.update({
@@ -293,7 +293,7 @@ export class PostsService {
     const comment = await this.findCommentOrFail(postId, commentId);
 
     if (!actor.isAdmin && comment.userId !== actor.userId) {
-      throw new ForbiddenException("Ce commentaire n'est pas le votre");
+      throw new ForbiddenException("Ce commentaire n'est pas le vôtre");
     }
 
     return this.prisma.postComment.delete({ where: { id: commentId } });

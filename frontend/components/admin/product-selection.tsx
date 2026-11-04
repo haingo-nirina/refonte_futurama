@@ -32,7 +32,7 @@ const SelectionContext = createContext<SelectionState | null>(null);
 function useSelection(): SelectionState {
   const context = useContext(SelectionContext);
   if (!context) {
-    throw new Error("A utiliser sous <ProductSelectionProvider>");
+    throw new Error("À utiliser sous <ProductSelectionProvider>");
   }
   return context;
 }
@@ -131,7 +131,7 @@ export function ProductSelectAll() {
       type="checkbox"
       checked={checked}
       onChange={togglePage}
-      aria-label="Selectionner tous les produits de la page"
+      aria-label="Sélectionner tous les produits de la page"
       className="size-4 cursor-pointer align-middle"
     />
   );
@@ -151,7 +151,7 @@ export function ProductSelectCheckbox({
       type="checkbox"
       checked={allMatching || selected.has(id)}
       onChange={() => toggle(id)}
-      aria-label={`Selectionner ${name}`}
+      aria-label={`Sélectionner ${name}`}
       className="size-4 cursor-pointer align-middle"
     />
   );
@@ -201,8 +201,8 @@ export function ProductBulkBar() {
       <div className="border-line bg-cream-deep mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[14px] border px-4 py-3 text-[13.5px]">
         <span className="font-semibold">
           {allMatching
-            ? `Les ${total} produit(s) ${hasFilters ? "correspondant aux filtres" : "du catalogue"} sont selectionnes.`
-            : `${count} produit(s) selectionne(s).`}
+            ? `Les ${total} produit(s) ${hasFilters ? "correspondant aux filtres" : "du catalogue"} sont sélectionnés.`
+            : `${count} produit(s) sélectionné(s).`}
         </span>
 
         {!allMatching && pageFullySelected && total > pageIds.length ? (
@@ -221,7 +221,7 @@ export function ProductBulkBar() {
           onClick={clear}
           className="text-muted hover:text-ink font-bold"
         >
-          Tout deselectionner
+          Tout désélectionner
         </button>
 
         <button
@@ -246,12 +246,12 @@ export function ProductBulkBar() {
           ) : (
             <>
               <strong>{count} produit(s)</strong> seront retires du catalogue,
-              avec leur galerie, leurs caracteristiques, leurs avis et leurs
-              produits lies.
+              avec leur galerie, leurs caractéristiques, leurs avis et leurs
+              produits liés.
             </>
           )
         }
-        detail="Les commandes deja passees ne bougent pas : elles gardent le nom et le prix figes au moment de l'achat. Cette action est definitive."
+        detail="Les commandes déjà passées ne bougent pas : elles gardent le nom et le prix figés au moment de l'achat. Cette action est définitive."
         confirmLabel={`Supprimer ${count} produit(s)`}
         pending={pending}
         error={error}

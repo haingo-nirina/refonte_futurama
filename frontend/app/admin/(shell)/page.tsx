@@ -37,7 +37,7 @@ export default async function AdminDashboardPage() {
         <StatCard
           label="Comptes clients"
           value={String(stats.customers)}
-          hint={`${stats.catalog.products} produits, ${stats.catalog.categories} categories`}
+          hint={`${stats.catalog.products} produits, ${stats.catalog.categories} catégories`}
         />
       </section>
 
@@ -68,7 +68,7 @@ export default async function AdminDashboardPage() {
 
         <Panel title="Meilleures ventes">
           {stats.topProducts.length === 0 ? (
-            <Empty>Aucune vente enregistree.</Empty>
+            <Empty>Aucune vente enregistrée.</Empty>
           ) : (
             <TopProductsChart products={stats.topProducts} />
           )}
@@ -97,17 +97,17 @@ export default async function AdminDashboardPage() {
           </ul>
         </Panel>
 
-        <Panel title="A traiter">
+        <Panel title="À traiter">
           <ul className="space-y-3 text-[13.5px]">
             <li className="flex items-center justify-between gap-3">
-              <span>Commandes payees a preparer</span>
+              <span>Commandes payées à préparer</span>
               <strong className="font-display text-navy text-lg">
                 {stats.orders.byStatus.PAYEE ?? 0}
               </strong>
             </li>
             <li className="flex items-center justify-between gap-3">
               <Link href="/admin/avis" className="hover:text-brand">
-                Avis a valider
+                Avis à valider
               </Link>
               <strong className="font-display text-navy text-lg">
                 {stats.pendingReviews}
@@ -157,7 +157,7 @@ export default async function AdminDashboardPage() {
       </div>
 
       <Panel
-        title="Dernieres commandes"
+        title="Dernières commandes"
         action={{ href: "/admin/commandes", label: "Tout voir" }}
         className="mt-6"
       >
