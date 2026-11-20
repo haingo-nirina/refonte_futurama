@@ -109,7 +109,7 @@ export default async function AdminProductsPage({
             Filtrer
           </button>
           <Link href="/admin/produits" className="admin-button-ghost">
-            Reset
+            Réinitialiser
           </Link>
         </div>
       </form>

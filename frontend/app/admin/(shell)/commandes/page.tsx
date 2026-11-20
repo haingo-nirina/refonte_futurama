@@ -4,7 +4,7 @@ import { OrderStatusBadge } from "@/components/admin/status-badge";
 import { PageHeader } from "@/components/admin/page-header";
 import { getServerToken } from "@/lib/auth-server";
 import { getAdminOrders } from "@/lib/admin-api";
-import { formatDateTime, formatPrice } from "@/lib/format";
+import { formatDateTime, formatPrice, toAmount } from "@/lib/format";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/types";
 
 export const metadata = { title: "Commandes" };
@@ -107,7 +107,7 @@ export default async function AdminOrdersPage({
             href="/admin/commandes"
             className="border-line-strong text-muted hover:border-brand hover:text-brand flex h-[42px] items-center rounded-[10px] border px-4 text-[13.5px] font-bold transition"
           >
-            Reset
+            Réinitialiser
           </Link>
         </div>
       </form>
@@ -118,13 +118,14 @@ export default async function AdminOrdersPage({
         </p>
       ) : (
         <div className="border-line overflow-x-auto rounded-[14px] border bg-white">
-          <table className="w-full min-w-[720px] text-left text-[13.5px]">
+          <table className="w-full min-w-[840px] text-left text-[13.5px]">
             <thead className="bg-cream-deep text-muted text-[12px] uppercase">
               <tr>
                 <Th>Commande</Th>
                 <Th>Client</Th>
                 <Th>Réception</Th>
                 <Th>Articles</Th>
+                <Th>Livraison</Th>
                 <Th>Total</Th>
                 <Th>Statut</Th>
               </tr>
@@ -163,7 +164,26 @@ export default async function AdminOrdersPage({
                         : order.store?.name}
                     </span>
                   </Td>
-                  <Td>{order.items.length}</Td>
+                  <Td>
+                    {/* prix unitaire fige a la commande, pas le prix actuel */}
+                    <ul className="space-y-1">
+                      {order.items.map((item) => (
+                        <li key={item.id}>
+                          <span className="block">{item.productName}</span>
+                          <span className="text-muted text-[12px]">
+                            {formatPrice(item.unitPrice)} × {item.quantity}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Td>
+                  <Td>
+                    {toAmount(order.shippingFee) === 0
+                      ? order.fulfillmentMethod === "LIVRAISON"
+                        ? "Offerte"
+                        : "Gratuit"
+                      : formatPrice(order.shippingFee)}
+                  </Td>
                   <Td className="font-display text-navy font-extrabold">
                     {formatPrice(order.total)}
                   </Td>
