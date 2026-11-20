@@ -79,7 +79,7 @@ export class PaymentsService implements OnApplicationBootstrap {
   getConfig() {
     return this.provider
       ? { mode: PAYMENT_MODE.MVOLA, merchantPhone: null }
-      : { mode: PAYMENT_MODE, merchantPhone: readManualPaymentPhone() };
+      : { mode: PAYMENT_MODE.MANUEL, merchantPhone: readManualPaymentPhone() };
   }
 
   /**

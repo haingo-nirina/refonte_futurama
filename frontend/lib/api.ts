@@ -314,7 +314,7 @@ export function getOrder(id: string, token?: string): Promise<Order> {
   return request<Order>(`/orders/${id}`, { token });
 }
 
-/** Historique du compte appelant ; la totalite du site pour un admin. */
+/** Historique du compte appelant, admin compris (`/admin` a sa propre liste). */
 export function getMyOrders(token?: string): Promise<Order[]> {
   return request<Order[]>("/orders", { token });
 }

@@ -44,13 +44,15 @@ export function AccountMenu() {
   return (
     <div className="flex h-[42px] flex-col justify-center leading-tight">
       <span className="text-navy text-[13.5px] font-bold">{firstName}</span>
-      <button
-        type="button"
-        onClick={onLogout}
-        className="text-muted hover:text-brand text-left text-[11.5px]"
-      >
-        Déconnexion
-      </button>
+      <span className="text-muted flex gap-1.5 text-[11.5px]">
+        <Link href="/commandes" className="hover:text-brand">
+          Mes commandes
+        </Link>
+        <span aria-hidden>·</span>
+        <button type="button" onClick={onLogout} className="hover:text-brand">
+          Déconnexion
+        </button>
+      </span>
     </div>
   );
 }

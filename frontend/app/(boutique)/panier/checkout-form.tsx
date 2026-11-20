@@ -239,7 +239,14 @@ function Checkout({
                 className={INPUT}
               />
             </Field>
-            <Field label="Téléphone">
+            <Field
+              label="Téléphone"
+              hint={
+                isDelivery
+                  ? "Le livreur vous appelle sur ce numéro"
+                  : "Vous recevez le SMS de retrait sur ce numéro"
+              }
+            >
               <input
                 required
                 type="tel"
@@ -331,7 +338,11 @@ function Checkout({
               </p>
             </div>
           </div>
-          <Field label="Numéro MVola qui paie" error={mvolaError}>
+          <Field
+            label="Numéro MVola qui paie"
+            hint="Reçoit la demande de paiement, peut différer du numéro de contact"
+            error={mvolaError}
+          >
             <input
               required
               type="tel"

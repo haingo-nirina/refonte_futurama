@@ -3,12 +3,16 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Interval } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 import {
   FULFILLMENT_METHOD,
   ORDER_STATUS,
+  PAYMENT_STATUS,
+  PAYMENT_TRANSACTION_STATUS,
   USER_ROLE,
 } from '../common/constants';
 import { shippingFeeFor } from '../delivery-zones/shipping-fee';
@@ -19,6 +23,7 @@ import {
 import { nextOrderNumber } from './order-number';
 import { paymentData } from './order-payment';
 import { ORDER_STATUS_LABELS, canTransition } from './order-status-rules';
+import { readUnpaidOrderTtlMs } from './unpaid-orders';
 import type { AuthenticatedUser } from '../auth/jwt-payload';
 import { CartService } from '../cart/cart.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -47,8 +52,17 @@ const ADMIN_ORDER_INCLUDE = {
   },
 } as const;
 
+/** Recherche des commandes jamais payees a annuler. */
+const UNPAID_CHECK_INTERVAL_MS = 15 * 60 * 1000;
+
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
+  /** Lu au demarrage : une valeur illisible l'empeche. `null` = desactive. */
+  private readonly unpaidTtlMs = readUnpaidOrderTtlMs();
+  private cancellingUnpaid = false;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cartService: CartService,
@@ -353,15 +367,7 @@ export class OrdersService {
       }
 
       if (dto.status === ORDER_STATUS.ANNULEE) {
-        for (const item of order.items) {
-          // produit supprime du catalogue depuis : plus de stock a crediter
-          if (item.productId === null) continue;
-
-          await tx.product.updateMany({
-            where: { id: item.productId },
-            data: { stock: { increment: item.quantity } },
-          });
-        }
+        await restock(tx, order.items);
       }
 
       await tx.orderStatusHistory.create({
@@ -378,6 +384,102 @@ export class OrdersService {
         where: { id },
         include: ADMIN_ORDER_INCLUDE,
       });
+    });
+  }
+
+  /**
+   * Annule les commandes restees « En attente de paiement » au-dela du delai
+   * (`UNPAID_ORDER_CANCEL_HOURS`, 24 h par defaut) et rend leur stock : le
+   * panier est vide a la creation, une commande abandonnee bloquerait ses
+   * articles indefiniment. Une commande dont une demande MVola est encore en
+   * cours est epargnee — on attend le verdict du fournisseur.
+   */
+  @Interval(UNPAID_CHECK_INTERVAL_MS)
+  async cancelUnpaid() {
+    if (this.unpaidTtlMs === null || this.cancellingUnpaid) return;
+    this.cancellingUnpaid = true;
+
+    try {
+      const orders = await this.prisma.order.findMany({
+        where: {
+          status: ORDER_STATUS.EN_ATTENTE_PAIEMENT,
+          createdAt: { lt: new Date(Date.now() - this.unpaidTtlMs) },
+        },
+        select: { id: true, number: true },
+      });
+
+      for (const order of orders) {
+        try {
+          if (await this.cancelUnpaidOrder(order.id)) {
+            this.logger.log(`${order.number} annulée : paiement non reçu`);
+          }
+        } catch (error) {
+          // retentee au prochain tour
+          this.logger.error(
+            `Annulation de ${order.number} impossible : ${String(error)}`,
+          );
+        }
+      }
+    } finally {
+      this.cancellingUnpaid = false;
+    }
+  }
+
+  /** `false` si la commande a ete payee ou a une demande en cours. */
+  private cancelUnpaidOrder(id: string): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      // meme verrou que `PaymentsService.start` : une demande MVola ne peut
+      // pas partir pendant qu'on annule
+      await tx.$queryRaw`SELECT id FROM orders WHERE id = ${id} FOR UPDATE`;
+
+      const pending = await tx.payment.count({
+        where: { orderId: id, status: PAYMENT_TRANSACTION_STATUS.EN_ATTENTE },
+      });
+      if (pending > 0) return false;
+
+      const cancelled = await tx.order.updateMany({
+        where: {
+          id,
+          status: ORDER_STATUS.EN_ATTENTE_PAIEMENT,
+          paymentStatus: { not: PAYMENT_STATUS.PAYE },
+        },
+        data: { status: ORDER_STATUS.ANNULEE },
+      });
+      if (cancelled.count === 0) return false;
+
+      const items = await tx.orderItem.findMany({
+        where: { orderId: id },
+        select: { productId: true, quantity: true },
+      });
+      await restock(tx, items);
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          fromStatus: ORDER_STATUS.EN_ATTENTE_PAIEMENT,
+          toStatus: ORDER_STATUS.ANNULEE,
+          changedById: null,
+          note: 'Annulée automatiquement : paiement non reçu dans le délai',
+        },
+      });
+
+      return true;
+    });
+  }
+}
+
+/** Remet en stock les quantites reservees a une commande annulee. */
+async function restock(
+  tx: Prisma.TransactionClient,
+  items: { productId: string | null; quantity: number }[],
+) {
+  for (const item of items) {
+    // produit supprime du catalogue depuis : plus de stock a crediter
+    if (item.productId === null) continue;
+
+    await tx.product.updateMany({
+      where: { id: item.productId },
+      data: { stock: { increment: item.quantity } },
     });
   }
 }

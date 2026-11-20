@@ -51,6 +51,12 @@ export function readMvolaConfig(): MvolaConfig {
     if (!value) throw new Error(`${name} manquant (PAYMENT_PROVIDER=mvola)`);
     values[key as keyof typeof required] = value;
   }
+  // meme contrainte que descriptionText : MVola refuserait chaque demande
+  if (mvolaDescription(values.partnerName) !== values.partnerName) {
+    throw new Error(
+      'MVOLA_PARTNER_NAME : 50 caracteres au plus, lettres, chiffres, espace et -._, uniquement',
+    );
+  }
 
   return {
     baseUrl: BASE_URLS[env],
@@ -139,7 +145,8 @@ export class MvolaProvider implements PaymentProvider {
         UserAccountIdentifier: `msisdn;${this.config.merchantMsisdn}`,
         partnerName: this.config.partnerName,
         'Cache-Control': 'no-cache',
-        ...(body ? { 'Content-Type': 'application/json' } : {}),
+        // obligatoire selon la doc MVola, GET compris
+        'Content-Type': 'application/json',
         ...(this.config.callbackUrl && method === 'POST'
           ? { 'X-Callback-URL': this.config.callbackUrl }
           : {}),
@@ -148,6 +155,11 @@ export class MvolaProvider implements PaymentProvider {
     });
 
     const text = await response.text();
+    if (response.status === 401) {
+      // token revoque (cles regenerees sur le portail) : le prochain appel en
+      // redemande un plutot que de resservir le mort pendant une heure
+      this.token = null;
+    }
     if (!response.ok) {
       throw new Error(`MVola ${method} ${response.status} : ${errorOf(text)}`);
     }
@@ -208,8 +220,14 @@ export function mvolaDescription(text: string): string {
 /** Le message d'erreur MVola, sans recopier toute la reponse dans les logs. */
 function errorOf(text: string): string {
   try {
-    const data = JSON.parse(text) as { errorDescription?: string };
-    return data.errorDescription ?? 'erreur sans description';
+    // deux formats : erreur metier, ou `fault` de la passerelle (token invalide)
+    const data = JSON.parse(text) as {
+      errorDescription?: string;
+      fault?: { message?: string };
+    };
+    return (
+      data.errorDescription ?? data.fault?.message ?? 'erreur sans description'
+    );
   } catch {
     return 'reponse illisible';
   }

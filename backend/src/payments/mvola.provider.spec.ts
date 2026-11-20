@@ -96,6 +96,28 @@ describe('MvolaProvider', () => {
     expect(error.message).toContain('Error in getting transaction');
     expect(error.message).not.toContain('tok');
   });
+
+  it('redemande un token apres un 401', async () => {
+    const provider = new MvolaProvider(CONFIG);
+    mockToken();
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(401, { fault: { message: 'Invalid Credentials' } }),
+    );
+
+    const error = (await provider
+      .checkStatus('a')
+      .catch((e: unknown) => e)) as Error;
+    expect(error.message).toContain('Invalid Credentials');
+
+    mockToken();
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { status: 'pending' }));
+    await provider.checkStatus('b');
+
+    const tokenCalls = fetchMock.mock.calls.filter(([url]) =>
+      String(url).endsWith('/token'),
+    );
+    expect(tokenCalls).toHaveLength(2);
+  });
 });
 
 describe('mvolaDescription', () => {
