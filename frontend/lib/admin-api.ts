@@ -124,7 +124,7 @@ export function createProduct(input: ProductInput): Promise<AdminProduct> {
 
 export function updateProduct(
   id: string,
-  input: Partial<ProductInput>,
+  input: Partial<Omit<ProductInput, "images">>,
 ): Promise<AdminProduct> {
   return request<AdminProduct>(`/products/${id}`, {
     method: "PATCH",

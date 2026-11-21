@@ -10,10 +10,12 @@ import {
   IsUUID,
   Matches,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { IsMediaRef } from '../../common/is-media-ref.decorator';
 import { trim } from '../../common/trim';
+import { ProductImageInputDto } from './replace-product-images.dto';
 
 export class CreateProductDto {
   @IsUUID()
@@ -89,4 +91,16 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  /**
+   * Photos ecrites dans la meme requete que le produit : si elles echouent,
+   * le produit n'est pas cree non plus (pas de fiche sans sa photo).
+   * Creation seulement — ensuite, `PUT /products/:id/images`.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => ProductImageInputDto)
+  images?: ProductImageInputDto[];
 }

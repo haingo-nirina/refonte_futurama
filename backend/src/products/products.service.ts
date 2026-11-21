@@ -14,7 +14,10 @@ import { BulkDeleteProductsDto } from './dto/bulk-delete-products.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { FindMostViewedQueryDto } from './dto/find-most-viewed-query.dto';
 import { FindProductsQueryDto } from './dto/find-products-query.dto';
-import { ReplaceProductImagesDto } from './dto/replace-product-images.dto';
+import {
+  ProductImageInputDto,
+  ReplaceProductImagesDto,
+} from './dto/replace-product-images.dto';
 import { ReplaceProductRelationsDto } from './dto/replace-product-relations.dto';
 import { ReplaceProductSpecsDto } from './dto/replace-product-specs.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -41,6 +44,10 @@ export class ProductsService {
       await this.findMarqueOrFail(marqueId);
     }
 
+    const images = toImageRows(dto.images ?? []);
+
+    // Une seule ecriture imbriquee : Prisma l'execute dans une transaction,
+    // produit et photos sont crees ensemble ou pas du tout (rollback).
     return this.prisma.product.create({
       data: {
         categoryId: dto.categoryId,
@@ -56,6 +63,7 @@ export class ProductsService {
         isPremium: dto.isPremium ?? false,
         videoUrl: dto.videoUrl ?? null,
         isActive: dto.isActive ?? true,
+        images: images.length ? { create: images } : undefined,
       },
       include: { images: IMAGES_INCLUDE },
     });
@@ -284,27 +292,15 @@ export class ProductsService {
   async replaceImages(id: string, dto: ReplaceProductImagesDto) {
     await this.findOneOrFail(id);
 
-    const primaries = dto.images.filter((image) => image.isPrimary).length;
-
-    if (primaries > 1) {
-      throw new BadRequestException(
-        'Une seule image peut être marquée comme principale',
-      );
-    }
+    const rows = toImageRows(dto.images);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.productImage.deleteMany({ where: { productId: id } });
 
-      if (dto.images.length === 0) return;
+      if (rows.length === 0) return;
 
       await tx.productImage.createMany({
-        data: dto.images.map((image, index) => ({
-          productId: id,
-          imageUrl: image.imageUrl,
-          displayOrder: image.displayOrder ?? index,
-          // sans choix explicite, la premiere de la liste fait la vignette
-          isPrimary: image.isPrimary ?? (primaries === 0 && index === 0),
-        })),
+        data: rows.map((row) => ({ ...row, productId: id })),
       });
     });
 
@@ -482,4 +478,22 @@ export class ProductsService {
 
     return marque;
   }
+}
+
+/** Lignes d'images pretes a ecrire, communes a la creation et au remplacement. */
+function toImageRows(images: ProductImageInputDto[]) {
+  const primaries = images.filter((image) => image.isPrimary).length;
+
+  if (primaries > 1) {
+    throw new BadRequestException(
+      'Une seule image peut être marquée comme principale',
+    );
+  }
+
+  return images.map((image, index) => ({
+    imageUrl: image.imageUrl,
+    displayOrder: image.displayOrder ?? index,
+    // sans choix explicite, la premiere de la liste fait la vignette
+    isPrimary: image.isPrimary ?? (primaries === 0 && index === 0),
+  }));
 }

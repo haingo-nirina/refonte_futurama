@@ -11,7 +11,6 @@ import { ApiError } from "@/lib/api";
 import {
   createProduct,
   deleteProduct,
-  replaceProductImages,
   updateProduct,
 } from "@/lib/admin-api";
 import type {
@@ -129,15 +128,12 @@ export function ProductForm({
         setSaved(true);
         router.refresh();
       } else {
-        const created = await createProduct(toPayload());
-
-        // La photo est deja televersee : il ne reste qu'a l'attacher, une fois
-        // le produit cree et son identifiant connu.
-        if (photoUrl) {
-          await replaceProductImages(created.id, [
-            { imageUrl: photoUrl, isPrimary: true },
-          ]);
-        }
+        // La photo, deja televersee, part avec le produit : le backend cree
+        // les deux ensemble ou rien (pas de produit sans sa photo).
+        const created = await createProduct({
+          ...toPayload(),
+          images: photoUrl ? [{ imageUrl: photoUrl, isPrimary: true }] : [],
+        });
 
         // Galerie, specs et relations ont besoin d'un id : on enchaine sur
         // la fiche d'edition plutot que de renvoyer a la liste.

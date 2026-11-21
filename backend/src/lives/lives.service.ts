@@ -484,22 +484,28 @@ export class LivesService {
    */
   async syncWithFacebook(detected: DetectedFacebookLive | null): Promise<void> {
     try {
-      await this.applyFacebookLive(detected);
+      // Terminer l'ancien direct et demarrer le nouveau vont ensemble : si le
+      // second echoue, le premier est annule (rollback) et le tick suivant
+      // retente le tout, plutot que de laisser la page sans aucun direct.
+      await this.prisma.$transaction((tx) =>
+        this.applyFacebookLive(tx, detected),
+      );
     } finally {
       this.invalidateOnAir();
     }
   }
 
   private async applyFacebookLive(
+    tx: Prisma.TransactionClient,
     detected: DetectedFacebookLive | null,
   ): Promise<void> {
-    const live = await this.prisma.live.findFirst({
+    const live = await tx.live.findFirst({
       where: { status: LIVE_STATUS.EN_DIRECT },
       select: { id: true, facebookUrl: true },
     });
 
     if (!detected) {
-      if (live) await this.markEnded(live.id);
+      if (live) await this.markEnded(live.id, tx);
       return;
     }
 
@@ -507,7 +513,7 @@ export class LivesService {
 
     // Un live programme avec ce lien (saisi a l'avance) n'est pas « connu » :
     // c'est lui qui doit demarrer.
-    const known = await this.prisma.live.findFirst({
+    const known = await tx.live.findFirst({
       where: {
         facebookUrl: detected.url,
         status: { not: LIVE_STATUS.PROGRAMME },
@@ -517,15 +523,15 @@ export class LivesService {
     if (known) return;
 
     // Un seul live en direct a la fois : la page /live n'en affiche qu'un.
-    if (live) await this.markEnded(live.id);
+    if (live) await this.markEnded(live.id, tx);
 
     const now = new Date();
     const scheduled =
-      (await this.prisma.live.findFirst({
+      (await tx.live.findFirst({
         where: { status: LIVE_STATUS.PROGRAMME, facebookUrl: detected.url },
         select: { id: true },
       })) ??
-      (await this.prisma.live.findFirst({
+      (await tx.live.findFirst({
         where: {
           status: LIVE_STATUS.PROGRAMME,
           scheduledAt: {
@@ -538,7 +544,7 @@ export class LivesService {
       }));
 
     if (scheduled) {
-      await this.prisma.live.updateMany({
+      await tx.live.updateMany({
         where: { id: scheduled.id, status: LIVE_STATUS.PROGRAMME },
         data: {
           status: LIVE_STATUS.EN_DIRECT,
@@ -549,7 +555,7 @@ export class LivesService {
       return;
     }
 
-    await this.prisma.live.create({
+    await tx.live.create({
       data: {
         title: detected.title || DEFAULT_LIVE_TITLE,
         scheduledAt: now,
@@ -561,8 +567,11 @@ export class LivesService {
   }
 
   /** Le lien reste : il sert de replay. `false` si le live n'etait plus en direct. */
-  private async markEnded(id: string): Promise<boolean> {
-    const { count } = await this.prisma.live.updateMany({
+  private async markEnded(
+    id: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ): Promise<boolean> {
+    const { count } = await db.live.updateMany({
       where: { id, status: LIVE_STATUS.EN_DIRECT },
       // un live qui se termine entre dans les replays
       data: {
